@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Board background, matching the bg custom property in src/styles.css.
+         The system bars use it so the board reads as edge to edge. -->
+    <color name="boardBackground">#12131A</color>
+</resources>
