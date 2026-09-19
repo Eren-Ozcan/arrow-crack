@@ -14,7 +14,9 @@ a document disagree, fix one of them in the same change — do not leave both.
 ## Invariants
 
 - The engine (`src/engine/`) is a pure reducer: no DOM, no randomness, no
-  clock. The same code runs in the solver, in tests and in the UI.
+  clock. The same code runs in the solver, in tests and in the UI. Its
+  coverage gate is 100% — a new branch there is a new rule, and it needs a
+  test naming the rule.
 - One solver implementation (`src/solver/`) serves the generator, the CI
   validation gate, the in-app stuck check and the hint.
 - Every shipped level passes `npm run levels:validate`. A level that the

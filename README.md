@@ -9,9 +9,10 @@ or hitting the wrong color costs a heart, and hearts are all you have.
 Store title: **Arrow Crack Arrow Pop Puzzle**. Package `com.yilkgames.arrowcrack`.
 Stack: Vite + TypeScript + Capacitor, Android first, **English only**.
 
-Status: **milestone 0 complete.** Vite + TypeScript + Vitest scaffold, the CI
-gates, and a Capacitor Android project that builds a debug APK. The board is a
-blank canvas; the engine lands in milestone 1.
+Status: **milestone 1 complete.** Scaffold, CI gates and a Capacitor Android
+build, plus the pure rules engine — firing, lives, blocks, stars, masks and
+open lanes — under a 100%-covered test suite. Nothing is drawn yet; the solver
+is next.
 
 ```sh
 npm install

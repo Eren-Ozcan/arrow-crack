@@ -14,5 +14,12 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts", "src/**/*.test.ts"],
+    coverage: {
+      provider: "v8",
+      include: ["src/engine/**"],
+      // Type-only and re-export modules have no branches to cover.
+      exclude: ["src/engine/index.ts", "src/engine/types.ts"],
+      thresholds: { statements: 100, branches: 100, functions: 100, lines: 100 },
+    },
   },
 });

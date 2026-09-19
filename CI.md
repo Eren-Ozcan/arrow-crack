@@ -60,6 +60,12 @@ reach a device.
 engine is a pure reducer with no DOM, so its tests are fast and complete;
 they are the regression net for every rule in `DESIGN.md` section 1.
 
+Coverage of `src/engine/` is held at **100% of statements, branches,
+functions and lines**, and CI runs `npm run test:coverage` so a drop fails
+the build. The threshold is affordable precisely because the engine is pure:
+every branch there is a game rule, and an uncovered one is a rule nobody
+tested. It is not extended to the renderer or the UI.
+
 ### 2.2 Level validation — the gate that matters
 
 `tools/validate-levels.mjs`, run over every level JSON in the bundle:

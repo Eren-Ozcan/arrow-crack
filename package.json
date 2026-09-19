@@ -16,12 +16,14 @@
     "levels:validate": "node tools/validate-levels.mjs",
     "size": "node tools/check-size.mjs",
     "cap:sync": "npm run build && cap sync android",
-    "android:dev": "npm run cap:sync && cap run android"
+    "android:dev": "npm run cap:sync && cap run android",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@capacitor/android": "^7.0.0",
     "@capacitor/cli": "^7.0.0",
     "@eslint/js": "^9.0.0",
+    "@vitest/coverage-v8": "^3.2.7",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^10.0.0",
     "globals": "^17.12.0",
