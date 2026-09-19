@@ -1,0 +1,27 @@
+node_modules/
+dist/
+coverage/
+*.local
+.DS_Store
+.vscode/
+.idea/
+
+# Capacitor / Android build output
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/app/src/main/assets/public/
+android/app/release/
+*.apk
+*.aab
+
+# Signing — never committed (CI.md section 3)
+android-keystore/
+key.properties
+*.keystore
+*.jks
+
+# Store and marketing artwork stays out of the public repo (studio rule)
+docs/store-assets-originals/
+docs/reference/
