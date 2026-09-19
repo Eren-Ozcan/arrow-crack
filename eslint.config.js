@@ -24,8 +24,8 @@ export default tseslint.config(
     },
   },
   {
-    files: ["tools/**/*.mjs"],
-    languageOptions: { sourceType: "module", globals: globals.node },
+    files: ["tools/**/*.ts"],
+    languageOptions: { globals: globals.node },
     rules: { "no-console": "off" },
   },
   prettier,

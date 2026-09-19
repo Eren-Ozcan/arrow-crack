@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 /**
  * Bundle budget gate (CI.md section 2.3). Sums the built JS and CSS and
  * fails when the total exceeds BUDGET_BYTES.
@@ -10,8 +10,8 @@ const DIST = join(process.cwd(), "dist");
 const BUDGET_BYTES = 600 * 1024;
 const COUNTED = [".js", ".css"];
 
-async function walk(dir) {
-  const out = [];
+async function walk(dir: string): Promise<string[]> {
+  const out: string[] = [];
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) out.push(...(await walk(path)));
@@ -20,8 +20,8 @@ async function walk(dir) {
   return out;
 }
 
-async function main() {
-  let files;
+async function main(): Promise<void> {
+  let files: string[];
   try {
     files = await walk(DIST);
   } catch {
@@ -35,7 +35,7 @@ async function main() {
     total += (await stat(file)).size;
   }
 
-  const kb = (n) => `${(n / 1024).toFixed(1)} KB`;
+  const kb = (n: number): string => `${(n / 1024).toFixed(1)} KB`;
   console.log(`size: ${kb(total)} of ${kb(BUDGET_BYTES)} budget`);
   process.exit(total <= BUDGET_BYTES ? 0 : 1);
 }

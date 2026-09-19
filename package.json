@@ -13,11 +13,12 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "levels:validate": "node tools/validate-levels.mjs",
-    "size": "node tools/check-size.mjs",
+    "levels:validate": "tsx tools/validate-levels.ts",
+    "size": "tsx tools/check-size.ts",
     "cap:sync": "npm run build && cap sync android",
     "android:dev": "npm run cap:sync && cap run android",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "levels:solve": "tsx tools/solve.ts"
   },
   "devDependencies": {
     "@capacitor/android": "^7.0.0",
@@ -28,6 +29,7 @@
     "eslint-config-prettier": "^10.0.0",
     "globals": "^17.12.0",
     "prettier": "^3.0.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.6.0",
     "typescript-eslint": "^8.0.0",
     "vite": "^6.0.0",
