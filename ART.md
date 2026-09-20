@@ -75,13 +75,40 @@ turning the redundancy up, not turning it on.
 
 ### 2.3 Contrast rules
 
-- Every color against the board background: contrast ratio ≥ 3:1.
+Measured against board `#F4EFE6` and ink `#1F1B16`:
+
+| Colour     | vs board | vs ink |
+| ---------- | -------- | ------ |
+| vermillion | 3.38     | 4.43   |
+| blue       | 4.53     | 3.30   |
+| green      | 2.99     | 5.00   |
+| yellow     | **1.15** | 12.95  |
+| purple     | 2.67     | 5.59   |
+
+Those numbers settle an earlier rule that could not be met. A fill-against-
+board minimum of 3:1 is impossible for the Okabe-Ito yellow on a light board —
+it is a pale colour by construction, and darkening it far enough to pass
+breaks the separability the whole set was chosen for. **The ink outline is
+what carries legibility, not the fill** (section 1), so the enforced rules
+are:
+
+- **Ink against the board: ≥ 7:1.** Measured 14.95. This is the rule the
+  board's readability actually rests on, and it holds for every colour
+  because every shape is outlined.
+- **Every fill against the ink: ≥ 3:1**, so a heavy outline never swallows
+  the colour it surrounds. The floor is blue at 3.30.
 - Every glyph against its own fill: ≥ 3:1 in high-contrast mode, ≥ 1.8:1 in
   the default embossed treatment.
-- Adjacent colors on the same block stack must differ in both hue and
-  lightness, so a stack reads as layers even in a grayscale screenshot.
-  **The grayscale test is the acceptance test**: if a board is unplayable in
-  grayscale, the glyph work is not done.
+- Adjacent colours on the same block stack should differ in hue and, where
+  the palette allows, in lightness. It cannot be a hard threshold: vermillion
+  against green is 1.13, and both are in the level-1 triad. **Grayscale
+  separation is carried by the glyphs, not by lightness** — which is exactly
+  why they are always on and never a toggle.
+  **The grayscale test is still the acceptance test**: if a board is
+  unplayable in grayscale, the glyph work is not done.
+
+The first three rules are asserted in `tests/layout.test.ts`, so the palette
+cannot drift out of them unnoticed.
 
 ---
 
