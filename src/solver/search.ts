@@ -1,5 +1,13 @@
 import type { PackedBoard, SearchState } from "./board";
-import { initialSearchState, isSolved, legalMoves, moveKind } from "./board";
+import {
+  BOMB,
+  heuristic,
+  initialSearchState,
+  isSolved,
+  legalMoves,
+  moveKind,
+  peelTargets,
+} from "./board";
 
 /** Deterministic PRNG: the same board must always produce the same search. */
 function mulberry32(seed: number): () => number {
@@ -74,9 +82,11 @@ function initialHash(board: PackedBoard, keys: Zobrist): Hash {
 
 interface Applied {
   arrow: number;
-  target: number;
-  destroyed: boolean;
-  peeledBlock: boolean;
+  /** Blocks this move peeled, in the order they were peeled. */
+  peeled: number[];
+  /** How many of them were emptied. */
+  destroyed: number;
+  wasBomb: boolean;
 }
 
 function applyMove(
@@ -87,50 +97,58 @@ function applyMove(
   arrow: number,
 ): Applied {
   const kind = moveKind(board, state, arrow);
-  const target = board.targetOf[arrow]!;
+  const wasBomb = board.specialOf[arrow] === BOMB;
 
   state.alive[arrow >>> 5]! &= ~(1 << (arrow & 31));
   hash.high = (hash.high ^ keys.arrowHigh[arrow]!) >>> 0;
   hash.low = (hash.low ^ keys.arrowLow[arrow]!) >>> 0;
+  if (wasBomb) state.bombsLeft -= 1;
 
-  if (kind !== "peel") {
-    return { arrow, target, destroyed: false, peeledBlock: false };
+  if (kind !== "peel") return { arrow, peeled: [], destroyed: 0, wasBomb };
+
+  // A bomb peels its target and each live neighbour, ignoring colour.
+  const peeled = peelTargets(board, state, arrow);
+  let destroyed = 0;
+
+  for (const block of peeled) {
+    const before = state.peeled[block]!;
+    const after = before + 1;
+    state.peeled[block] = after;
+    state.remainingLayers -= 1;
+    hash.high =
+      (hash.high ^ keys.peelHigh[block]![before]! ^ keys.peelHigh[block]![after]!) >>> 0;
+    hash.low =
+      (hash.low ^ keys.peelLow[block]![before]! ^ keys.peelLow[block]![after]!) >>> 0;
+
+    if (after === board.layersOf[block]!.length) {
+      destroyed += 1;
+      state.destroyedBlocks += 1;
+    }
   }
 
-  const before = state.peeled[target]!;
-  const after = before + 1;
-  state.peeled[target] = after;
-  state.remainingLayers -= 1;
-  hash.high =
-    (hash.high ^ keys.peelHigh[target]![before]! ^ keys.peelHigh[target]![after]!) >>> 0;
-  hash.low =
-    (hash.low ^ keys.peelLow[target]![before]! ^ keys.peelLow[target]![after]!) >>> 0;
-
-  const destroyed = after === board.layersOf[target]!.length;
-  if (destroyed) state.destroyedBlocks += 1;
-
-  return { arrow, target, destroyed, peeledBlock: true };
+  return { arrow, peeled, destroyed, wasBomb };
 }
 
 function undoMove(state: SearchState, hash: Hash, keys: Zobrist, applied: Applied): void {
-  const { arrow, target } = applied;
+  const { arrow } = applied;
 
   state.alive[arrow >>> 5]! |= 1 << (arrow & 31);
   hash.high = (hash.high ^ keys.arrowHigh[arrow]!) >>> 0;
   hash.low = (hash.low ^ keys.arrowLow[arrow]!) >>> 0;
+  if (applied.wasBomb) state.bombsLeft += 1;
 
-  if (!applied.peeledBlock) return;
+  for (const block of applied.peeled) {
+    const after = state.peeled[block]!;
+    const before = after - 1;
+    state.peeled[block] = before;
+    state.remainingLayers += 1;
+    hash.high =
+      (hash.high ^ keys.peelHigh[block]![after]! ^ keys.peelHigh[block]![before]!) >>> 0;
+    hash.low =
+      (hash.low ^ keys.peelLow[block]![after]! ^ keys.peelLow[block]![before]!) >>> 0;
+  }
 
-  const after = state.peeled[target]!;
-  const before = after - 1;
-  state.peeled[target] = before;
-  state.remainingLayers += 1;
-  hash.high =
-    (hash.high ^ keys.peelHigh[target]![after]! ^ keys.peelHigh[target]![before]!) >>> 0;
-  hash.low =
-    (hash.low ^ keys.peelLow[target]![after]! ^ keys.peelLow[target]![before]!) >>> 0;
-
-  if (applied.destroyed) state.destroyedBlocks -= 1;
+  state.destroyedBlocks -= applied.destroyed;
 }
 
 export interface SearchBudget {
@@ -165,8 +183,9 @@ class BudgetExceeded extends Error {}
 
 /**
  * IDA* over the packed board. The heuristic is the number of layers still on
- * the frame: every peel needs at least one move, so it never overestimates,
- * which is what makes the returned length the true optimum (DESIGN.md 4.1).
+ * the frame, less what the bombs on the board could save: every move peels at
+ * least one layer and only a bomb peels more, so it never overestimates, which
+ * is what makes the returned length the true optimum (DESIGN.md 4.1).
  */
 export function search(board: PackedBoard, budget: SearchBudget = {}): SearchResult {
   const maxNodes = budget.maxNodes ?? DEFAULT_MAX_NODES;
@@ -211,7 +230,7 @@ export function search(board: PackedBoard, budget: SearchBudget = {}): SearchRes
   const dive = (depth: number, bound: number): number | null => {
     spend();
 
-    const estimate = depth + state.remainingLayers;
+    const estimate = depth + heuristic(state);
     if (estimate > bound) return estimate;
     if (isSolved(board, state)) {
       witness = [...path];
@@ -243,7 +262,7 @@ export function search(board: PackedBoard, budget: SearchBudget = {}): SearchRes
       solutionCount += 1;
       return;
     }
-    if (depth + state.remainingLayers > par) return;
+    if (depth + heuristic(state) > par) return;
 
     for (const arrow of legalMoves(board, state)) {
       const applied = applyMove(board, state, hash, keys, arrow);
@@ -254,7 +273,7 @@ export function search(board: PackedBoard, budget: SearchBudget = {}): SearchRes
   };
 
   try {
-    let bound = state.remainingLayers;
+    let bound = heuristic(state);
     while (bound !== Infinity) {
       visited = new Map();
       const overshoot = dive(0, bound);
