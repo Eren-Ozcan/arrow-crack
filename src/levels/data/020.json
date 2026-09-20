@@ -1,0 +1,148 @@
+{
+  "id": 20,
+  "cols": 5,
+  "rows": 5,
+  "palette": ["b", "g", "r", "y"],
+  "hearts": 1,
+  "par": 7,
+  "arrows": [
+    {
+      "id": "a",
+      "color": "r",
+      "dir": "up",
+      "path": [
+        {
+          "col": 2,
+          "row": 1
+        },
+        {
+          "col": 2,
+          "row": 0
+        }
+      ]
+    },
+    {
+      "id": "b",
+      "color": "g",
+      "dir": "left",
+      "path": [
+        {
+          "col": 1,
+          "row": 2
+        },
+        {
+          "col": 0,
+          "row": 2
+        }
+      ]
+    },
+    {
+      "id": "c",
+      "color": "b",
+      "dir": "right",
+      "path": [
+        {
+          "col": 3,
+          "row": 2
+        },
+        {
+          "col": 4,
+          "row": 2
+        }
+      ]
+    },
+    {
+      "id": "d",
+      "color": "y",
+      "dir": "down",
+      "path": [
+        {
+          "col": 2,
+          "row": 2
+        },
+        {
+          "col": 2,
+          "row": 3
+        }
+      ]
+    },
+    {
+      "id": "e",
+      "color": "r",
+      "dir": "down",
+      "path": [
+        {
+          "col": 2,
+          "row": 4
+        }
+      ]
+    },
+    {
+      "id": "f",
+      "color": "g",
+      "dir": "left",
+      "path": [
+        {
+          "col": 1,
+          "row": 3
+        }
+      ]
+    },
+    {
+      "id": "g",
+      "color": "b",
+      "dir": "right",
+      "path": [
+        {
+          "col": 3,
+          "row": 3
+        }
+      ]
+    }
+  ],
+  "blocks": [
+    {
+      "id": "b2",
+      "side": "bottom",
+      "start": 2,
+      "span": 1,
+      "layers": ["r", "y"]
+    },
+    {
+      "id": "l2",
+      "side": "left",
+      "start": 2,
+      "span": 1,
+      "layers": ["g"]
+    },
+    {
+      "id": "l3",
+      "side": "left",
+      "start": 3,
+      "span": 1,
+      "layers": ["g"]
+    },
+    {
+      "id": "r2",
+      "side": "right",
+      "start": 2,
+      "span": 1,
+      "layers": ["b"]
+    },
+    {
+      "id": "r3",
+      "side": "right",
+      "start": 3,
+      "span": 1,
+      "layers": ["b"]
+    },
+    {
+      "id": "t2",
+      "side": "top",
+      "start": 2,
+      "span": 1,
+      "layers": ["r"]
+    }
+  ],
+  "maskRows": ["..#..", ".###.", "#####", ".###.", "..#.."]
+}

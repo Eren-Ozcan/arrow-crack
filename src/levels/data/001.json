@@ -2,42 +2,78 @@
   "id": 1,
   "cols": 4,
   "rows": 4,
-  "palette": ["v", "b", "g"],
+  "palette": ["b", "g", "v"],
   "hearts": 4,
   "par": 3,
   "arrows": [
     {
-      "id": "a1",
+      "id": "a",
       "color": "v",
       "dir": "up",
       "path": [
-        { "col": 0, "row": 2 },
-        { "col": 0, "row": 1 }
+        {
+          "col": 0,
+          "row": 2
+        },
+        {
+          "col": 0,
+          "row": 1
+        }
       ]
     },
     {
-      "id": "a2",
+      "id": "b",
       "color": "b",
       "dir": "up",
       "path": [
-        { "col": 1, "row": 3 },
-        { "col": 1, "row": 2 },
-        { "col": 1, "row": 1 }
+        {
+          "col": 1,
+          "row": 2
+        },
+        {
+          "col": 1,
+          "row": 1
+        }
       ]
     },
     {
-      "id": "a3",
+      "id": "c",
       "color": "g",
       "dir": "up",
       "path": [
-        { "col": 2, "row": 2 },
-        { "col": 2, "row": 1 }
+        {
+          "col": 2,
+          "row": 2
+        },
+        {
+          "col": 2,
+          "row": 1
+        }
       ]
     }
   ],
   "blocks": [
-    { "id": "b1", "side": "top", "start": 0, "span": 1, "layers": ["v"] },
-    { "id": "b2", "side": "top", "start": 1, "span": 1, "layers": ["b"] },
-    { "id": "b3", "side": "top", "start": 2, "span": 1, "layers": ["g"] }
-  ]
+    {
+      "id": "t0",
+      "side": "top",
+      "start": 0,
+      "span": 1,
+      "layers": ["v"]
+    },
+    {
+      "id": "t1",
+      "side": "top",
+      "start": 1,
+      "span": 1,
+      "layers": ["b"]
+    },
+    {
+      "id": "t2",
+      "side": "top",
+      "start": 2,
+      "span": 1,
+      "layers": ["g"]
+    }
+  ],
+  "forgiving": true
 }

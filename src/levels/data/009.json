@@ -1,0 +1,171 @@
+{
+  "id": 9,
+  "cols": 5,
+  "rows": 5,
+  "palette": ["b", "g", "r"],
+  "hearts": 4,
+  "par": 7,
+  "arrows": [
+    {
+      "id": "a",
+      "color": "b",
+      "dir": "left",
+      "path": [
+        {
+          "col": 1,
+          "row": 0
+        },
+        {
+          "col": 0,
+          "row": 0
+        }
+      ]
+    },
+    {
+      "id": "b",
+      "color": "g",
+      "dir": "down",
+      "path": [
+        {
+          "col": 2,
+          "row": 0
+        },
+        {
+          "col": 3,
+          "row": 0
+        },
+        {
+          "col": 4,
+          "row": 0
+        },
+        {
+          "col": 4,
+          "row": 1
+        }
+      ]
+    },
+    {
+      "id": "c",
+      "color": "r",
+      "dir": "left",
+      "path": [
+        {
+          "col": 1,
+          "row": 2
+        },
+        {
+          "col": 0,
+          "row": 2
+        }
+      ]
+    },
+    {
+      "id": "d",
+      "color": "r",
+      "dir": "down",
+      "path": [
+        {
+          "col": 4,
+          "row": 2
+        },
+        {
+          "col": 4,
+          "row": 3
+        },
+        {
+          "col": 4,
+          "row": 4
+        }
+      ]
+    },
+    {
+      "id": "e",
+      "color": "g",
+      "dir": "down",
+      "path": [
+        {
+          "col": 1,
+          "row": 3
+        },
+        {
+          "col": 1,
+          "row": 4
+        }
+      ]
+    },
+    {
+      "id": "f",
+      "color": "b",
+      "dir": "right",
+      "path": [
+        {
+          "col": 2,
+          "row": 4
+        },
+        {
+          "col": 3,
+          "row": 4
+        }
+      ]
+    },
+    {
+      "id": "g",
+      "color": "b",
+      "dir": "up",
+      "path": [
+        {
+          "col": 3,
+          "row": 3
+        },
+        {
+          "col": 3,
+          "row": 2
+        }
+      ]
+    }
+  ],
+  "blocks": [
+    {
+      "id": "b1",
+      "side": "bottom",
+      "start": 1,
+      "span": 1,
+      "layers": ["g"]
+    },
+    {
+      "id": "b4",
+      "side": "bottom",
+      "start": 4,
+      "span": 1,
+      "layers": ["r", "g"]
+    },
+    {
+      "id": "l0",
+      "side": "left",
+      "start": 0,
+      "span": 1,
+      "layers": ["b"]
+    },
+    {
+      "id": "l2",
+      "side": "left",
+      "start": 2,
+      "span": 1,
+      "layers": ["r"]
+    },
+    {
+      "id": "r4",
+      "side": "right",
+      "start": 4,
+      "span": 1,
+      "layers": ["b"]
+    },
+    {
+      "id": "t3",
+      "side": "top",
+      "start": 3,
+      "span": 1,
+      "layers": ["b"]
+    }
+  ]
+}

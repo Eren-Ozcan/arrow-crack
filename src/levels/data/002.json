@@ -2,37 +2,63 @@
   "id": 2,
   "cols": 4,
   "rows": 4,
-  "palette": ["v", "b", "g"],
+  "palette": ["b", "g", "r"],
   "hearts": 4,
   "par": 3,
   "arrows": [
     {
-      "id": "a1",
-      "color": "v",
+      "id": "a",
+      "color": "b",
       "dir": "up",
       "path": [
-        { "col": 1, "row": 2 },
-        { "col": 1, "row": 1 }
+        {
+          "col": 1,
+          "row": 2
+        }
       ]
     },
     {
-      "id": "a2",
-      "color": "b",
+      "id": "b",
+      "color": "r",
       "dir": "up",
-      "path": [{ "col": 1, "row": 3 }]
+      "path": [
+        {
+          "col": 1,
+          "row": 1
+        }
+      ]
     },
     {
-      "id": "a3",
+      "id": "c",
       "color": "g",
-      "dir": "right",
+      "dir": "up",
       "path": [
-        { "col": 2, "row": 0 },
-        { "col": 3, "row": 0 }
+        {
+          "col": 3,
+          "row": 2
+        },
+        {
+          "col": 3,
+          "row": 1
+        }
       ]
     }
   ],
   "blocks": [
-    { "id": "b1", "side": "top", "start": 1, "span": 1, "layers": ["v", "b"] },
-    { "id": "b2", "side": "right", "start": 0, "span": 1, "layers": ["g"] }
-  ]
+    {
+      "id": "t1",
+      "side": "top",
+      "start": 1,
+      "span": 1,
+      "layers": ["r", "b"]
+    },
+    {
+      "id": "t3",
+      "side": "top",
+      "start": 3,
+      "span": 1,
+      "layers": ["g"]
+    }
+  ],
+  "forgiving": true
 }
