@@ -1,4 +1,4 @@
-import type { FireEvent } from "@/engine/types";
+import type { FireResult } from "@/engine/types";
 
 /**
  * Score and the combo multiplier (PROGRESSION.md 1). Stars gate progression
@@ -58,12 +58,16 @@ export interface ShotResult {
 /**
  * A resolved tap. Only a colour match scores: an arrow that flies off through
  * an open or destroyed lane is a positioning move, not an achievement.
+ *
+ * A bomb scores as the three peels it makes at the current multiplier, and
+ * advances the combo by one like any other correct shot (DESIGN.md 1.11).
  */
 export function registerShot(
   state: ScoreState,
-  event: FireEvent,
+  shot: Pick<FireResult, "event" | "peels" | "destroyed">,
   now: number,
 ): ShotResult {
+  const { event } = shot;
   if (event === "blocked" || event === "bounced") {
     return {
       state: { ...state, chain: 0, multiplier: 1, lastShotAt: now },
@@ -86,7 +90,7 @@ export function registerShot(
     state.lastShotAt !== null && now - state.lastShotAt <= HOT_WINDOW_MS ? 2 : 1;
   const chain = state.chain + hot;
   const multiplier = multiplierFor(chain);
-  const layerBonus = event === "destroyed" ? DESTROY_BONUS : 1;
+  const layerBonus = shot.destroyed * DESTROY_BONUS + (shot.peels - shot.destroyed);
   const gained = BASE_SHOT_SCORE * multiplier * layerBonus;
 
   return {

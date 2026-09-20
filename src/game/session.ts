@@ -320,9 +320,9 @@ export class GameSession {
 
     const blockers = blockersOf(this.#state, arrow);
     const target = blockForArrow(this.#state.blocks, arrow);
-    const { state, event } = fire(this.#state, arrowId);
+    const { state, event, peels, destroyed } = fire(this.#state, arrowId);
 
-    const shot = registerShot(this.#score, event, now);
+    const shot = registerShot(this.#score, { event, peels, destroyed }, now);
     this.#score = shot.state;
     this.#gained = shot.gained;
     this.#state = state;

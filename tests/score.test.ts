@@ -9,11 +9,22 @@ import {
   registerShot,
 } from "@/game/score";
 import type { ScoreState } from "@/game/score";
+import type { FireEvent, FireResult } from "@/engine/types";
+
+/** A resolved shot as the engine reports it (DESIGN.md 3). */
+function shot(
+  event: FireEvent,
+  peels = 1,
+  destroyed = 0,
+): Pick<FireResult, "event" | "peels" | "destroyed"> {
+  const scoring = event === "peeled" || event === "destroyed";
+  return { event, peels: scoring ? peels : 0, destroyed };
+}
 
 function chain(shots: number, gapMs: number): ScoreState {
   let state = createScore();
   for (let index = 0; index < shots; index += 1) {
-    state = registerShot(state, "peeled", index * gapMs).state;
+    state = registerShot(state, shot("peeled"), index * gapMs).state;
   }
   return state;
 }
@@ -42,7 +53,7 @@ describe("combo multiplier", () => {
     expect(hot.multiplier).toBeGreaterThan(1);
 
     for (const mistake of ["blocked", "bounced"] as const) {
-      const after = registerShot(hot, mistake, 1000).state;
+      const after = registerShot(hot, shot(mistake), 1000).state;
       expect(after.chain).toBe(0);
       expect(after.multiplier).toBe(1);
       expect(after.score).toBe(hot.score);
@@ -51,7 +62,7 @@ describe("combo multiplier", () => {
 
   it("neither scores nor breaks the chain when an arrow flies off", () => {
     const hot = chain(4, 100);
-    const after = registerShot(hot, "flewOff", 500);
+    const after = registerShot(hot, shot("flewOff"), 500);
 
     expect(after.gained).toBe(0);
     expect(after.state.chain).toBe(hot.chain);
@@ -61,25 +72,25 @@ describe("combo multiplier", () => {
 
 describe("score", () => {
   it("pays the base rate on the first shot", () => {
-    const first = registerShot(createScore(), "peeled", 0);
+    const first = registerShot(createScore(), shot("peeled"), 0);
     expect(first.gained).toBe(BASE_SHOT_SCORE);
     expect(first.steppedUp).toBe(false);
   });
 
   it("pays more for the layer that destroys a block", () => {
-    const peel = registerShot(createScore(), "peeled", 0);
-    const destroy = registerShot(createScore(), "destroyed", 0);
+    const peel = registerShot(createScore(), shot("peeled"), 0);
+    const destroy = registerShot(createScore(), shot("destroyed", 1, 1), 0);
     expect(destroy.gained).toBe(peel.gained * 1.5);
   });
 
   it("reports the shot that steps the multiplier up", () => {
     let state = createScore();
-    state = registerShot(state, "peeled", 0).state;
-    state = registerShot(state, "peeled", 100).state;
+    state = registerShot(state, shot("peeled"), 0).state;
+    state = registerShot(state, shot("peeled"), 100).state;
 
     // The third correct shot in the hot window puts the chain past 3.
     expect(state.multiplier).toBe(2);
-    expect(registerShot(state, "peeled", 200).steppedUp).toBe(true);
+    expect(registerShot(state, shot("peeled"), 200).steppedUp).toBe(true);
   });
 
   it("earns one special at the cap, once per attempt", () => {
@@ -87,9 +98,9 @@ describe("score", () => {
     let earned = 0;
 
     for (let index = 0; index < 12; index += 1) {
-      const shot = registerShot(state, "peeled", index * 100);
-      state = shot.state;
-      if (shot.earnedSpecial) earned += 1;
+      const result = registerShot(state, shot("peeled"), index * 100);
+      state = result.state;
+      if (result.earnedSpecial) earned += 1;
     }
 
     expect(state.multiplier).toBe(5);
