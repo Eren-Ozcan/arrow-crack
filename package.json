@@ -13,6 +13,7 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "levels:manifest": "tsx tools/generate-manifest.ts",
     "levels:validate": "tsx tools/validate-levels.ts",
     "size": "tsx tools/check-size.ts",
     "cap:sync": "npm run build && cap sync android",
