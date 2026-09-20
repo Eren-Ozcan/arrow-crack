@@ -18,7 +18,12 @@ a document disagree, fix one of them in the same change — do not leave both.
   coverage gate is 100% — a new branch there is a new rule, and it needs a
   test naming the rule.
 - One solver implementation (`src/solver/`) serves the generator, the CI
-  validation gate, the in-app stuck check and the hint.
+  validation gate, the in-app stuck check and the hint. Tooling in `tools/`
+  is TypeScript run through `tsx`, so it imports that code directly instead
+  of keeping a second copy.
+- On the device the solver runs in a Web Worker and **fails open**: when a
+  search runs out of budget the board is reported solvable. A false stuck
+  panel is worse than a missed one.
 - Every shipped level passes `npm run levels:validate`. A level that the
   solver cannot solve never ships.
 - Tapping the wrong arrow costs a heart, so readability beats mood in every

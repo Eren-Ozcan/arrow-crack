@@ -68,7 +68,16 @@ tested. It is not extended to the renderer or the UI.
 
 ### 2.2 Level validation — the gate that matters
 
-`tools/validate-levels.mjs`, run over every level JSON in the bundle:
+`tools/validate-levels.ts`, run over every level JSON in the bundle. The
+tooling is TypeScript run through `tsx`, so the gate imports the shipped
+engine and solver directly — one implementation, three callers (CI, the
+generator, the device's override check) — with no build step in between.
+
+The checks below are the full set. Implemented today: schema, path
+integrity, solvable, `par`, witness replay, hearts, mask reachability and
+level type. The difficulty band, the per-level solver cost and the special
+arrow rules arrive with the milestones that make them meaningful, and the
+table says so.
 
 | Check                 | Fails the build when                                                                                                                                                    |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -190,6 +190,18 @@ an already-destroyed lane when a later block still needs that arrow's color.
 - The same on-device solver call powers the hint (section 6), so the hint
   works from any reachable state, not only along a pre-stored path.
 
+**Under the base rules, a dead state cannot actually happen.** An arrow only
+ever reaches the block on its own lane, so a legal move either peels a layer
+some solution had to peel anyway, or removes an arrow that can never
+contribute (its lane is open, or its block is already destroyed). Neither can
+take a solution away, and removing an arrow only ever frees rays. A board that
+starts solvable therefore stays solvable, and the level gate already refuses
+the boards that do not (`CI.md` 2.2). The check is written, shipped and tested
+anyway, because it is cheap, it fails open, and the **bomb** breaks the
+argument the moment it lands: a bomb peels layers by position rather than by
+colour (1.11), so it can spend a colour the frame still needs. Until then the
+panel is dead weight we are choosing to carry, not a feature we rely on.
+
 ### 1.8 Where the difficulty comes from
 
 1. Several arrows are unblocked at once, but their target block is not yet
@@ -447,9 +459,18 @@ validates every level, hand-made ones included.
   (the hint). It must be written against `engine/` with a hard time budget
   and an iteration cap, falling back to "assume solvable" if it ever hits
   the cap — a false stuck panel is much worse than a missed one.
-- BFS / IDA* over the state space with a Zobrist-hashed visited set.
+- IDA* over the state space with a Zobrist-hashed visited set, seeded
+  deterministically so the same board always searches the same way and a node
+  count can be a CI baseline. The visited set stores both 32-bit halves of the
+  hash, nested, rather than folding them into one number: a collision would
+  make the solver miss a solution and call a live board dead.
+- No separate BFS stage. The heuristic below is exact for the common case —
+  one peel per move — so iterative deepening reaches the optimum without the
+  frontier a BFS would have to hold in memory, which matters most on the
+  device, where memory is tighter than time.
 - Admissible heuristic for IDA*: total remaining layer count, since every
-  peel needs at least one move.
+  peel needs at least one move. A bomb peels up to three, so when bombs land
+  this becomes `ceil(remaining / 3)` for boards that contain one.
 - Output: `solvable`, `par`, `solutionCount` (capped) and a witness solution
   path stored next to the level for regression tests.
 
