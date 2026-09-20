@@ -16,9 +16,10 @@ export default defineConfig({
     include: ["tests/**/*.test.ts", "src/**/*.test.ts"],
     coverage: {
       provider: "v8",
-      include: ["src/engine/**"],
-      // Type-only and re-export modules have no branches to cover.
-      exclude: ["src/engine/index.ts", "src/engine/types.ts"],
+      include: ["src/engine/**", "src/solver/**"],
+      // Type-only modules, re-export barrels and the worker's own message
+      // wiring have no branches worth covering.
+      exclude: ["src/engine/index.ts", "src/engine/types.ts", "src/solver/worker.ts"],
       thresholds: { statements: 100, branches: 100, functions: 100, lines: 100 },
     },
   },

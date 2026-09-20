@@ -1,0 +1,6 @@
+{
+  "worstCaseNodes": 792,
+  "boards": "tests/solver-stress.test.ts, 24 built 6x6 boards over 5 colours, 14 arrows",
+  "search": "solve() with countSolutionsUpTo: 200",
+  "note": "The search is deterministic, so this number is exact. A solver change that searches more nodes has regressed and fails CI (CI.md 2.2)."
+}
