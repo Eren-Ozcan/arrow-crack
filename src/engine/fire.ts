@@ -1,25 +1,6 @@
-import { blockForArrow, buildOccupancy, cellKey, headOf, step } from "./level";
-import type { Arrow, Block, Cell, FireResult, GameState } from "./types";
-
-function isOnBoard(cell: Cell, state: GameState): boolean {
-  const { cols, rows } = state.level;
-  return cell.col >= 0 && cell.col < cols && cell.row >= 0 && cell.row < rows;
-}
-
-/**
- * Walk the straight ray ahead of the head. Only cells belonging to *another*
- * arrow block the shot: the body follows the route the head traced, so a long
- * tangled body is never its own obstacle (DESIGN.md 1.4).
- */
-function rayIsClear(state: GameState, arrow: Arrow): boolean {
-  let cell = step(headOf(arrow), arrow.dir);
-  while (isOnBoard(cell, state)) {
-    const occupant = state.occupancy.get(cellKey(cell));
-    if (occupant !== undefined && occupant !== arrow.id) return false;
-    cell = step(cell, arrow.dir);
-  }
-  return true;
-}
+import { blockForArrow, buildOccupancy } from "./level";
+import { isBlocked } from "./rays";
+import type { Arrow, Block, FireResult, GameState } from "./types";
 
 /** A mistake: one heart, one mistake counted, board untouched (DESIGN.md 1.5). */
 function spendHeart(state: GameState): GameState {
@@ -48,7 +29,9 @@ export function fire(state: GameState, arrowId: string): FireResult {
   const arrow = state.arrows.find((candidate) => candidate.id === arrowId);
   if (!arrow) throw new Error(`no arrow ${arrowId} on the board`);
 
-  if (!rayIsClear(state, arrow)) {
+  // Only another arrow blocks the shot: the body follows the route the head
+  // traced, so a long tangled body is never its own obstacle (DESIGN.md 1.4).
+  if (isBlocked(state, arrow)) {
     return { state: spendHeart(state), event: "blocked" };
   }
 
