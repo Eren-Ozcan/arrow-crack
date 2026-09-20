@@ -161,6 +161,10 @@ function drawFloatingScore(context: CanvasRenderingContext2D, input: RenderInput
 
   const t = Math.min(1, (elapsed - slideMs) / 600);
   const rect = blockRect(layout, block);
+  // Float inward, over the board: outside the frame the number would sit on
+  // the backdrop, where board ink is unreadable.
+  const inward = innerDirection(block.side);
+  const drift = layout.cell * (0.5 + t * 0.7);
 
   context.save();
   context.globalAlpha = 1 - t;
@@ -170,10 +174,24 @@ function drawFloatingScore(context: CanvasRenderingContext2D, input: RenderInput
   context.textBaseline = "middle";
   context.fillText(
     `+${gained}`,
-    rect.x + rect.width / 2,
-    rect.y + rect.height / 2 - layout.cell * (0.4 + t * 0.8),
+    rect.x + rect.width / 2 + inward.x * drift,
+    rect.y + rect.height / 2 + inward.y * drift,
   );
   context.restore();
+}
+
+/** Points from a frame side towards the middle of the board. */
+function innerDirection(side: Block["side"]): Point {
+  switch (side) {
+    case "top":
+      return { x: 0, y: 1 };
+    case "bottom":
+      return { x: 0, y: -1 };
+    case "left":
+      return { x: 1, y: 0 };
+    case "right":
+      return { x: -1, y: 0 };
+  }
 }
 
 function drawArrows(context: CanvasRenderingContext2D, input: RenderInput): void {
