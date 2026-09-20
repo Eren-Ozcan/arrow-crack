@@ -26,8 +26,13 @@ export interface ArrowStyle {
   blocked?: boolean;
   /** 0-1; the blocker highlight pulse (ART.md 6.2). */
   pulse?: number;
-  /** Board-space offset, used while the arrow slides out. */
+  /** Board-space offset, used for the idle bob and the mistake shake. */
   offset?: Point;
+  /**
+   * Centre-line to draw instead of the arrow's resting one, tail first. The
+   * firing animation uses it to run the body along the head's own track.
+   */
+  points?: Point[];
   /** 0-1, for a fading arrow. */
   alpha?: number;
 }
@@ -80,7 +85,7 @@ export function drawArrow(
   const outline = outlineWidth(layout);
   const offset = style.offset ?? { x: 0, y: 0 };
 
-  const points = pathPoints(layout, arrow.path).map((point) => ({
+  const points = (style.points ?? pathPoints(layout, arrow.path)).map((point) => ({
     x: point.x + offset.x,
     y: point.y + offset.y,
   }));

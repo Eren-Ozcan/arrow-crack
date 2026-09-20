@@ -11,6 +11,8 @@ import {
 } from "@/input/gestures";
 import { planAnimation, phaseAt, TIMING } from "@/render/animation";
 import type { Arrow } from "@/engine/types";
+import { computeLayout, cellCentre } from "@/render/layout";
+import { trailPoints } from "@/render/trail";
 
 const origin = { x: 100, y: 100 };
 
@@ -201,5 +203,82 @@ describe("animation plans", () => {
     expect(phaseAt(plan, slideMs)?.kind).toBe("impact");
     expect(phaseAt(plan, slideMs + TIMING.impactMs / 2)?.t).toBeCloseTo(0.5);
     expect(phaseAt(plan, plan.totalMs)).toBeNull();
+  });
+});
+
+describe("firing along the arrow's own track", () => {
+  const layout = computeLayout({ cols: 5, rows: 5 }, { width: 500, height: 500 });
+
+  // An L: the tail sits to the left of the bend, the head runs up from it.
+  const bent: Arrow = {
+    id: "bent",
+    color: "v",
+    dir: "up",
+    path: [
+      { col: 0, row: 3 },
+      { col: 1, row: 3 },
+      { col: 1, row: 2 },
+    ],
+  };
+
+  it("leaves the arrow where it is at zero distance", () => {
+    const points = trailPoints(layout, bent, 0);
+    expect(points).toEqual([
+      cellCentre(layout, { col: 0, row: 3 }),
+      cellCentre(layout, { col: 1, row: 3 }),
+      cellCentre(layout, { col: 1, row: 2 }),
+    ]);
+  });
+
+  it("walks the tail through the bend instead of dragging it sideways", () => {
+    // One cell of travel: every point moves one step along the route, so the
+    // tail lands on the bend and the body is now straight.
+    const points = trailPoints(layout, bent, layout.cell);
+    const [tail, middle, head] = points as [
+      { x: number; y: number },
+      { x: number; y: number },
+      { x: number; y: number },
+    ];
+
+    expect(tail.x).toBeCloseTo(cellCentre(layout, { col: 1, row: 3 }).x);
+    expect(tail.y).toBeCloseTo(cellCentre(layout, { col: 1, row: 3 }).y);
+    expect(middle.x).toBeCloseTo(cellCentre(layout, { col: 1, row: 2 }).x);
+    expect(head.x).toBeCloseTo(cellCentre(layout, { col: 1, row: 1 }).x);
+    expect(head.y).toBeCloseTo(cellCentre(layout, { col: 1, row: 1 }).y);
+
+    // The whole body is now in one column: the bend has passed out of it.
+    expect(new Set(points.map((point) => Math.round(point.x))).size).toBe(1);
+  });
+
+  it("never stretches the body, whatever part of the track it is on", () => {
+    const spacing = (points: { x: number; y: number }[]): number[] =>
+      points
+        .slice(1)
+        .map((point, index) =>
+          Math.hypot(point.x - points[index]!.x, point.y - points[index]!.y),
+        );
+
+    for (const distance of [0, 0.5, 1.3, 4].map((cells) => cells * layout.cell)) {
+      for (const gap of spacing(trailPoints(layout, bent, distance))) {
+        // Points stay one cell apart along the track. Straddling the bend the
+        // straight-line gap is shorter, never longer — the body is folding
+        // round the corner, not stretching across it.
+        expect(gap).toBeLessThanOrEqual(layout.cell + 0.001);
+        expect(gap).toBeGreaterThan(layout.cell * 0.7);
+      }
+    }
+
+    // Once the whole body is past the bend it is rigid again.
+    for (const gap of spacing(trailPoints(layout, bent, layout.cell * 4))) {
+      expect(gap).toBeCloseTo(layout.cell);
+    }
+  });
+
+  it("carries the arrow straight off the board past the frame", () => {
+    const far = trailPoints(layout, bent, layout.cell * 10);
+    for (const point of far) {
+      expect(point.y).toBeLessThan(layout.bounds.y);
+      expect(point.x).toBeCloseTo(cellCentre(layout, { col: 1, row: 0 }).x);
+    }
   });
 });

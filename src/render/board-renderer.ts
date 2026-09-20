@@ -7,6 +7,7 @@ import type { Layout, Point } from "./layout";
 import { blockRect, cellCentre, cellRect, laneExitPoint } from "./layout";
 import { paletteEntry, THEME } from "./palette";
 import { drawArrow, drawBlock, drawGlyph, pipeWidth } from "./shapes";
+import { directionUnit, trailPoints } from "./trail";
 
 export interface GuideView {
   arrowId: string;
@@ -242,39 +243,36 @@ function drawAnimatedArrow(
 ): void {
   const { plan } = animation;
   const arrow = plan.arrow;
-  const distance = plan.travel * layout.cell;
+  // Far enough that the head reaches into the frame gap, not just the last cell.
+  const distance = plan.travel * layout.cell + layout.gap;
   const unit = directionUnit(arrow.dir);
 
+  let travelled = 0;
   let offset: Point = { x: 0, y: 0 };
   let alpha = 1;
 
   if (kind === "slide") {
-    const travelled = easeOut(t) * distance;
-    offset = { x: unit.x * travelled, y: unit.y * travelled };
+    travelled = easeOut(t) * distance;
     alpha = plan.event === "flewOff" ? 1 - t * 0.9 : 1;
   } else if (kind === "impact") {
-    offset = { x: unit.x * distance, y: unit.y * distance };
+    travelled = distance;
     alpha = 1 - t;
   } else if (kind === "recoil") {
-    // Both mistakes shake hard and leave the board exactly as it was.
+    // Both mistakes shake hard and leave the board exactly as it was. A
+    // bounce slides back down its own track first, so the arrow is never seen
+    // to teleport home.
+    travelled = plan.event === "bounced" ? distance * (1 - t) : 0;
     const shake = shakeOffset(t, layout.cell * 0.14);
     offset = { x: unit.y * shake, y: unit.x * shake };
   }
 
-  drawArrow(context, layout, arrow, { offset, alpha });
-}
-
-function directionUnit(dir: Arrow["dir"]): Point {
-  switch (dir) {
-    case "up":
-      return { x: 0, y: -1 };
-    case "down":
-      return { x: 0, y: 1 };
-    case "left":
-      return { x: -1, y: 0 };
-    case "right":
-      return { x: 1, y: 0 };
-  }
+  // The body runs along the head's own track, so a bend travels back down the
+  // arrow instead of the whole shape drifting sideways (DESIGN.md 1.4).
+  drawArrow(context, layout, arrow, {
+    offset,
+    alpha,
+    ...(travelled > 0 ? { points: trailPoints(layout, arrow, travelled) } : {}),
+  });
 }
 
 function drawGuide(
