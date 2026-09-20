@@ -72,15 +72,20 @@ body {
 
 .hud-hearts {
   display: flex;
-  gap: 4px;
-  font-size: 20px;
-  line-height: 1;
-  color: var(--heart);
+  gap: 5px;
+}
+
+.heart {
+  width: 22px;
+  height: 22px;
+  fill: var(--heart);
+  stroke: var(--heart);
+  stroke-width: 1.5;
 }
 
 .heart-spent {
-  color: transparent;
-  -webkit-text-stroke: 1.5px var(--disabled-ink);
+  fill: none;
+  stroke: var(--disabled-ink);
 }
 
 .hud-badge {

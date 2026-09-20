@@ -49,14 +49,13 @@ export class Hud {
     this.#level.textContent = `Level ${view.levelId}`;
 
     // A lost heart drains but stays visible as an outline, so the cost is
-    // legible at a glance (ART.md 6).
+    // legible at a glance (ART.md 6). The shape is drawn, not typed: the
+    // character renders as a system emoji on some devices, which throws away
+    // the palette colour.
     this.#hearts.replaceChildren(
-      ...Array.from({ length: view.hearts }, (_, index) => {
-        const heart = element("span", "heart");
-        heart.textContent = "♥";
-        if (index >= view.heartsLeft) heart.classList.add("heart-spent");
-        return heart;
-      }),
+      ...Array.from({ length: view.hearts }, (_, index) =>
+        heartIcon(index < view.heartsLeft),
+      ),
     );
 
     this.#badge.textContent = `x${view.multiplier}`;
@@ -66,6 +65,22 @@ export class Hud {
     this.#grid.classList.toggle("is-on", view.showGrid);
     this.#fit.hidden = view.fitted;
   }
+}
+
+const HEART_PATH =
+  "M12 21s-7.5-4.7-9.4-9.1C1.1 8.3 3 4.8 6.4 4.1c2-.4 3.9.4 5.1 2 1.2-1.6 3.1-2.4 5.1-2 3.4.7 5.3 4.2 3.8 7.8C19.5 16.3 12 21 12 21z";
+
+function heartIcon(filled: boolean): SVGSVGElement {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("class", filled ? "heart" : "heart heart-spent");
+  svg.setAttribute("aria-hidden", "true");
+
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", HEART_PATH);
+  svg.append(path);
+
+  return svg;
 }
 
 export function element<K extends keyof HTMLElementTagNameMap>(
