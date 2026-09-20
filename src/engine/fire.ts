@@ -1,9 +1,14 @@
-import { blockForArrow, buildOccupancy } from "./level";
+import { blockForArrow, buildOccupancy, neighbourBlocks } from "./level";
 import { isBlocked } from "./rays";
 import type { Arrow, Block, FireResult, GameState } from "./types";
 
-/** A mistake: one heart, one mistake counted, board untouched (DESIGN.md 1.5). */
+/**
+ * A mistake: one heart, one mistake counted, board untouched (DESIGN.md 1.5).
+ * On a forgiving tutorial level the mistake is shown and not charged.
+ */
 function spendHeart(state: GameState): GameState {
+  if (state.level.forgiving) return state;
+
   const heartsLeft = state.heartsLeft - 1;
   return {
     ...state,
@@ -15,6 +20,24 @@ function spendHeart(state: GameState): GameState {
 
 function withoutArrow(state: GameState, arrowId: string): Arrow[] {
   return state.arrows.filter((arrow) => arrow.id !== arrowId);
+}
+
+/**
+ * Whether the arrow may peel the block's top layer. Joker and Bomb break the
+ * colour rule; everything else has to match (DESIGN.md 1.11).
+ */
+function matches(arrow: Arrow, block: Block): boolean {
+  if (arrow.special === "joker" || arrow.special === "bomb") return true;
+  return block.layers[0] === arrow.color;
+}
+
+/**
+ * The blocks one shot peels. An ordinary shot peels its target; a bomb also
+ * peels each immediately adjacent block, ignoring colour (DESIGN.md 1.11).
+ */
+function peelTargets(state: GameState, arrow: Arrow, target: Block): Block[] {
+  if (arrow.special !== "bomb") return [target];
+  return [target, ...neighbourBlocks(state.level, state.blocks, target)];
 }
 
 /**
@@ -31,8 +54,9 @@ export function fire(state: GameState, arrowId: string): FireResult {
 
   // Only another arrow blocks the shot: the body follows the route the head
   // traced, so a long tangled body is never its own obstacle (DESIGN.md 1.4).
+  // A Ghost is never blocked at all; `blockersOf` knows that.
   if (isBlocked(state, arrow)) {
-    return { state: spendHeart(state), event: "blocked" };
+    return { state: spendHeart(state), event: "blocked", peels: 0, destroyed: 0 };
   }
 
   const target = blockForArrow(state.blocks, arrow);
@@ -44,25 +68,31 @@ export function fire(state: GameState, arrowId: string): FireResult {
     return {
       state: { ...state, arrows, occupancy: buildOccupancy(arrows) },
       event: "flewOff",
+      peels: 0,
+      destroyed: 0,
     };
   }
 
-  const topLayer = target.layers[0];
-  if (topLayer !== arrow.color) {
+  if (!matches(arrow, target)) {
     // The arrow slides back into exactly the shape it started from, so the
     // board is unchanged and only the heart is spent.
-    return { state: spendHeart(state), event: "bounced" };
+    return { state: spendHeart(state), event: "bounced", peels: 0, destroyed: 0 };
   }
 
+  const peeled = new Set(peelTargets(state, arrow, target).map((block) => block.id));
   const arrows = withoutArrow(state, arrow.id);
-  const remainingLayers = target.layers.slice(1);
-  const destroyed = remainingLayers.length === 0;
+  const blocks: Block[] = [];
+  let destroyed = 0;
 
-  const blocks: Block[] = destroyed
-    ? state.blocks.filter((block) => block.id !== target.id)
-    : state.blocks.map((block) =>
-        block.id === target.id ? { ...block, layers: remainingLayers } : block,
-      );
+  for (const block of state.blocks) {
+    if (!peeled.has(block.id)) {
+      blocks.push(block);
+      continue;
+    }
+    const layers = block.layers.slice(1);
+    if (layers.length === 0) destroyed += 1;
+    else blocks.push({ ...block, layers });
+  }
 
   return {
     state: {
@@ -72,7 +102,9 @@ export function fire(state: GameState, arrowId: string): FireResult {
       occupancy: buildOccupancy(arrows),
       status: blocks.length === 0 ? "won" : state.status,
     },
-    event: destroyed ? "destroyed" : "peeled",
+    event: destroyed > 0 ? "destroyed" : "peeled",
+    peels: peeled.size,
+    destroyed,
   };
 }
 

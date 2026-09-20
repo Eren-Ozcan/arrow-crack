@@ -62,6 +62,68 @@ export function blockForArrow(blocks: readonly Block[], arrow: Arrow): Block | u
   return blocks.find((block) => block.side === side && blockCoversLane(block, lane));
 }
 
+/**
+ * Every lane position on the frame, in cyclic order around the board: the top
+ * left to right, the right side top to bottom, the bottom right to left, then
+ * the left side bottom to top. Blocks occupy a contiguous run of it, which is
+ * what makes "the next block along the frame, including around a corner"
+ * (DESIGN.md 1.11) a single step in this list.
+ */
+export function perimeter(level: LevelDef): { side: Side; lane: number }[] {
+  const positions: { side: Side; lane: number }[] = [];
+  for (let lane = 0; lane < level.cols; lane += 1) positions.push({ side: "top", lane });
+  for (let lane = 0; lane < level.rows; lane += 1)
+    positions.push({ side: "right", lane });
+  for (let lane = level.cols - 1; lane >= 0; lane -= 1) {
+    positions.push({ side: "bottom", lane });
+  }
+  for (let lane = level.rows - 1; lane >= 0; lane -= 1) {
+    positions.push({ side: "left", lane });
+  }
+  return positions;
+}
+
+/**
+ * The blocks immediately either side of this one along the frame, as the bomb
+ * sees them (DESIGN.md 1.11). An open lane or a destroyed block absorbs
+ * nothing and the effect is not passed further along, so a neighbour position
+ * with no live block simply yields nothing.
+ */
+export function neighbourBlocks(
+  level: LevelDef,
+  blocks: readonly Block[],
+  block: Block,
+): Block[] {
+  const positions = perimeter(level);
+  const covered: number[] = [];
+  positions.forEach((position, index) => {
+    if (position.side === block.side && blockCoversLane(block, position.lane)) {
+      covered.push(index);
+    }
+  });
+  if (covered.length === 0) return [];
+  const first = covered[0]!;
+  const last = covered[covered.length - 1]!;
+
+  const before = positions[(first - 1 + positions.length) % positions.length]!;
+  const after = positions[(last + 1) % positions.length]!;
+
+  const liveAt = (position: { side: Side; lane: number }): Block | undefined =>
+    blocks.find(
+      (candidate) =>
+        candidate.id !== block.id &&
+        candidate.side === position.side &&
+        blockCoversLane(candidate, position.lane),
+    );
+
+  const neighbours: Block[] = [];
+  for (const position of [before, after]) {
+    const found = liveAt(position);
+    if (found && !neighbours.includes(found)) neighbours.push(found);
+  }
+  return neighbours;
+}
+
 function inBounds(cell: Cell, level: LevelDef): boolean {
   return cell.col >= 0 && cell.col < level.cols && cell.row >= 0 && cell.row < level.rows;
 }

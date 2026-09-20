@@ -44,6 +44,12 @@ export interface LevelDef {
   /** 4 or 3 by band, or 1 on a designated level (DESIGN.md 2). */
   hearts: number;
   type?: "timed";
+  /**
+   * Levels 1-3 teach what costs a heart, so there the mistake is demonstrated
+   * rather than charged: the shake or bounce plays, no heart is taken and no
+   * mistake is counted (DESIGN.md 2).
+   */
+  forgiving?: boolean;
   /** Timed levels only; hearts are unused there. */
   timeLimitMs?: number;
   /** Shaped boards (DESIGN.md 1.10); absent means the full rectangle. */
@@ -78,4 +84,8 @@ export interface GameState {
 export interface FireResult {
   state: GameState;
   event: FireEvent;
+  /** Layers removed by this shot; three at most, and only a bomb removes more than one. */
+  peels: number;
+  /** Blocks emptied by this shot. */
+  destroyed: number;
 }
