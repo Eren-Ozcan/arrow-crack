@@ -43,6 +43,23 @@ a document disagree, fix one of them in the same change — do not leave both.
 | `npm run cap:sync`        | Build, then sync into `android/`  |
 | `npm run android:dev`     | Sync and run on a device/emulator |
 
+## Where things live
+
+`src/engine` rules, `src/solver` search, `src/render` canvas drawing,
+`src/input` gesture arbitration, `src/game` the session that owns the clock
+and the score, `src/ui` DOM screens, `src/levels` level JSON and the loader.
+The engine and the solver are pure; everything that knows about time lives in
+`src/game/session.ts`.
+
+## Verifying a change on the device
+
+`npm run cap:sync && ./android/gradlew.bat -p android assembleDebug`, then
+`adb install -r android/app/build/outputs/apk/debug/app-debug.apk`. Force-stop
+the app before installing or Android shows an "app needs to be closed while
+updating" dialog. `adb shell input tap X Y` drives it, and
+`adb exec-out screencap -p > out.png` reads the screen back; give the WebView
+a couple of seconds after `am start` before the first tap.
+
 ## Store and marketing assets
 
 Store listing graphics, feature graphics, icons and screenshots are **never

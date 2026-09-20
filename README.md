@@ -9,11 +9,10 @@ or hitting the wrong color costs a heart, and hearts are all you have.
 Store title: **Arrow Crack Arrow Pop Puzzle**. Package `com.yilkgames.arrowcrack`.
 Stack: Vite + TypeScript + Capacitor, Android first, **English only**.
 
-Status: **milestone 2 complete.** Scaffold, CI gates and a Capacitor Android
-build; the pure rules engine; and the solver — IDA* over a packed board,
-shared by the CI level gate, the solver CLI and the on-device worker behind
-the stuck check and the hint. Engine and solver are covered at 100%. Nothing
-is drawn yet; the playable board is next.
+Status: **milestone 3 complete.** Levels 1-3 are playable on a phone: the
+procedural canvas board, tap-to-fire with gesture arbitration, the camera,
+the exit-ray guide, hearts, stars, score and the result panels, on top of the
+pure engine and the IDA* solver. Levels 4-30 are next.
 
 ```sh
 npm install

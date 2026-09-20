@@ -222,7 +222,13 @@ misfire, so a pan that is mistaken for a tap is a stolen heart.
 | Zoom           | Two fingers, or a double tap                                                                     |
 
 A touch that becomes a pan can never turn back into a fire, even if the
-finger returns to where it started. Ambiguity here is always resolved as
+finger returns to where it started.
+
+**Double tap and fire cannot share a target.** Firing happens on the first
+tap, with no delay — waiting 300 ms to see whether a second tap arrives would
+put that delay on every shot in the game. So a double tap zooms only where
+there is no arrow; on an arrow, the first tap has already fired and the
+second is queued behind the animation like any other tap. Ambiguity here is always resolved as
 "do nothing" — the game can afford a missed tap; it cannot afford a heart
 the player did not spend.
 
