@@ -1,6 +1,8 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { LevelDef } from "../src/engine/types";
+import { parseLevel } from "../src/levels/parse";
+import type { RawLevel } from "../src/levels/parse";
 
 export const LEVELS_DIR = join(process.cwd(), "src", "levels", "data");
 
@@ -24,7 +26,7 @@ export async function loadLevels(dir = LEVELS_DIR): Promise<LoadedLevel[]> {
 
   for (const file of files) {
     const raw = await readFile(join(dir, file), "utf8");
-    levels.push({ file, level: JSON.parse(raw) as LevelDef });
+    levels.push({ file, level: parseLevel(JSON.parse(raw) as RawLevel) });
   }
 
   return levels;
