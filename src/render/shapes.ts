@@ -14,7 +14,9 @@ import { desaturate, paletteEntry, THEME } from "./palette";
 /** Pipe width as a fraction of the cell, leaving a gutter between runs. */
 const PIPE_RATIO = 0.6;
 const OUTLINE_RATIO = 0.1;
-const HEAD_RATIO = 0.95;
+const HEAD_RATIO = 0.86;
+/** How far short of the head cell the pipe stops, so the head reads as a head. */
+const HEAD_INSET_RATIO = 0.3;
 const GLYPH_RATIO = 0.3;
 /** How far the blocked state drains a colour towards the board. */
 const INERT_MIX = 0.75;
@@ -85,6 +87,27 @@ export function drawArrow(
   const head = points[points.length - 1]!;
   const beforeHead = points[points.length - 2] ?? head;
 
+  // The pipe stops short of the head cell: a rounded cap poking out from
+  // behind the arrowhead reads as a pencil, not as a direction.
+  const inset = layout.cell * HEAD_INSET_RATIO;
+  const towards = unitVector(beforeHead, head, arrow.dir);
+  const pipeEnd = {
+    x: head.x - towards.x * inset,
+    y: head.y - towards.y * inset,
+  };
+
+  if (points.length === 1) {
+    // A one-cell arrow still needs a body: a bare head has no tail to carry
+    // the glyph, and no shape to tap.
+    points[0] = {
+      x: head.x - towards.x * layout.cell * 0.42,
+      y: head.y - towards.y * layout.cell * 0.42,
+    };
+    points.push(pipeEnd);
+  } else {
+    points[points.length - 1] = pipeEnd;
+  }
+
   context.save();
   context.globalAlpha = style.alpha ?? 1;
   context.lineCap = "round";
@@ -112,23 +135,42 @@ export function drawArrow(
   tracePipe(context, points, width / 2);
   context.stroke();
 
-  drawHead(context, head, beforeHead, layout, fill, ink, outline);
+  drawHead(context, head, towards, layout, fill, ink, outline);
   drawGlyph(context, points[0]!, entry.glyph, layout, ink, style.blocked ?? false);
 
   context.restore();
 }
 
+function unitVector(from: Point, to: Point, dir: Arrow["dir"]): Point {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const length = Math.hypot(dx, dy);
+  if (length > 0) return { x: dx / length, y: dy / length };
+
+  // A single-cell arrow has no segment to read the direction from.
+  switch (dir) {
+    case "up":
+      return { x: 0, y: -1 };
+    case "down":
+      return { x: 0, y: 1 };
+    case "left":
+      return { x: -1, y: 0 };
+    case "right":
+      return { x: 1, y: 0 };
+  }
+}
+
 function drawHead(
   context: CanvasRenderingContext2D,
   head: Point,
-  from: Point,
+  towards: Point,
   layout: Layout,
   fill: string,
   ink: string,
   outline: number,
 ): void {
   const size = layout.cell * HEAD_RATIO;
-  const angle = Math.atan2(head.y - from.y, head.x - from.x);
+  const angle = Math.atan2(towards.y, towards.x);
 
   context.save();
   context.translate(head.x, head.y);
