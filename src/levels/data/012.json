@@ -2,13 +2,13 @@
   "id": 12,
   "cols": 6,
   "rows": 6,
-  "palette": ["b", "g", "r", "y"],
+  "palette": ["b", "g", "v", "y"],
   "hearts": 4,
   "par": 8,
   "arrows": [
     {
       "id": "a",
-      "color": "r",
+      "color": "v",
       "dir": "up",
       "path": [
         {
@@ -83,7 +83,7 @@
     },
     {
       "id": "f",
-      "color": "r",
+      "color": "v",
       "dir": "up",
       "path": [
         {
@@ -161,14 +161,14 @@
       "side": "top",
       "start": 0,
       "span": 1,
-      "layers": ["r", "g"]
+      "layers": ["v", "g"]
     },
     {
       "id": "t3",
       "side": "top",
       "start": 3,
       "span": 1,
-      "layers": ["g", "r"]
+      "layers": ["g", "v"]
     }
   ]
 }

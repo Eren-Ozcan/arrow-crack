@@ -2,13 +2,13 @@
   "id": 5,
   "cols": 5,
   "rows": 5,
-  "palette": ["b", "g", "r"],
+  "palette": ["b", "g", "v"],
   "hearts": 4,
   "par": 5,
   "arrows": [
     {
       "id": "a",
-      "color": "r",
+      "color": "v",
       "dir": "up",
       "path": [
         {
@@ -41,7 +41,7 @@
     },
     {
       "id": "d",
-      "color": "r",
+      "color": "v",
       "dir": "down",
       "path": [
         {
@@ -76,7 +76,7 @@
       "side": "bottom",
       "start": 0,
       "span": 1,
-      "layers": ["r"]
+      "layers": ["v"]
     },
     {
       "id": "b4",
@@ -90,7 +90,7 @@
       "side": "top",
       "start": 2,
       "span": 1,
-      "layers": ["r", "g", "b"]
+      "layers": ["v", "g", "b"]
     }
   ]
 }

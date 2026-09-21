@@ -15,13 +15,13 @@ export const singleShot: Fixture = {
     id: 11,
     cols: 3,
     rows: 3,
-    palette: ["r"],
+    palette: ["v"],
     hearts: 4,
     par: 1,
     arrows: [
       {
         id: "a1",
-        color: "r",
+        color: "v",
         dir: "up",
         path: [
           { col: 1, row: 2 },
@@ -29,7 +29,7 @@ export const singleShot: Fixture = {
         ],
       },
     ],
-    blocks: [{ id: "b1", side: "top", start: 1, span: 1, layers: ["r"] }],
+    blocks: [{ id: "b1", side: "top", start: 1, span: 1, layers: ["v"] }],
   },
   solves: ["a1"],
 };
@@ -40,13 +40,13 @@ export const ordered: Fixture = {
     id: 12,
     cols: 3,
     rows: 3,
-    palette: ["r", "b"],
+    palette: ["v", "b"],
     hearts: 4,
     par: 2,
     arrows: [
       {
         id: "red",
-        color: "r",
+        color: "v",
         dir: "up",
         path: [
           { col: 1, row: 1 },
@@ -55,7 +55,7 @@ export const ordered: Fixture = {
       },
       { id: "blue", color: "b", dir: "up", path: [{ col: 1, row: 2 }] },
     ],
-    blocks: [{ id: "b1", side: "top", start: 1, span: 1, layers: ["r", "b"] }],
+    blocks: [{ id: "b1", side: "top", start: 1, span: 1, layers: ["v", "b"] }],
   },
   solves: ["red", "blue"],
 };
@@ -66,7 +66,7 @@ export const wideAndBent: Fixture = {
     id: 13,
     cols: 4,
     rows: 4,
-    palette: ["g", "r"],
+    palette: ["g", "v"],
     hearts: 4,
     par: 1,
     arrows: [
@@ -80,7 +80,7 @@ export const wideAndBent: Fixture = {
           { col: 1, row: 1 },
         ],
       },
-      { id: "loose", color: "r", dir: "right", path: [{ col: 3, row: 3 }] },
+      { id: "loose", color: "v", dir: "right", path: [{ col: 3, row: 3 }] },
     ],
     blocks: [{ id: "wide", side: "top", start: 0, span: 2, layers: ["g"] }],
   },

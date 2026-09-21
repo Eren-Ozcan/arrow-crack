@@ -2,13 +2,13 @@
   "id": 20,
   "cols": 5,
   "rows": 5,
-  "palette": ["b", "g", "r", "y"],
+  "palette": ["b", "g", "v", "y"],
   "hearts": 1,
   "par": 7,
   "arrows": [
     {
       "id": "a",
-      "color": "r",
+      "color": "v",
       "dir": "up",
       "path": [
         {
@@ -68,7 +68,7 @@
     },
     {
       "id": "e",
-      "color": "r",
+      "color": "v",
       "dir": "down",
       "path": [
         {
@@ -106,7 +106,7 @@
       "side": "bottom",
       "start": 2,
       "span": 1,
-      "layers": ["r", "y"]
+      "layers": ["v", "y"]
     },
     {
       "id": "l2",
@@ -141,7 +141,7 @@
       "side": "top",
       "start": 2,
       "span": 1,
-      "layers": ["r"]
+      "layers": ["v"]
     }
   ],
   "maskRows": ["..#..", ".###.", "#####", ".###.", "..#.."]

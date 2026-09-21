@@ -20,7 +20,7 @@ describe("lane resolution", () => {
   it("uses the head's column when the arrow faces up or down", () => {
     const arrow: Arrow = {
       id: "a",
-      color: "r",
+      color: "v",
       dir: "up",
       path: [
         { col: 3, row: 3 },
@@ -35,7 +35,7 @@ describe("lane resolution", () => {
   it("uses the head's row when the arrow faces left or right", () => {
     const arrow: Arrow = {
       id: "a",
-      color: "r",
+      color: "v",
       dir: "right",
       path: [
         { col: 0, row: 0 },
@@ -91,7 +91,7 @@ describe("validateLevel", () => {
       arrows: [
         {
           id: "a1",
-          color: "r",
+          color: "v",
           dir: "up",
           path: [
             { col: 0, row: 2 },
@@ -110,7 +110,7 @@ describe("validateLevel", () => {
       arrows: [
         {
           id: "a1",
-          color: "r",
+          color: "v",
           dir: "up",
           path: [
             { col: 1, row: 1 },
@@ -130,7 +130,7 @@ describe("validateLevel", () => {
     ) =>
       validateLevel(
         level({
-          arrows: [{ id: "a1", color: "r", dir, path: [tail, { col: 1, row: 1 }] }],
+          arrows: [{ id: "a1", color: "v", dir, path: [tail, { col: 1, row: 1 }] }],
         }),
       ).join();
 
@@ -149,7 +149,7 @@ describe("validateLevel", () => {
       arrows: [
         {
           id: "a1",
-          color: "r",
+          color: "v",
           dir: "left",
           path: [
             { col: 1, row: 2 },
@@ -164,15 +164,15 @@ describe("validateLevel", () => {
   it("rejects overlapping arrows and off-board cells", () => {
     const overlapping = level({
       arrows: [
-        { id: "a1", color: "r", dir: "up", path: [{ col: 1, row: 1 }] },
-        { id: "a2", color: "r", dir: "up", path: [{ col: 1, row: 1 }] },
+        { id: "a1", color: "v", dir: "up", path: [{ col: 1, row: 1 }] },
+        { id: "a2", color: "v", dir: "up", path: [{ col: 1, row: 1 }] },
       ],
     });
     expect(overlapping.arrows).toHaveLength(2);
     expect(validateLevel(overlapping).join()).toMatch(/overlap/);
 
     const offBoard = level({
-      arrows: [{ id: "a1", color: "r", dir: "up", path: [{ col: 9, row: 1 }] }],
+      arrows: [{ id: "a1", color: "v", dir: "up", path: [{ col: 9, row: 1 }] }],
     });
     expect(validateLevel(offBoard).join()).toMatch(/leaves the board/);
   });
@@ -199,14 +199,14 @@ describe("validateLevel", () => {
 
   it("rejects blocks that leave the side or share a lane", () => {
     const offSide = level({
-      blocks: [{ id: "b1", side: "top", start: 2, span: 2, layers: ["r"] }],
+      blocks: [{ id: "b1", side: "top", start: 2, span: 2, layers: ["v"] }],
     });
     expect(validateLevel(offSide).join()).toMatch(/outside the top side/);
 
     const shared = level({
       blocks: [
-        { id: "b1", side: "top", start: 0, span: 2, layers: ["r"] },
-        { id: "b2", side: "top", start: 1, span: 1, layers: ["r"] },
+        { id: "b1", side: "top", start: 0, span: 2, layers: ["v"] },
+        { id: "b2", side: "top", start: 1, span: 1, layers: ["v"] },
       ],
     });
     expect(validateLevel(shared).join()).toMatch(/both cover top:1/);
@@ -226,22 +226,22 @@ describe("validateLevel", () => {
   it("rejects duplicate ids, a span below 1, and a board with no cells", () => {
     const duplicateArrows = level({
       arrows: [
-        { id: "a1", color: "r", dir: "up", path: [{ col: 0, row: 0 }] },
-        { id: "a1", color: "r", dir: "up", path: [{ col: 2, row: 2 }] },
+        { id: "a1", color: "v", dir: "up", path: [{ col: 0, row: 0 }] },
+        { id: "a1", color: "v", dir: "up", path: [{ col: 2, row: 2 }] },
       ],
     });
     expect(validateLevel(duplicateArrows).join()).toMatch(/duplicate arrow id a1/);
 
     const duplicateBlocks = level({
       blocks: [
-        { id: "b1", side: "top", start: 0, span: 1, layers: ["r"] },
-        { id: "b1", side: "top", start: 1, span: 1, layers: ["r"] },
+        { id: "b1", side: "top", start: 0, span: 1, layers: ["v"] },
+        { id: "b1", side: "top", start: 1, span: 1, layers: ["v"] },
       ],
     });
     expect(validateLevel(duplicateBlocks).join()).toMatch(/duplicate block id b1/);
 
     const noSpan = level({
-      blocks: [{ id: "b1", side: "top", start: 1, span: 0, layers: ["r"] }],
+      blocks: [{ id: "b1", side: "top", start: 1, span: 0, layers: ["v"] }],
     });
     expect(validateLevel(noSpan).join()).toMatch(/span below 1/);
 
@@ -258,7 +258,7 @@ describe("validateLevel", () => {
 
   it("rejects an empty path without also reporting its shape", () => {
     const errors = validateLevel(
-      level({ arrows: [{ id: "a1", color: "r", dir: "up", path: [] }] }),
+      level({ arrows: [{ id: "a1", color: "v", dir: "up", path: [] }] }),
     );
     expect(errors).toEqual(["arrow a1 has an empty path"]);
   });
@@ -290,7 +290,7 @@ describe("validateLevel", () => {
 
 describe("headOf", () => {
   it("refuses an arrow with no cells", () => {
-    expect(() => headOf({ id: "a1", color: "r", dir: "up", path: [] })).toThrow(
+    expect(() => headOf({ id: "a1", color: "v", dir: "up", path: [] })).toThrow(
       /empty path/,
     );
   });
@@ -309,7 +309,7 @@ describe("createState", () => {
 
   it("throws on an invalid level", () => {
     const broken = level({
-      arrows: [{ id: "a1", color: "r", dir: "up", path: [] }],
+      arrows: [{ id: "a1", color: "v", dir: "up", path: [] }],
     });
     expect(() => createState(broken)).toThrow(/invalid/);
   });

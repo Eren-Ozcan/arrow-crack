@@ -2,13 +2,13 @@
   "id": 10,
   "cols": 6,
   "rows": 6,
-  "palette": ["b", "g", "r"],
+  "palette": ["b", "g", "v"],
   "hearts": 4,
   "par": 8,
   "arrows": [
     {
       "id": "a",
-      "color": "r",
+      "color": "v",
       "dir": "left",
       "path": [
         {
@@ -72,7 +72,7 @@
     },
     {
       "id": "e",
-      "color": "r",
+      "color": "v",
       "dir": "down",
       "path": [
         {
@@ -102,7 +102,7 @@
     },
     {
       "id": "g",
-      "color": "r",
+      "color": "v",
       "dir": "left",
       "path": [
         {
@@ -144,14 +144,14 @@
       "side": "bottom",
       "start": 5,
       "span": 1,
-      "layers": ["r"]
+      "layers": ["v"]
     },
     {
       "id": "l0",
       "side": "left",
       "start": 0,
       "span": 1,
-      "layers": ["r"]
+      "layers": ["v"]
     },
     {
       "id": "l2",
@@ -172,7 +172,7 @@
       "side": "left",
       "start": 5,
       "span": 1,
-      "layers": ["r"]
+      "layers": ["v"]
     },
     {
       "id": "r0",

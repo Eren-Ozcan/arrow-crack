@@ -27,13 +27,13 @@ describe("fire — the ray check", () => {
       id: 10,
       cols: 3,
       rows: 3,
-      palette: ["r"],
+      palette: ["v"],
       hearts: 4,
       par: 1,
       arrows: [
         {
           id: "spiral",
-          color: "r",
+          color: "v",
           dir: "right",
           path: [
             { col: 2, row: 1 },
@@ -45,7 +45,7 @@ describe("fire — the ray check", () => {
           ],
         },
       ],
-      blocks: [{ id: "b1", side: "right", start: 1, span: 1, layers: ["r"] }],
+      blocks: [{ id: "b1", side: "right", start: 1, span: 1, layers: ["v"] }],
     };
 
     const { event } = fire(createState(spiral), "spiral");
@@ -69,7 +69,7 @@ describe("fire — impact", () => {
     const twoBlocks: LevelDef = {
       ...structuredClone(ordered.level),
       blocks: [
-        { id: "b1", side: "top", start: 1, span: 1, layers: ["r", "b"] },
+        { id: "b1", side: "top", start: 1, span: 1, layers: ["v", "b"] },
         { id: "b2", side: "bottom", start: 0, span: 1, layers: ["b"] },
       ],
     };
@@ -90,7 +90,7 @@ describe("fire — impact", () => {
   it("bounces back into the exact starting shape on a mismatch, for a heart", () => {
     const mismatch: LevelDef = {
       ...structuredClone(singleShot.level),
-      palette: ["r", "b"],
+      palette: ["v", "b"],
       blocks: [{ id: "b1", side: "top", start: 1, span: 1, layers: ["b"] }],
     };
     const state = createState(mismatch);
@@ -120,24 +120,24 @@ describe("fire — impact", () => {
       id: 11,
       cols: 3,
       rows: 3,
-      palette: ["r"],
+      palette: ["v"],
       hearts: 4,
       par: 2,
       arrows: [
         {
           id: "first",
-          color: "r",
+          color: "v",
           dir: "up",
           path: [
             { col: 1, row: 1 },
             { col: 1, row: 0 },
           ],
         },
-        { id: "second", color: "r", dir: "up", path: [{ col: 1, row: 2 }] },
+        { id: "second", color: "v", dir: "up", path: [{ col: 1, row: 2 }] },
       ],
       blocks: [
-        { id: "b1", side: "top", start: 1, span: 1, layers: ["r"] },
-        { id: "b2", side: "bottom", start: 0, span: 1, layers: ["r"] },
+        { id: "b1", side: "top", start: 1, span: 1, layers: ["v"] },
+        { id: "b2", side: "bottom", start: 0, span: 1, layers: ["v"] },
       ],
     };
 

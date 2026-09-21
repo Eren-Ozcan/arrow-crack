@@ -12,6 +12,7 @@
 import { fire } from "../src/engine/fire";
 import { createState, laneCount, validateLevel } from "../src/engine/level";
 import type { GameState, LevelDef, Side } from "../src/engine/types";
+import { PALETTE } from "../src/render/palette";
 import { solve } from "../src/solver";
 
 const SOLVER_BUDGET = { maxNodes: 5_000_000, timeBudgetMs: 30_000 };
@@ -101,6 +102,16 @@ function checkForgiving(level: LevelDef): string[] {
     : [`level ${level.id} is forgiving; only levels 1-${FORGIVING_LEVELS} are`];
 }
 
+/**
+ * A colour the renderer has no entry for throws on the first frame, so the
+ * gate is where that has to be caught — not on the device (ART.md 2).
+ */
+function checkPalette(level: LevelDef): string[] {
+  return level.palette
+    .filter((color) => !(color in PALETTE))
+    .map((color) => `palette key ${color} has no colour in the render palette`);
+}
+
 function checkLanes(level: LevelDef): string[] {
   return SIDES.flatMap((side) =>
     level.blocks
@@ -115,6 +126,7 @@ export function validate(level: LevelDef): string[] {
     ...validateLevel(level),
     ...checkLanes(level),
     ...unhittableBlocks(level),
+    ...checkPalette(level),
     ...checkSpecials(level),
     ...checkForgiving(level),
   ];

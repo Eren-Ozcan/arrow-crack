@@ -2,13 +2,13 @@
   "id": 3,
   "cols": 4,
   "rows": 4,
-  "palette": ["b", "g", "r"],
+  "palette": ["b", "g", "v"],
   "hearts": 4,
   "par": 4,
   "arrows": [
     {
       "id": "a",
-      "color": "r",
+      "color": "v",
       "dir": "up",
       "path": [
         {
@@ -57,7 +57,7 @@
       "side": "top",
       "start": 0,
       "span": 1,
-      "layers": ["r", "g"]
+      "layers": ["v", "g"]
     },
     {
       "id": "t2",

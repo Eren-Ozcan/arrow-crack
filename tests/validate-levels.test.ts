@@ -16,7 +16,7 @@ describe("the level gate", () => {
 
   it("rejects a level nobody can finish", () => {
     const unsolvable = level({
-      blocks: [{ id: "b1", side: "top", start: 1, span: 1, layers: ["b", "r"] }],
+      blocks: [{ id: "b1", side: "top", start: 1, span: 1, layers: ["b", "v"] }],
     });
     expect(validate(unsolvable)).toContain("no solution exists");
   });
@@ -27,11 +27,22 @@ describe("the level gate", () => {
     );
   });
 
+  it("rejects a colour the renderer cannot draw", () => {
+    const wrongKey = level({
+      palette: ["r", "b"],
+      arrows: [{ id: "red", color: "r", dir: "up", path: [{ col: 1, row: 2 }] }],
+      blocks: [{ id: "b1", side: "top", start: 1, span: 1, layers: ["r"] }],
+    });
+    expect(validate(wrongKey).join()).toMatch(
+      /palette key r has no colour in the render palette/,
+    );
+  });
+
   it("rejects a block on a lane no arrow can reach", () => {
     const unhittable = level({
       blocks: [
-        { id: "b1", side: "top", start: 1, span: 1, layers: ["r", "b"] },
-        { id: "b2", side: "left", start: 0, span: 1, layers: ["r"] },
+        { id: "b1", side: "top", start: 1, span: 1, layers: ["v", "b"] },
+        { id: "b2", side: "left", start: 0, span: 1, layers: ["v"] },
       ],
     });
     expect(validate(unhittable).join()).toMatch(
@@ -55,7 +66,7 @@ describe("the level gate", () => {
 
   it("reports structural problems without running the solver", () => {
     const broken = level({
-      arrows: [{ id: "red", color: "r", dir: "up", path: [{ col: 9, row: 9 }] }],
+      arrows: [{ id: "red", color: "v", dir: "up", path: [{ col: 9, row: 9 }] }],
     });
     const problems = validate(broken);
 

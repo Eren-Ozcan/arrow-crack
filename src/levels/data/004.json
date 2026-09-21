@@ -2,7 +2,7 @@
   "id": 4,
   "cols": 4,
   "rows": 4,
-  "palette": ["b", "g", "r"],
+  "palette": ["b", "g", "v"],
   "hearts": 4,
   "par": 5,
   "arrows": [
@@ -53,7 +53,7 @@
     },
     {
       "id": "d",
-      "color": "r",
+      "color": "v",
       "dir": "right",
       "path": [
         {
@@ -68,7 +68,7 @@
     },
     {
       "id": "e",
-      "color": "r",
+      "color": "v",
       "dir": "up",
       "path": [
         {
@@ -98,14 +98,14 @@
       "side": "right",
       "start": 3,
       "span": 1,
-      "layers": ["r"]
+      "layers": ["v"]
     },
     {
       "id": "t2",
       "side": "top",
       "start": 2,
       "span": 1,
-      "layers": ["r", "g"]
+      "layers": ["v", "g"]
     }
   ]
 }

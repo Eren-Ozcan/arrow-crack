@@ -2,7 +2,7 @@
   "id": 2,
   "cols": 4,
   "rows": 4,
-  "palette": ["b", "g", "r"],
+  "palette": ["b", "g", "v"],
   "hearts": 4,
   "par": 3,
   "arrows": [
@@ -19,7 +19,7 @@
     },
     {
       "id": "b",
-      "color": "r",
+      "color": "v",
       "dir": "up",
       "path": [
         {
@@ -50,7 +50,7 @@
       "side": "top",
       "start": 1,
       "span": 1,
-      "layers": ["r", "b"]
+      "layers": ["v", "b"]
     },
     {
       "id": "t3",

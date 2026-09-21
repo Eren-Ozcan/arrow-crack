@@ -2,13 +2,13 @@
   "id": 24,
   "cols": 7,
   "rows": 7,
-  "palette": ["b", "g", "r", "y"],
+  "palette": ["b", "g", "v", "y"],
   "hearts": 4,
   "par": 11,
   "arrows": [
     {
       "id": "a",
-      "color": "r",
+      "color": "v",
       "dir": "down",
       "path": [
         {
@@ -108,7 +108,7 @@
     },
     {
       "id": "e",
-      "color": "r",
+      "color": "v",
       "dir": "right",
       "path": [
         {
@@ -168,7 +168,7 @@
     },
     {
       "id": "i",
-      "color": "r",
+      "color": "v",
       "dir": "down",
       "path": [
         {
@@ -226,14 +226,14 @@
       "side": "bottom",
       "start": 3,
       "span": 1,
-      "layers": ["r"]
+      "layers": ["v"]
     },
     {
       "id": "b6",
       "side": "bottom",
       "start": 6,
       "span": 1,
-      "layers": ["r"]
+      "layers": ["v"]
     },
     {
       "id": "l2",
@@ -275,7 +275,7 @@
       "side": "right",
       "start": 5,
       "span": 1,
-      "layers": ["r"]
+      "layers": ["v"]
     },
     {
       "id": "r6",
