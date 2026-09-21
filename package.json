@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "levels:manifest": "tsx tools/generate-manifest.ts",
     "levels:validate": "tsx tools/validate-levels.ts",
+    "levels:generate": "tsx tools/generate-levels.ts",
     "size": "tsx tools/check-size.ts",
     "cap:sync": "npm run build && cap sync android",
     "android:dev": "npm run cap:sync && cap run android",
