@@ -1,4 +1,6 @@
 import { element } from "./hud";
+import { t } from "./strings";
+import type { StringKey } from "./strings";
 
 /**
  * The coach mark: one line, at the edge of the board, never over it
@@ -19,11 +21,12 @@ export class Coach {
     this.root.addEventListener("pointerdown", onDismiss);
   }
 
-  update(text: string | null): void {
-    if (text === null) {
+  update(key: StringKey | null): void {
+    if (key === null) {
       this.root.hidden = true;
       return;
     }
+    const text = t(key);
     if (this.#line.textContent !== text) this.#line.textContent = text;
     this.root.hidden = false;
   }

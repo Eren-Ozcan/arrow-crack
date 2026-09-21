@@ -1,4 +1,5 @@
 import type { FireEvent } from "@/engine/types";
+import type { StringKey } from "@/ui/strings";
 
 /**
  * The tutorial beats (DESIGN.md 2): one new idea at a time, taught where it
@@ -6,55 +7,31 @@ import type { FireEvent } from "@/engine/types";
  * level attempt, either as the board opens or in answer to what just
  * happened — the mistake beats fire on the mistake itself, which on levels
  * 1-3 costs nothing.
+ *
+ * A beat names a string rather than carrying one, so the lines live with every
+ * other string in `ui/strings.en.json` (DESIGN.md 6).
  */
 export type BeatTrigger = "start" | FireEvent;
 
 export interface Beat {
   level: number;
   when: BeatTrigger;
-  text: string;
+  key: StringKey;
 }
 
 export const BEATS: Beat[] = [
-  { level: 1, when: "start", text: "Tap an arrow to fire it." },
-  {
-    level: 2,
-    when: "blocked",
-    text: "Blocked by another arrow. Off the tutorial, that costs a heart.",
-  },
-  {
-    level: 3,
-    when: "bounced",
-    text: "Wrong colour, so it bounces back. Off the tutorial, that costs a heart.",
-  },
-  {
-    level: 5,
-    when: "start",
-    text: "Blocks are layered. The edges along the inside show what is underneath.",
-  },
-  {
-    level: 8,
-    when: "start",
-    text: "Hearts pay for mistakes. Finish without one for three stars.",
-  },
-  { level: 20, when: "start", text: "One heart. Read the board before every tap." },
-  { level: 31, when: "start", text: "One block, several lanes: any of them feeds it." },
-  {
-    level: 35,
-    when: "start",
-    text: "A Joker takes any colour — but it still needs a clear path.",
-  },
-  {
-    level: 42,
-    when: "start",
-    text: "A Bomb peels its block and both neighbours, whatever the colour.",
-  },
-  { level: 50, when: "start", text: "Three hearts from here on." },
-  {
-    level: 55,
-    when: "start",
-    text: "A Ghost fires straight through the tangle — the colour still has to match.",
-  },
+  { level: 1, when: "start", key: "coach.1.start" },
+  { level: 2, when: "blocked", key: "coach.2.blocked" },
+  { level: 3, when: "bounced", key: "coach.3.bounced" },
+  { level: 5, when: "start", key: "coach.5.start" },
+  { level: 8, when: "start", key: "coach.8.start" },
+  { level: 20, when: "start", key: "coach.20.start" },
+  { level: 31, when: "start", key: "coach.31.start" },
+  { level: 35, when: "start", key: "coach.35.start" },
+  { level: 38, when: "start", key: "coach.38.start" },
+  { level: 42, when: "start", key: "coach.42.start" },
+  { level: 50, when: "start", key: "coach.50.start" },
+  { level: 55, when: "start", key: "coach.55.start" },
 ];
 
 /** The beat for this moment, or null. */
