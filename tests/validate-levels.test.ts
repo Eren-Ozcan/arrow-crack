@@ -51,17 +51,36 @@ describe("the level gate", () => {
   });
 
   it("holds hearts to the band table, or to one", () => {
+    // The fixture sits outside a generated level's difficulty band, so these
+    // assert on the hearts message rather than on a clean bill of health.
     expect(validate(level({ hearts: 2 })).join()).toMatch(/wants 4, or 1/);
-    expect(validate(level({ hearts: 1 }))).toEqual([]);
+    expect(validate(level({ hearts: 1 })).join()).not.toMatch(/hearts is/);
     expect(validate(level({ id: 60, hearts: 4 })).join()).toMatch(/wants 3, or 1/);
-    expect(validate(level({ id: 60, hearts: 3 }))).toEqual([]);
+    expect(validate(level({ id: 60, hearts: 3 })).join()).not.toMatch(/hearts is/);
   });
 
   it("rejects a timed level whose clock is too short for its par", () => {
     expect(validate(level({ type: "timed", timeLimitMs: 1000 })).join()).toMatch(
       /allows 1000 ms for a par of 2/,
     );
-    expect(validate(level({ type: "timed", timeLimitMs: 30_000 }))).toEqual([]);
+    expect(validate(level({ type: "timed", timeLimitMs: 30_000 })).join()).not.toMatch(
+      /allows 30000 ms/,
+    );
+  });
+
+  it("holds a special to the level its band introduces it on", () => {
+    const withGhost = (id: number): string =>
+      validate(
+        level({
+          id,
+          arrows: level().arrows.map((arrow, index) =>
+            index === 0 ? { ...arrow, special: "ghost" as const } : arrow,
+          ),
+        }),
+      ).join();
+
+    expect(withGhost(36)).toMatch(/that special is introduced at level 55/);
+    expect(withGhost(60)).not.toMatch(/introduced at level/);
   });
 
   it("reports structural problems without running the solver", () => {

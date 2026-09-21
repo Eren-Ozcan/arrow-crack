@@ -5,21 +5,28 @@
  * override check. Everything here runs against the shipped engine, so a level
  * that passes is a level the game can actually finish.
  *
- * Still to come, with the milestones that make them meaningful:
- * - difficulty band metrics (DESIGN.md 4.3), with the generator in milestone 5
- * - solver-cost regression per level, once generated levels have baselines
+ * The set-level checks — id order, the manifest, special-level spacing and the
+ * solver-cost baseline — need every level at once, so they live in the CLI
+ * (`tools/validate-levels.ts`) rather than here.
  */
 import { fire } from "../src/engine/fire";
 import { createState, laneCount, validateLevel } from "../src/engine/level";
-import type { GameState, LevelDef, Side } from "../src/engine/types";
+import type { GameState, LevelDef, Side, Special } from "../src/engine/types";
 import { PALETTE } from "../src/render/palette";
 import { solve } from "../src/solver";
+import { checkBand, measure } from "./difficulty";
 
 const SOLVER_BUDGET = { maxNodes: 5_000_000, timeBudgetMs: 30_000 };
 const SIDES: Side[] = ["top", "bottom", "left", "right"];
 
 /** Specials are introduced one at a time and never before this level (DESIGN.md 1.11). */
 const FIRST_SPECIAL_LEVEL = 35;
+/**
+ * The level each special is introduced at. A board may not carry one before
+ * its band has taught it: Joker first, then the Bomb's area effect, and the
+ * Ghost last because it cancels the tangle (DESIGN.md 1.11).
+ */
+const SPECIAL_INTRO: Record<Special, number> = { joker: 35, bomb: 42, ghost: 55 };
 /** The levels that teach what costs a heart demonstrate it instead (DESIGN.md 2). */
 const FORGIVING_LEVELS = 3;
 
@@ -89,6 +96,15 @@ function checkSpecials(level: LevelDef): string[] {
     problems.push(
       `level ${level.id} carries a special; the first one belongs at level ${FIRST_SPECIAL_LEVEL}`,
     );
+  }
+
+  for (const arrow of specials) {
+    const intro = SPECIAL_INTRO[arrow.special!];
+    if (level.id < intro) {
+      problems.push(
+        `level ${level.id} carries a ${arrow.special}; that special is introduced at level ${intro}`,
+      );
+    }
   }
   return problems;
 }
@@ -168,6 +184,12 @@ export function validate(level: LevelDef): string[] {
 
   const replayProblem = replay(state, result.witness ?? []);
   if (replayProblem) problems.push(replayProblem);
+
+  // The difficulty band (DESIGN.md 4.3). Hand-authored levels are outside it
+  // by design — 1 to 30 are a teaching curve, not a generated one.
+  const metrics = measure(level);
+  if (!metrics) problems.push("the difficulty model could not rate this level");
+  else problems.push(...checkBand(level, metrics));
 
   return problems;
 }
