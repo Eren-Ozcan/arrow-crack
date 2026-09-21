@@ -9,6 +9,14 @@ import type { Arrow, Block, FireResult, GameState } from "./types";
 function spendHeart(state: GameState): GameState {
   if (state.level.forgiving) return state;
 
+  // A timed level has exactly one failure currency, and it is the clock
+  // (PROGRESSION.md 3). The mistake still counts — stars come from mistakes on
+  // every level type — and the session still charges it five seconds, but no
+  // heart is taken, because two budgets in one level are unreadable.
+  if (state.level.type === "timed") {
+    return { ...state, mistakes: state.mistakes + 1 };
+  }
+
   const heartsLeft = state.heartsLeft - 1;
   return {
     ...state,
@@ -108,17 +116,28 @@ export function fire(state: GameState, arrowId: string): FireResult {
   };
 }
 
-/** After a rewarded ad: +1 heart, board untouched (DESIGN.md 1.5). */
+/**
+ * After a rewarded ad: +1 heart, board untouched (DESIGN.md 1.5). On a timed
+ * level the currency is time, so the thirty seconds are the session's to grant
+ * (PROGRESSION.md 3) and no heart changes hands here.
+ */
 export function grantContinue(state: GameState): GameState {
   if (state.status !== "lost") {
     throw new Error(`cannot continue while the level is ${state.status}`);
   }
+  const timed = state.level.type === "timed";
   return {
     ...state,
-    heartsLeft: state.heartsLeft + 1,
+    heartsLeft: timed ? state.heartsLeft : state.heartsLeft + 1,
     continuesUsed: state.continuesUsed + 1,
     status: "playing",
   };
+}
+
+/** Set by the session when a timed level's clock reaches zero (PROGRESSION.md 3). */
+export function markOutOfTime(state: GameState): GameState {
+  if (state.status !== "playing") return state;
+  return { ...state, status: "lost" };
 }
 
 /** Set by the UI when the solver reports no solution from here (DESIGN.md 1.7). */

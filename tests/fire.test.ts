@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fire, grantContinue, markStuck } from "@/engine/fire";
+import { fire, grantContinue, markOutOfTime, markStuck } from "@/engine/fire";
 import { createState } from "@/engine/level";
 import { starsFor, starsForMistakes } from "@/engine/stars";
 import type { GameState, LevelDef } from "@/engine/types";
@@ -223,5 +223,48 @@ describe("the fixture set", () => {
       expect(starsFor(won)).toBe(3);
       expect(fixture.solves).toHaveLength(fixture.level.par);
     }
+  });
+});
+
+describe("fire — timed levels", () => {
+  const timed: LevelDef = {
+    ...ordered.level,
+    id: 38,
+    type: "timed",
+    timeLimitMs: 45_000,
+  };
+
+  it("counts the mistake but never takes a heart", () => {
+    // A timed level has exactly one failure currency, and it is the clock
+    // (PROGRESSION.md 3). The session charges the five seconds.
+    const state = createState(timed);
+    const { state: after, event } = fire(state, "blue");
+
+    expect(event).toBe("blocked");
+    expect(after.heartsLeft).toBe(state.heartsLeft);
+    expect(after.mistakes).toBe(1);
+    expect(after.status).toBe("playing");
+  });
+
+  it("still loses a star for that mistake", () => {
+    const after = play(createState(timed), "blue", "red", "blue");
+    expect(after.status).toBe("won");
+    expect(starsFor(after)).toBe(2);
+  });
+
+  it("runs out of time rather than out of hearts", () => {
+    const outOfTime = markOutOfTime(createState(timed));
+    expect(outOfTime.status).toBe("lost");
+    // Marking it twice is the same board: the clock only expires once.
+    expect(markOutOfTime(outOfTime)).toBe(outOfTime);
+  });
+
+  it("grants seconds, not a heart, on a continue", () => {
+    const lost = markOutOfTime(createState(timed));
+    const resumed = grantContinue(lost);
+
+    expect(resumed.heartsLeft).toBe(lost.heartsLeft);
+    expect(resumed.continuesUsed).toBe(1);
+    expect(resumed.status).toBe("playing");
   });
 });
