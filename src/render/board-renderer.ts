@@ -70,8 +70,6 @@ function drawBoardSurface(
   showGrid: boolean,
   mask: readonly Cell[] | undefined,
 ): void {
-  const { bounds } = layout;
-
   context.save();
   context.fillStyle = THEME.board;
   if (mask) {
@@ -89,7 +87,14 @@ function drawBoardSurface(
       );
     }
   } else {
-    context.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+    // The grid only: the frame sits outside it with a visible gap, so "on the
+    // board" and "on the frame" are never ambiguous (ART.md 5).
+    context.fillRect(
+      layout.origin.x,
+      layout.origin.y,
+      layout.cols * layout.cell,
+      layout.rows * layout.cell,
+    );
   }
 
   if (showGrid) {

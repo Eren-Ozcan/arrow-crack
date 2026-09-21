@@ -210,6 +210,7 @@ body {
 
 .coach-line {
   margin: 0;
+  color: var(--ink);
   font-size: 0.95rem;
   line-height: 1.35;
   text-align: center;
