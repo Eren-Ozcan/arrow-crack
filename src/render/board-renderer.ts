@@ -53,7 +53,7 @@ export function renderBoard(context: CanvasRenderingContext2D, input: RenderInpu
   context.translate(camera.offset.x, camera.offset.y);
   context.scale(camera.scale, camera.scale);
 
-  drawBoardSurface(context, layout, input.showGrid);
+  drawBoardSurface(context, layout, input.showGrid, input.state.level.mask);
   drawBlocks(context, input);
   drawArrows(context, input);
   if (input.guide) drawGuide(context, input, input.guide);
@@ -68,14 +68,45 @@ function drawBoardSurface(
   context: CanvasRenderingContext2D,
   layout: Layout,
   showGrid: boolean,
+  mask: readonly Cell[] | undefined,
 ): void {
   const { bounds } = layout;
 
   context.save();
   context.fillStyle = THEME.board;
-  context.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+  if (mask) {
+    // A shaped board is the silhouette itself, not a rectangle with empty
+    // corners: the cells are filled one by one, slightly overlapping so the
+    // outline reads as one surface (DESIGN.md 1.10).
+    const bleed = 1;
+    for (const cell of mask) {
+      const rect = cellRect(layout, cell);
+      context.fillRect(
+        rect.x - bleed,
+        rect.y - bleed,
+        rect.width + bleed * 2,
+        rect.height + bleed * 2,
+      );
+    }
+  } else {
+    context.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+  }
 
   if (showGrid) {
+    if (mask) {
+      // Grid lines only make sense where there is a board to trace.
+      context.beginPath();
+      for (const cell of mask) {
+        const rect = cellRect(layout, cell);
+        context.rect(rect.x, rect.y, rect.width, rect.height);
+      }
+      context.strokeStyle = THEME.disabledInk;
+      context.globalAlpha = 0.25;
+      context.lineWidth = 1;
+      context.stroke();
+      context.restore();
+      return;
+    }
     context.strokeStyle = THEME.disabledInk;
     context.globalAlpha = 0.25;
     context.lineWidth = 1;
