@@ -31,6 +31,8 @@ import type { Layout } from "@/render/layout";
 import { blockForArrow, neighbourBlocks } from "@/engine/level";
 import { createScore, levelScore, registerShot } from "./score";
 import type { ScoreState } from "./score";
+import { beatFor } from "./tutorial";
+import type { Beat } from "./tutorial";
 
 export interface SessionView {
   levelId: number;
@@ -46,6 +48,8 @@ export interface SessionView {
   showGrid: boolean;
   fitted: boolean;
   busy: boolean;
+  /** The coach mark to show right now, or null (DESIGN.md 2). */
+  coach: string | null;
 }
 
 export interface SessionOptions {
@@ -84,6 +88,8 @@ export class GameSession {
   #guide: GuideView | null = null;
   #pulse: { arrowIds: string[]; startedAt: number } | null = null;
   #gained = 0;
+  #coach: Beat | null = null;
+  #shownBeats = new Set<string>();
   #showGrid = false;
   #frame = 0;
   #viewport = { width: 0, height: 0 };
@@ -101,6 +107,7 @@ export class GameSession {
 
     this.#state = createState(options.level);
     this.#layout = computeLayout(options.level, { width: 1, height: 1 });
+    this.#teach("start");
   }
 
   start(): void {
@@ -128,6 +135,9 @@ export class GameSession {
   restart(): void {
     this.#state = createState(this.level);
     this.#score = createScore();
+    this.#shownBeats.clear();
+    this.#coach = null;
+    this.#teach("start");
     this.#animation = null;
     this.#queuedTap = null;
     this.#guide = null;
@@ -142,6 +152,24 @@ export class GameSession {
     if (this.#state.status !== "lost") return;
     this.#state = grantContinue(this.#state);
     this.#publish();
+  }
+
+  /** The player read the line, or moved on; either way it goes. */
+  dismissCoach(): void {
+    if (!this.#coach) return;
+    this.#coach = null;
+    this.#publish();
+  }
+
+  /**
+   * A beat is shown once per attempt, and only where the board can answer for
+   * it: on levels 1-3 the mistake it names costs nothing (DESIGN.md 2).
+   */
+  #teach(when: Parameters<typeof beatFor>[1]): void {
+    const beat = beatFor(this.level.id, when);
+    if (!beat || this.#shownBeats.has(beat.when)) return;
+    this.#shownBeats.add(beat.when);
+    this.#coach = beat;
   }
 
   toggleGrid(): void {
@@ -176,6 +204,7 @@ export class GameSession {
       showGrid: this.#showGrid,
       fitted: isFitted(this.#camera),
       busy: this.#animation !== null,
+      coach: this.#coach?.text ?? null,
     });
   }
 
@@ -329,6 +358,9 @@ export class GameSession {
     const { state, event, peels, destroyed } = fire(this.#state, arrowId);
 
     const shot = registerShot(this.#score, { event, peels, destroyed }, now);
+    // A tap answers the opening line, and may raise one of its own.
+    this.#coach = null;
+    this.#teach(event);
     this.#score = shot.state;
     this.#gained = shot.gained;
     this.#state = state;
