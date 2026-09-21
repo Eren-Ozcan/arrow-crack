@@ -74,10 +74,10 @@ engine and solver directly — one implementation, three callers (CI, the
 generator, the device's override check) — with no build step in between.
 
 The checks below are the full set. Implemented today: schema, path
-integrity, solvable, `par`, witness replay, hearts, mask reachability and
-level type. The difficulty band, the per-level solver cost and the special
-arrow rules arrive with the milestones that make them meaningful, and the
-table says so.
+integrity, solvable, `par`, witness replay, hearts, mask reachability, level
+type, the special-arrow rules, the tutorial levels that forgive, and the
+manifest. The difficulty band and the per-level solver cost arrive with the
+generator in milestone 5, and the table says so.
 
 | Check                 | Fails the build when                                                                                                                                                    |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -93,7 +93,8 @@ table says so.
 | Special-level spacing | A timed level sits adjacent to a one-heart level                                                                                                                        |
 | Difficulty band       | A generated level's metrics (`DESIGN.md` 4.3) fall outside the band for its index                                                                                       |
 | Solver cost           | The worst-case node count regressed against the recorded fixture baseline                                                                                               |
-| Ids and order         | Duplicate level ids, gaps in the sequence, or a manifest that disagrees with the files on disk                                                                          |
+| Tutorial levels       | A level outside 1-3 forgives a mistake, or one of those three does not (`DESIGN.md` 2)                                                                                  |
+| Ids and order         | Duplicate level ids, gaps in the sequence, a manifest that disagrees with the files on disk (`npm run levels:manifest -- --check`)                                      |
 
 The witness replay is what makes the whole scheme trustworthy: it proves the
 _shipped engine_ can win the level, not merely that some search once could.

@@ -275,7 +275,9 @@ in section 1.2) and mask-aware generation (not cheap). So:
   comes after launch.
 
 Masks are authored as a simple grid of characters next to the level, not
-traced by hand cell by cell.
+traced by hand cell by cell: the level file carries `maskRows`, one string
+per board row with `#` for a playable cell, and the loader expands it into
+the `mask` cell list before the engine ever sees the board.
 
 ---
 
@@ -405,6 +407,7 @@ interface LevelDef {
   arrows: Arrow[];
   blocks: Block[];
   hearts: number; // hearts: 4 / 3 by band, or 1 on a designated level
+  forgiving?: boolean; // levels 1-3: the taught mistake costs no heart
   type?: "timed"; // special level types (PROGRESSION.md 3)
   // arrows carry an optional `special: "joker" | "ghost" | "bomb"` (1.10)
   timeLimitMs?: number; // timed levels only; hearts are unused there

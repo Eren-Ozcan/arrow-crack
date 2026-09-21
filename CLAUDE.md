@@ -37,6 +37,7 @@ a document disagree, fix one of them in the same change — do not leave both.
 | `npm run typecheck`       | `tsc --noEmit`                    |
 | `npm run lint`            | ESLint                            |
 | `npm test`                | Vitest, single run                |
+| `npm run levels:manifest` | Regenerate `src/levels/manifest`  |
 | `npm run levels:validate` | The level gate (`CI.md` 2.2)      |
 | `npm run build`           | Production web build              |
 | `npm run size`            | Bundle budget gate                |
