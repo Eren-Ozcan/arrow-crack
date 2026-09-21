@@ -10,37 +10,21 @@
       "id": "a",
       "color": "b",
       "dir": "up",
-      "path": [
-        {
-          "col": 1,
-          "row": 2
-        }
-      ]
+      "path": [{ "col": 1, "row": 2 }]
     },
     {
       "id": "b",
       "color": "v",
       "dir": "up",
-      "path": [
-        {
-          "col": 1,
-          "row": 1
-        }
-      ]
+      "path": [{ "col": 1, "row": 1 }]
     },
     {
       "id": "c",
       "color": "g",
       "dir": "up",
       "path": [
-        {
-          "col": 3,
-          "row": 2
-        },
-        {
-          "col": 3,
-          "row": 1
-        }
+        { "col": 3, "row": 2 },
+        { "col": 3, "row": 1 }
       ]
     }
   ],

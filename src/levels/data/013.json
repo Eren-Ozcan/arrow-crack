@@ -11,14 +11,8 @@
       "color": "v",
       "dir": "left",
       "path": [
-        {
-          "col": 1,
-          "row": 0
-        },
-        {
-          "col": 0,
-          "row": 0
-        }
+        { "col": 1, "row": 0 },
+        { "col": 0, "row": 0 }
       ]
     },
     {
@@ -26,18 +20,9 @@
       "color": "v",
       "dir": "up",
       "path": [
-        {
-          "col": 3,
-          "row": 2
-        },
-        {
-          "col": 3,
-          "row": 1
-        },
-        {
-          "col": 3,
-          "row": 0
-        }
+        { "col": 3, "row": 2 },
+        { "col": 3, "row": 1 },
+        { "col": 3, "row": 0 }
       ]
     },
     {
@@ -45,18 +30,9 @@
       "color": "b",
       "dir": "up",
       "path": [
-        {
-          "col": 5,
-          "row": 2
-        },
-        {
-          "col": 5,
-          "row": 1
-        },
-        {
-          "col": 5,
-          "row": 0
-        }
+        { "col": 5, "row": 2 },
+        { "col": 5, "row": 1 },
+        { "col": 5, "row": 0 }
       ]
     },
     {
@@ -64,14 +40,8 @@
       "color": "g",
       "dir": "left",
       "path": [
-        {
-          "col": 1,
-          "row": 2
-        },
-        {
-          "col": 0,
-          "row": 2
-        }
+        { "col": 1, "row": 2 },
+        { "col": 0, "row": 2 }
       ]
     },
     {
@@ -79,14 +49,8 @@
       "color": "b",
       "dir": "down",
       "path": [
-        {
-          "col": 0,
-          "row": 3
-        },
-        {
-          "col": 0,
-          "row": 4
-        }
+        { "col": 0, "row": 3 },
+        { "col": 0, "row": 4 }
       ]
     },
     {
@@ -94,18 +58,9 @@
       "color": "g",
       "dir": "up",
       "path": [
-        {
-          "col": 3,
-          "row": 5
-        },
-        {
-          "col": 3,
-          "row": 4
-        },
-        {
-          "col": 3,
-          "row": 3
-        }
+        { "col": 3, "row": 5 },
+        { "col": 3, "row": 4 },
+        { "col": 3, "row": 3 }
       ]
     },
     {
@@ -113,18 +68,9 @@
       "color": "y",
       "dir": "up",
       "path": [
-        {
-          "col": 5,
-          "row": 5
-        },
-        {
-          "col": 5,
-          "row": 4
-        },
-        {
-          "col": 5,
-          "row": 3
-        }
+        { "col": 5, "row": 5 },
+        { "col": 5, "row": 4 },
+        { "col": 5, "row": 3 }
       ]
     },
     {
@@ -132,14 +78,8 @@
       "color": "y",
       "dir": "left",
       "path": [
-        {
-          "col": 1,
-          "row": 5
-        },
-        {
-          "col": 0,
-          "row": 5
-        }
+        { "col": 1, "row": 5 },
+        { "col": 0, "row": 5 }
       ]
     }
   ],
