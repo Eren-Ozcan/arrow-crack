@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createState } from "@/engine/level";
 import { SolverClient } from "@/solver/client";
 import { handle } from "@/solver/worker";
@@ -8,13 +8,20 @@ import { ordered } from "./fixtures/levels";
 /** A worker stand-in that answers on the next microtask, or not at all. */
 class FakeWorker implements Pick<Worker, "postMessage" | "terminate"> {
   #listeners: ((event: MessageEvent<SolverResponse>) => void)[] = [];
+  #failures: (() => void)[] = [];
 
   constructor(
     private readonly mode: "answer" | "throw" | "silent" | "unsolicited" = "answer",
   ) {}
 
-  addEventListener(_type: "message", listener: (event: MessageEvent) => void): void {
-    this.#listeners.push(listener);
+  addEventListener(type: string, listener: (event: MessageEvent) => void): void {
+    if (type === "message") this.#listeners.push(listener);
+    else this.#failures.push(listener as unknown as () => void);
+  }
+
+  /** Fires what a worker fires when it cannot load or cannot answer. */
+  fail(): void {
+    for (const listener of this.#failures) listener();
   }
 
   postMessage(request: SolverRequest): void {
@@ -42,6 +49,10 @@ class FakeWorker implements Pick<Worker, "postMessage" | "terminate"> {
 function clientWith(mode: "answer" | "throw" | "silent" | "unsolicited"): SolverClient {
   return new SolverClient(new FakeWorker(mode) as unknown as Worker);
 }
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("the solver worker", () => {
   it("answers both question kinds", () => {
@@ -107,5 +118,35 @@ describe("the solver client", () => {
     // Terminating clears the pending map; a late answer must not throw.
     client.terminate();
     expect(await client.isSolvable(state)).toBe(true);
+  });
+
+  it("gives up on a worker that never answers", async () => {
+    vi.useFakeTimers();
+    const client = clientWith("silent");
+    const state = createState(ordered.level);
+
+    const solvable = client.isSolvable(state, { timeBudgetMs: 8 });
+    const hint = client.nextMove(state, { timeBudgetMs: 250 });
+    await vi.runAllTimersAsync();
+
+    // Fail open: a silent worker means no stuck panel and no hint.
+    expect(await solvable).toBe(true);
+    expect(await hint).toBeNull();
+    client.terminate();
+  });
+
+  it("fails open once the worker itself errors, and stays that way", async () => {
+    const worker = new FakeWorker("silent");
+    const client = new SolverClient(worker as unknown as Worker);
+    const state = createState(ordered.level);
+
+    const pending = client.isSolvable(state);
+    worker.fail();
+
+    expect(await pending).toBe(true);
+    // No timer is needed for the next question; a broken worker answers now.
+    expect(await client.isSolvable(state)).toBe(true);
+    expect(await client.nextMove(state)).toBeNull();
+    client.terminate();
   });
 });
