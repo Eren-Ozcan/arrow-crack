@@ -26,7 +26,13 @@ export interface StuckPanel {
   onRestart: () => void;
 }
 
-export type Panel = WinPanel | LostPanel | StuckPanel;
+export interface OneHeartPanel {
+  kind: "oneHeart";
+  levelId: number;
+  onStart: () => void;
+}
+
+export type Panel = WinPanel | LostPanel | StuckPanel | OneHeartPanel;
 
 export class Modals {
   readonly root: HTMLElement;
@@ -77,6 +83,19 @@ export class Modals {
         card.append(title);
         card.append(button("Watch an ad for +1 heart", panel.onContinue));
         card.append(button("Restart", panel.onRestart));
+        break;
+      }
+
+      case "oneHeart": {
+        // A single heart is never a surprise discovered by losing it
+        // (DESIGN.md 1.5).
+        const title = element("h2");
+        title.textContent = `Level ${panel.levelId}: one heart`;
+
+        const line = element("p", "modal-line");
+        line.textContent = "One mistake ends the attempt. Restarting is always free.";
+
+        card.append(title, line, button("Start", panel.onStart));
         break;
       }
 

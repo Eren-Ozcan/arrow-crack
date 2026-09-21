@@ -188,3 +188,29 @@ body {
     transition: none;
   }
 }
+
+/* The coach mark: one line at the edge of the board, never over it. */
+.coach {
+  position: absolute;
+  left: 50%;
+  bottom: 5rem;
+  transform: translateX(-50%);
+  max-width: min(28rem, calc(100% - 2rem));
+  padding: 0.65rem 1rem;
+  border: 2px solid var(--ink);
+  border-radius: 0.9rem;
+  background: var(--board);
+  box-shadow: 0 6px 0 rgb(31 27 22 / 0.18);
+  pointer-events: auto;
+}
+
+.coach[hidden] {
+  display: none;
+}
+
+.coach-line {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  text-align: center;
+}

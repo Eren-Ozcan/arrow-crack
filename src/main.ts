@@ -3,6 +3,7 @@ import { GameSession } from "./game/session";
 import type { SessionView } from "./game/session";
 import { LEVELS, levelById, nextLevelId } from "./levels";
 import { SolverClient } from "./solver/client";
+import { Coach } from "./ui/coach";
 import { Hud } from "./ui/hud";
 import { commentaryFor, Modals } from "./ui/modals";
 
@@ -16,6 +17,9 @@ const modals = new Modals();
 
 let session: GameSession | null = null;
 let hud: Hud | null = null;
+let coach: Coach | null = null;
+/** True while the one-heart warning is on screen and the board waits behind it. */
+let waitingToStart = false;
 
 function start(levelId: number): void {
   const level = levelById(levelId) ?? LEVELS[0]!;
@@ -34,6 +38,20 @@ function start(levelId: number): void {
   hud ??= mountHud();
   session = next;
   next.start();
+
+  // A one-heart level announces itself before it starts, never after
+  // (DESIGN.md 1.5).
+  waitingToStart = level.hearts === 1;
+  if (waitingToStart) {
+    modals.show({
+      kind: "oneHeart",
+      levelId: level.id,
+      onStart: () => {
+        waitingToStart = false;
+        modals.close();
+      },
+    });
+  }
 }
 
 function mountHud(): Hud {
@@ -43,15 +61,17 @@ function mountHud(): Hud {
     onFit: () => session?.fit(),
   });
 
-  app!.append(mounted.root, modals.root);
+  coach = new Coach(() => session?.dismissCoach());
+  app!.append(mounted.root, coach.root, modals.root);
   return mounted;
 }
 
 function onChange(view: SessionView): void {
   hud?.update(view);
+  coach?.update(view.coach);
 
   if (view.status === "playing") {
-    modals.close();
+    if (!waitingToStart) modals.close();
     return;
   }
 
