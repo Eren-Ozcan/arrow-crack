@@ -38,6 +38,7 @@ a document disagree, fix one of them in the same change — do not leave both.
 | `npm run lint`            | ESLint                            |
 | `npm test`                | Vitest, single run                |
 | `npm run levels:manifest` | Regenerate `src/levels/manifest`  |
+| `npm run levels:generate` | Propose levels 31-80 (`--write`)  |
 | `npm run levels:validate` | The level gate (`CI.md` 2.2)      |
 | `npm run build`           | Production web build              |
 | `npm run size`            | Bundle budget gate                |
@@ -48,9 +49,13 @@ a document disagree, fix one of them in the same change — do not leave both.
 
 `src/engine` rules, `src/solver` search, `src/render` canvas drawing,
 `src/input` gesture arbitration, `src/game` the session that owns the clock
-and the score, `src/ui` DOM screens, `src/levels` level JSON and the loader.
-The engine and the solver are pure; everything that knows about time lives in
-`src/game/session.ts`.
+and the score, `src/ui` DOM screens, `src/levels` level JSON and the loader,
+`src/state` the schema-versioned local save. The engine and the solver are
+pure; everything that knows about time lives in `src/game/session.ts`.
+
+No screen holds a string: every user-visible line is a key in
+`src/ui/strings.en.json`, read through `t()` (DESIGN.md 6). That includes the
+tutorial beats, which name a key rather than carrying a line.
 
 ## Verifying a change on the device
 
