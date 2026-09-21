@@ -1,4 +1,7 @@
+import { NARROW_ESCAPE_MS } from "@/game/clock";
 import { button, element } from "./hud";
+import { t } from "./strings";
+import type { StringKey } from "./strings";
 
 /**
  * Result panels (DESIGN.md 3). Nothing celebratory is ever drawn over a live
@@ -9,9 +12,10 @@ export interface WinPanel {
   stars: 0 | 1 | 2 | 3;
   score: number;
   /** One line, chosen by the caller (PROGRESSION.md 2.2). */
-  commentary: string;
+  commentary: StringKey;
   onNext: (() => void) | null;
   onRestart: () => void;
+  onHome: () => void;
 }
 
 export interface LostPanel {
@@ -19,11 +23,38 @@ export interface LostPanel {
   /** Watch to continue with +1 heart, board untouched. */
   onContinue: () => void;
   onRestart: () => void;
+  onHome: () => void;
+}
+
+/** Out of time, on a timed level: the clock is the only budget there. */
+export interface OutOfTimePanel {
+  kind: "outOfTime";
+  onContinue: () => void;
+  onRestart: () => void;
+  onHome: () => void;
+}
+
+/** A timed level announces its clock before it starts, exactly like one heart. */
+export interface TimedPanel {
+  kind: "timed";
+  levelId: number;
+  timeLimitMs: number;
+  onStart: () => void;
+}
+
+/**
+ * Returning from the background is acknowledged before the clock starts
+ * again, so nobody comes back to a running clock (PROGRESSION.md 3.1).
+ */
+export interface ResumePanel {
+  kind: "resume";
+  onResume: () => void;
 }
 
 export interface StuckPanel {
   kind: "stuck";
   onRestart: () => void;
+  onHome: () => void;
 }
 
 export interface OneHeartPanel {
@@ -32,7 +63,14 @@ export interface OneHeartPanel {
   onStart: () => void;
 }
 
-export type Panel = WinPanel | LostPanel | StuckPanel | OneHeartPanel;
+export type Panel =
+  | WinPanel
+  | LostPanel
+  | OutOfTimePanel
+  | TimedPanel
+  | ResumePanel
+  | StuckPanel
+  | OneHeartPanel;
 
 export class Modals {
   readonly root: HTMLElement;
@@ -53,7 +91,7 @@ export class Modals {
     switch (panel.kind) {
       case "win": {
         const title = element("h2");
-        title.textContent = "Level clear";
+        title.textContent = t("win.title");
 
         const stars = element("div", "stars");
         for (let index = 0; index < 3; index += 1) {
@@ -66,11 +104,12 @@ export class Modals {
         score.textContent = panel.score.toLocaleString("en-US");
 
         const line = element("p", "modal-line");
-        line.textContent = panel.commentary;
+        line.textContent = t(panel.commentary);
 
         card.append(title, stars, score, line);
-        if (panel.onNext) card.append(button("Next level", panel.onNext));
-        card.append(button("Replay", panel.onRestart));
+        if (panel.onNext) card.append(button(t("win.next"), panel.onNext));
+        card.append(button(t("win.replay"), panel.onRestart));
+        card.append(button(t("win.home"), panel.onHome));
         break;
       }
 
@@ -78,11 +117,12 @@ export class Modals {
         // No score on the fail screen: a player who is struggling is not shown
         // a number telling them they are bad at it (PROGRESSION.md 1.5).
         const title = element("h2");
-        title.textContent = "Out of hearts";
+        title.textContent = t("lost.title");
 
         card.append(title);
-        card.append(button("Watch an ad for +1 heart", panel.onContinue));
-        card.append(button("Restart", panel.onRestart));
+        card.append(button(t("lost.continue"), panel.onContinue));
+        card.append(button(t("lost.restart"), panel.onRestart));
+        card.append(button(t("win.home"), panel.onHome));
         break;
       }
 
@@ -90,12 +130,47 @@ export class Modals {
         // A single heart is never a surprise discovered by losing it
         // (DESIGN.md 1.5).
         const title = element("h2");
-        title.textContent = `Level ${panel.levelId}: one heart`;
+        title.textContent = t("oneHeart.title", { level: panel.levelId });
 
         const line = element("p", "modal-line");
-        line.textContent = "One mistake ends the attempt. Restarting is always free.";
+        line.textContent = t("oneHeart.line");
 
-        card.append(title, line, button("Start", panel.onStart));
+        card.append(title, line, button(t("oneHeart.start"), panel.onStart));
+        break;
+      }
+
+      case "outOfTime": {
+        const title = element("h2");
+        title.textContent = t("outOfTime.title");
+
+        card.append(title);
+        card.append(button(t("outOfTime.continue"), panel.onContinue));
+        card.append(button(t("lost.restart"), panel.onRestart));
+        card.append(button(t("win.home"), panel.onHome));
+        break;
+      }
+
+      case "timed": {
+        // A clock must never be a surprise (PROGRESSION.md 3).
+        const title = element("h2");
+        title.textContent = t("timed.title", { level: panel.levelId });
+
+        const line = element("p", "modal-line");
+        const seconds = Math.round(panel.timeLimitMs / 1000);
+        line.textContent = t("timed.line", { seconds });
+
+        card.append(title, line, button(t("oneHeart.start"), panel.onStart));
+        break;
+      }
+
+      case "resume": {
+        const title = element("h2");
+        title.textContent = t("resume.title");
+
+        const line = element("p", "modal-line");
+        line.textContent = t("resume.line");
+
+        card.append(title, line, button(t("resume.button"), panel.onResume));
         break;
       }
 
@@ -103,9 +178,10 @@ export class Modals {
         // Being stuck is a design consequence, not a player failure: free
         // restart, no life taken, no ad (DESIGN.md 1.7).
         const title = element("h2");
-        title.textContent = "No moves left";
+        title.textContent = t("stuck.title");
 
-        card.append(title, button("Restart", panel.onRestart));
+        card.append(title, button(t("stuck.restart"), panel.onRestart));
+        card.append(button(t("win.home"), panel.onHome));
         break;
       }
     }
@@ -123,9 +199,15 @@ export function commentaryFor(input: {
   mistakes: number;
   heartsLeft: number;
   personalBest: boolean;
-}): string {
-  if (input.mistakes === 0) return "Perfect. Not a single misread.";
-  if (input.personalBest) return "Your best run on this level yet.";
-  if (input.heartsLeft === 1) return "That was close.";
-  return "Cleared.";
+  /** Timed levels only: what was left on the clock (PROGRESSION.md 3). */
+  remainingMs?: number | null;
+}): StringKey {
+  if (input.mistakes === 0) return "win.perfect";
+  if (input.personalBest) return "win.personalBest";
+  // Winning on the last heart and winning on the last seconds are the same
+  // beat, so they say the same thing (PROGRESSION.md 2.3).
+  const remaining = input.remainingMs ?? null;
+  if (remaining !== null && remaining < NARROW_ESCAPE_MS) return "win.close";
+  if (remaining === null && input.heartsLeft === 1) return "win.close";
+  return "win.cleared";
 }

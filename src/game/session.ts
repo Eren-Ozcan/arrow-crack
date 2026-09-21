@@ -1,4 +1,4 @@
-import { fire, grantContinue, markStuck } from "@/engine/fire";
+import { fire, grantContinue, markOutOfTime, markStuck } from "@/engine/fire";
 import { cellKey, createState } from "@/engine/level";
 import { blockersOf, clearRay, isBlocked } from "@/engine/rays";
 import { starsFor } from "@/engine/stars";
@@ -29,10 +29,23 @@ import { renderBoard, travelCells } from "@/render/board-renderer";
 import { cellAt, computeLayout } from "@/render/layout";
 import type { Layout } from "@/render/layout";
 import { blockForArrow, neighbourBlocks } from "@/engine/level";
+import {
+  advance,
+  createClock,
+  grantTime,
+  isExpired,
+  pause,
+  penalise,
+  resume,
+  timeBonus,
+} from "./clock";
+import type { ClockState } from "./clock";
+import { earnedJokerTarget, grantEarnedJoker } from "./earned";
 import { createScore, levelScore, registerShot } from "./score";
 import type { ScoreState } from "./score";
 import { beatFor } from "./tutorial";
 import type { Beat } from "./tutorial";
+import type { StringKey } from "@/ui/strings";
 
 export interface SessionView {
   levelId: number;
@@ -45,11 +58,13 @@ export interface SessionView {
   multiplier: number;
   /** Set for one frame after a scoring shot, for the floating score. */
   gained: number;
+  /** Milliseconds left on a timed level, or null on every other type. */
+  remainingMs: number | null;
   showGrid: boolean;
   fitted: boolean;
   busy: boolean;
-  /** The coach mark to show right now, or null (DESIGN.md 2). */
-  coach: string | null;
+  /** The string key of the coach mark to show right now, or null (DESIGN.md 2). */
+  coach: StringKey | null;
 }
 
 export interface SessionOptions {
@@ -91,6 +106,10 @@ export class GameSession {
   #coach: Beat | null = null;
   #shownBeats = new Set<string>();
   #showGrid = false;
+  /** Timed levels only (PROGRESSION.md 3). */
+  #clock: ClockState | null = null;
+  /** Set by the UI for anything that is not play: a modal, an ad, a background. */
+  #suspended = false;
   #frame = 0;
   #viewport = { width: 0, height: 0 };
 
@@ -106,6 +125,7 @@ export class GameSession {
     this.#context = context;
 
     this.#state = createState(options.level);
+    this.#clock = this.#freshClock();
     this.#layout = computeLayout(options.level, { width: 1, height: 1 });
     this.#teach("start");
   }
@@ -134,6 +154,7 @@ export class GameSession {
   /** Restarting is always free and instant (DESIGN.md 1.5). */
   restart(): void {
     this.#state = createState(this.level);
+    this.#clock = this.#freshClock();
     this.#score = createScore();
     this.#shownBeats.clear();
     this.#coach = null;
@@ -147,17 +168,54 @@ export class GameSession {
     this.#publish();
   }
 
-  /** After a rewarded ad: +1 heart, board untouched. */
+  /** After a rewarded ad: +1 heart, or +30 seconds on a timed level. */
   continueAfterAd(): void {
     if (this.#state.status !== "lost") return;
     this.#state = grantContinue(this.#state);
+    if (this.#clock) this.#clock = grantTime(this.#clock);
     this.#publish();
+  }
+
+  /**
+   * Everything that is not the player deciding is off the clock
+   * (PROGRESSION.md 3.1): an ad, a consent form, a modal, the app being
+   * backgrounded. Zooming, panning, the exit-ray guide and the arrow
+   * animations are play, and stay on it.
+   */
+  suspend(): void {
+    this.#suspended = true;
+    this.#syncClock(performance.now());
+    this.#publish();
+  }
+
+  resumeFromSuspend(): void {
+    this.#suspended = false;
+    this.#syncClock(performance.now());
+    this.#publish();
+  }
+
+  #freshClock(): ClockState | null {
+    if (this.level.type !== "timed" || this.level.timeLimitMs === undefined) return null;
+    return createClock(this.level.timeLimitMs);
+  }
+
+  /**
+   * The clock runs only while the player is actually deciding. A coach mark
+   * pauses it too, so a line the game chose to show can never cost time.
+   */
+  #syncClock(now: number): void {
+    if (!this.#clock) return;
+
+    const shouldRun =
+      !this.#suspended && this.#coach === null && this.#state.status === "playing";
+    this.#clock = shouldRun ? resume(this.#clock, now) : pause(this.#clock, now);
   }
 
   /** The player read the line, or moved on; either way it goes. */
   dismissCoach(): void {
     if (!this.#coach) return;
     this.#coach = null;
+    this.#syncClock(performance.now());
     this.#publish();
   }
 
@@ -187,7 +245,13 @@ export class GameSession {
   }
 
   get finalScore(): number {
-    return levelScore(this.#score, this.#state.mistakes);
+    const bonus = this.#clock ? timeBonus(this.#clock) : 0;
+    return levelScore(this.#score, this.#state.mistakes, bonus);
+  }
+
+  /** Milliseconds left on a timed level, or null on every other type. */
+  get remainingMs(): number | null {
+    return this.#clock?.remainingMs ?? null;
   }
 
   #publish(): void {
@@ -201,10 +265,11 @@ export class GameSession {
       score: this.#score.score,
       multiplier: this.#score.multiplier,
       gained: this.#gained,
+      remainingMs: this.#clock?.remainingMs ?? null,
       showGrid: this.#showGrid,
       fitted: isFitted(this.#camera),
       busy: this.#animation !== null,
-      coach: this.#coach?.text ?? null,
+      coach: this.#coach?.key ?? null,
     });
   }
 
@@ -236,8 +301,30 @@ export class GameSession {
     }
     if (this.#pulse && now - this.#pulse.startedAt >= PULSE_MS) this.#pulse = null;
 
+    this.#tickClock(now);
     this.#draw(now);
   };
+
+  /** The clock, and the one failure it can cause (PROGRESSION.md 3). */
+  #tickClock(now: number): void {
+    if (!this.#clock) return;
+
+    this.#syncClock(now);
+    const before = Math.ceil(this.#clock.remainingMs / 1000);
+    this.#clock = advance(this.#clock, now);
+
+    if (isExpired(this.#clock) && this.#state.status === "playing") {
+      this.#state = markOutOfTime(this.#state);
+      this.#syncClock(now);
+      this.#publish();
+      return;
+    }
+
+    // The HUD is DOM, so it only changes when the session publishes: without
+    // this the clock would sit still between taps while the time ran out
+    // underneath it.
+    if (Math.ceil(this.#clock.remainingMs / 1000) !== before) this.#publish();
+  }
 
   #draw(now: number): void {
     renderBoard(this.#context, {
@@ -359,6 +446,14 @@ export class GameSession {
     this.#gained = shot.gained;
     this.#state = state;
 
+    // On a timed level a mistake costs five seconds rather than a heart;
+    // `fire()` has already declined to take one (PROGRESSION.md 3).
+    if (this.#clock && (event === "blocked" || event === "bounced")) {
+      this.#clock = penalise(this.#clock, now);
+    }
+
+    if (shot.earnedSpecial) this.#grantEarnedJoker(now);
+
     if (event === "blocked") {
       // The life is spent either way, but the player learns why.
       this.#pulse = { arrowIds: blockers, startedAt: now };
@@ -376,6 +471,16 @@ export class GameSession {
     this.#animation = plan.totalMs > 0 ? { plan, startedAt: now } : null;
     if (!this.#animation) this.#afterAnimation();
     this.#publish();
+  }
+
+  /** The combo reward, once per attempt (PROGRESSION.md 1.4). */
+  #grantEarnedJoker(now: number): void {
+    const target = earnedJokerTarget(this.#state);
+    if (!target) return;
+
+    this.#state = grantEarnedJoker(this.#state, target);
+    // The board just changed on its own, so it says which piece changed.
+    this.#pulse = { arrowIds: [target], startedAt: now };
   }
 
   #afterAnimation(): void {
