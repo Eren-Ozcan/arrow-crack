@@ -1,0 +1,91 @@
+{
+  "id": 40,
+  "cols": 6,
+  "rows": 6,
+  "palette": ["b", "g", "v", "y"],
+  "hearts": 1,
+  "par": 8,
+  "arrows": [
+    {
+      "id": "a",
+      "color": "v",
+      "dir": "up",
+      "path": [
+        { "col": 2, "row": 4 },
+        { "col": 2, "row": 3 }
+      ]
+    },
+    {
+      "id": "b",
+      "color": "g",
+      "dir": "down",
+      "path": [
+        { "col": 3, "row": 1 },
+        { "col": 3, "row": 2 }
+      ]
+    },
+    {
+      "id": "c",
+      "color": "y",
+      "dir": "left",
+      "path": [
+        { "col": 2, "row": 2 },
+        { "col": 1, "row": 2 }
+      ]
+    },
+    {
+      "id": "d",
+      "color": "b",
+      "dir": "right",
+      "path": [
+        { "col": 3, "row": 3 },
+        { "col": 4, "row": 3 }
+      ]
+    },
+    {
+      "id": "e",
+      "color": "b",
+      "dir": "up",
+      "path": [
+        { "col": 2, "row": 1 },
+        { "col": 2, "row": 0 }
+      ]
+    },
+    {
+      "id": "f",
+      "color": "y",
+      "dir": "down",
+      "path": [
+        { "col": 3, "row": 4 },
+        { "col": 3, "row": 5 }
+      ]
+    },
+    {
+      "id": "g",
+      "color": "g",
+      "dir": "left",
+      "path": [
+        { "col": 1, "row": 3 },
+        { "col": 0, "row": 3 }
+      ]
+    },
+    {
+      "id": "h",
+      "color": "v",
+      "dir": "right",
+      "path": [
+        { "col": 4, "row": 2 },
+        { "col": 5, "row": 2 }
+      ]
+    }
+  ],
+  "blocks": [
+    { "id": "t2", "side": "top", "start": 2, "span": 1, "layers": ["b", "v"] },
+    { "id": "b3", "side": "bottom", "start": 3, "span": 1, "layers": ["y", "g"] },
+    { "id": "l2", "side": "left", "start": 2, "span": 1, "layers": ["y"] },
+    { "id": "l3", "side": "left", "start": 3, "span": 1, "layers": ["g"] },
+    { "id": "r2", "side": "right", "start": 2, "span": 1, "layers": ["v"] },
+    { "id": "r3", "side": "right", "start": 3, "span": 1, "layers": ["b"] }
+  ],
+  "maskRows": ["..##..", ".####.", "######", "######", ".####.", "..##.."]
+}

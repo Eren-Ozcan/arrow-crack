@@ -11,9 +11,9 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { loadLevels } from "./levels";
 
-const MANIFEST = join(process.cwd(), "src", "levels", "manifest.ts");
+export const MANIFEST = join(process.cwd(), "src", "levels", "manifest.ts");
 
-function render(files: string[]): string {
+export function render(files: string[]): string {
   const names = files.map((file) => `level${file.replace(".json", "")}`);
   const imports = names
     .map((name, index) => `import ${name} from "./data/${files[index]!}";`)
@@ -48,4 +48,4 @@ async function main(): Promise<void> {
   console.log(`levels:manifest — wrote ${levels.length} level(s)`);
 }
 
-await main();
+if (process.argv[1]?.endsWith("generate-manifest.ts")) await main();

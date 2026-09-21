@@ -1,0 +1,145 @@
+{
+  "id": 34,
+  "cols": 6,
+  "rows": 6,
+  "palette": ["v", "b", "g", "y"],
+  "hearts": 4,
+  "par": 6,
+  "arrows": [
+    {
+      "id": "a",
+      "color": "y",
+      "dir": "down",
+      "path": [
+        {
+          "col": 5,
+          "row": 2
+        },
+        {
+          "col": 5,
+          "row": 3
+        }
+      ]
+    },
+    {
+      "id": "b",
+      "color": "g",
+      "dir": "left",
+      "path": [
+        {
+          "col": 5,
+          "row": 4
+        },
+        {
+          "col": 5,
+          "row": 5
+        },
+        {
+          "col": 4,
+          "row": 5
+        }
+      ]
+    },
+    {
+      "id": "c",
+      "color": "g",
+      "dir": "down",
+      "path": [
+        {
+          "col": 1,
+          "row": 4
+        },
+        {
+          "col": 0,
+          "row": 4
+        },
+        {
+          "col": 0,
+          "row": 5
+        }
+      ]
+    },
+    {
+      "id": "d",
+      "color": "b",
+      "dir": "up",
+      "path": [
+        {
+          "col": 4,
+          "row": 4
+        },
+        {
+          "col": 4,
+          "row": 3
+        }
+      ]
+    },
+    {
+      "id": "e",
+      "color": "y",
+      "dir": "up",
+      "path": [
+        {
+          "col": 4,
+          "row": 2
+        },
+        {
+          "col": 4,
+          "row": 1
+        }
+      ]
+    },
+    {
+      "id": "f",
+      "color": "y",
+      "dir": "left",
+      "path": [
+        {
+          "col": 1,
+          "row": 3
+        },
+        {
+          "col": 0,
+          "row": 3
+        }
+      ]
+    }
+  ],
+  "blocks": [
+    {
+      "id": "b5",
+      "side": "bottom",
+      "start": 5,
+      "span": 1,
+      "layers": ["y"]
+    },
+    {
+      "id": "l5",
+      "side": "left",
+      "start": 5,
+      "span": 1,
+      "layers": ["g"]
+    },
+    {
+      "id": "t4",
+      "side": "top",
+      "start": 4,
+      "span": 1,
+      "layers": ["y", "b"]
+    },
+    {
+      "id": "b0",
+      "side": "bottom",
+      "start": 0,
+      "span": 1,
+      "layers": ["g"]
+    },
+    {
+      "id": "l3",
+      "side": "left",
+      "start": 3,
+      "span": 1,
+      "layers": ["y"]
+    }
+  ]
+}
