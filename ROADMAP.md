@@ -27,9 +27,9 @@ the two milestones marked at risk.
 
 If time runs short, the order to cut in: generated levels 61-80 first (ship
 60), then shaped levels (ship one instead of four), then the timed level
-type. **Never** cut: the solver's stuck detection, the inert blocked-arrow
-rendering, or the gesture thresholds — each of those turns the heart rule
-from strict into unfair.
+type. **Never** cut: the solver's stuck detection, the free exit-ray guide,
+or the gesture thresholds — each of those turns the heart rule from strict
+into unfair.
 
 ---
 
@@ -96,9 +96,9 @@ procedurally from the palette table.
   rounded bends, an oversized head and a rounded tail carrying the glyph;
   frame blocks with layer slabs; wide blocks spanning lanes.
 - Press-and-hold exit-ray guide (`ART.md` 3.2) — free, not ad-gated.
-- **Blocked arrows rendered visibly inert** — required, not polish: a
-  blocked tap costs a heart, so it must be readable before the tap
-  (`ART.md` 6.1).
+- **Blocked arrows are drawn like any other** — what makes a blocked tap
+  fair is the board and the free exit-ray guide, not a treatment on the
+  arrow (`ART.md` 6.1).
 - **Blocker highlight**: tapping a blocked arrow pulses whatever is blocking
   it. The life is still spent, but the player learns why (`ART.md` 6.2).
 - Tap input with hit testing, animation queue, input lock during playback.

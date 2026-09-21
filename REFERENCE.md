@@ -107,9 +107,9 @@ accounts.
 
 - **The arrow form itself** — path arrows with bends and one head.
 - **Hearts for mistakes, per level** — already ours, now validated.
-- **Long-press guidance** — already ours, now validated. Ours additionally
-  marks blocked arrows inert _before_ the tap (`ART.md` 6.1), which a
-  monochrome board cannot do.
+- **Long-press guidance** — already ours, now validated. Ours stops the
+  guide at whatever is in the way, so the player can see what blocks a shot
+  before paying a heart for it (`ART.md` 3.2).
 - **A level path on the home screen** as the progression spine.
 - **Shaped boards** — the most screenshot-able idea in the genre, cheap for
   us as a mask (`DESIGN.md` 1.10). What we add that they cannot: our frame
@@ -160,9 +160,9 @@ plan. Three wedges are actually available:
    becoming a different game.
 2. **Ad respect plus a remove-ads purchase.** Their loudest complaint, and
    an empty slot on their listing.
-3. **Legibility and accessibility.** Always-on colour glyphs, inert blocked
-   arrows, a 48dp floor — in a genre whose leader ships a board a reviewer
-   says does not fit the screen.
+3. **Legibility and accessibility.** Always-on colour glyphs, a free
+   exit-ray guide, a 48dp floor — in a genre whose leader ships a board a
+   reviewer says does not fit the screen.
 
 **Store consequence.** Screenshots lead with the frame: a layered stack
 mid-peel or a wide block, never a tangle of arrows alone — that is

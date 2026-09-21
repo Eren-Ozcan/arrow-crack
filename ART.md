@@ -19,8 +19,8 @@ stripe notation to teach. Destroying a layer is a slab shattering off the
 top, which reads as progress without any UI text.
 
 The thick dark outline is not decoration. It is what keeps a pale color
-(the yellow) legible on a light board, and it is the surface the inert state
-drains (section 6).
+(the yellow) legible on a light board, and what separates two same-coloured
+arrows lying side by side.
 
 ```
   ┏━━━━━━━┓   ← top layer, full face + glyph
@@ -263,7 +263,7 @@ without color.
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Idle, fireable    | Full color, full outline, slow idle bob                                                                                              |
 | Hearts            | Filled hearts, never droplets or pips; a lost heart drains and stays visible as an empty outline, so the cost is legible at a glance |
-| **Blocked**       | **Desaturated to ~25%, outline lightened to the disabled ink, idle bob stopped, no tap highlight.** Reads as inert at a glance       |
+| **Blocked**       | Drawn exactly like a fireable arrow. What stops it is read off the board, or off the hold guide, which stops at the obstruction      |
 | Press and hold    | Exit ray guide + target block outline (section 3.1)                                                                                  |
 | Firing            | The whole path slides out head-first along its own route, the tail following the head's track; slight squash on launch               |
 | Impact — match    | Block flashes white, top slab shatters into shards, next layer settles down with a small bounce                                      |
@@ -274,12 +274,22 @@ without color.
 | Combo break       | Badge shrinks back to x1. No sting, no red — the heart already delivered the bad news                                                |
 | Timed level       | A clock replaces the hearts in the HUD; under 10 seconds it pulses. Never a heartbeat sound stacked on the music                     |
 
-### 6.1 The blocked state is a release blocker
+### 6.1 A blocked arrow is not marked
 
-A blocked tap costs a heart. That rule is only fair if being blocked is
-visible _before_ the tap, so the inert treatment ships with the mechanic,
-not after it. Acceptance test: a new player, shown a still screenshot, can
-point at every arrow that cannot move.
+A blocked tap costs a heart, and being blocked is still something the
+player has to see before tapping — but it is read off the board itself: the
+obstruction is drawn right there on the ray, and the press-and-hold guide
+(section 3.2) stops at it, free and always available. The arrow is drawn in
+full colour like any other.
+
+The earlier rule desaturated a blocked arrow. It was dropped because a
+board full of drained colours reads as broken rather than as informative,
+and because the colour of an arrow is a rule in this game: dimming it
+fights the one channel the player has to match against the frame.
+
+If the data says this is wrong — `blocked_tap` sustained above the
+threshold in `TELEMETRY.md` 3.1 — the fix is a stronger guide and a wider
+tap tolerance before any treatment is put back on the arrow itself.
 
 ### 6.2 Blocker highlight (mercy, not a hint)
 
@@ -374,8 +384,9 @@ Before any art is called done:
    If layers or matches become ambiguous, the glyph work is not done.
 2. **CVD simulation.** Same board through protanopia, deuteranopia and
    tritanopia filters.
-3. **Blocked-arrow test.** Section 5.1's still-screenshot test, on someone
-   who has not seen the game.
+3. **Blocked-arrow test.** A player who has not seen the game holds an
+   arrow whose path is blocked and can say, from the guide alone, what is
+   stopping it.
 4. **Small-screen test.** 360dp-wide device, the most crowded 50+ board:
    every cell still ≥ 48dp, no horizontal scroll, HUD not overlapping the
    frame. With a 9x9 grid plus the frame this is the binding constraint on

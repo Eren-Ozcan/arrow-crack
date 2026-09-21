@@ -28,8 +28,6 @@ export interface RenderInput {
   layout: Layout;
   camera: Camera;
   viewport: { width: number; height: number };
-  /** Ids of arrows whose ray is blocked; drawn inert (ART.md 6.1). */
-  blocked: ReadonlySet<string>;
   /** Press-and-hold exit-ray guide (ART.md 3.2). */
   guide?: GuideView | null;
   /** Blocker highlight after a blocked tap (ART.md 6.2). */
@@ -239,23 +237,21 @@ function innerDirection(side: Block["side"]): Point {
 }
 
 function drawArrows(context: CanvasRenderingContext2D, input: RenderInput): void {
-  const { state, layout, animation, blocked, pulse } = input;
+  const { state, layout, animation, pulse } = input;
   const phase = animation ? phaseAt(animation.plan, animation.elapsed) : null;
   const animatedId = phase ? animation?.plan.arrow.id : undefined;
 
   for (const arrow of state.arrows) {
     if (arrow.id === animatedId) continue;
 
-    // A fireable arrow bobs slowly; a blocked one is completely still, which
-    // is half of what makes the inert state readable (ART.md 6).
-    const isBlockedArrow = blocked.has(arrow.id);
+    // Every arrow bobs: a blocked one is drawn exactly like any other, and
+    // what it runs into is read off the board or off the hold guide.
     const bob =
-      input.now === undefined || isBlockedArrow
+      input.now === undefined
         ? 0
         : Math.sin(input.now / 900 + hashId(arrow.id)) * layout.cell * 0.02;
 
     drawArrow(context, layout, arrow, {
-      blocked: isBlockedArrow,
       pulse: pulse?.arrowIds.includes(arrow.id) ? 1 - pulse.t : 0,
       offset: { x: 0, y: bob },
     });

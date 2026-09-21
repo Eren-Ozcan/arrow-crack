@@ -240,17 +240,11 @@ export class GameSession {
   };
 
   #draw(now: number): void {
-    const blocked = new Set<string>();
-    for (const arrow of this.#state.arrows) {
-      if (isBlocked(this.#state, arrow)) blocked.add(arrow.id);
-    }
-
     renderBoard(this.#context, {
       state: this.#state,
       layout: this.#layout,
       camera: this.#camera,
       viewport: this.#viewport,
-      blocked,
       guide: this.#guide,
       pulse: this.#pulse
         ? {

@@ -147,9 +147,9 @@ we are in:
 - A high and flat `blocked_tap` rate, especially early in a level and on
   one-heart levels → blocked arrows are not reading as blocked. **The rule
   itself is settled (`DESIGN.md` 1.5) and is not the variable being tuned
-  here.** The fixes, in order: strengthen the inert rendering, widen the tap
-  tolerance in the gesture thresholds, make the exit-ray guide more
-  discoverable. A first-one-free grace is explicitly not on the list — it
+  here.** The fixes, in order: make the exit-ray guide more discoverable,
+  widen the tap tolerance in the gesture thresholds, and only then consider
+  putting a treatment back on the blocked arrow itself (`ART.md` 6.1). A first-one-free grace is explicitly not on the list — it
   would turn the first tap of every level into a free probe.
 
 Threshold to act on: `blocked_tap` above **25%** of all mistakes, sustained

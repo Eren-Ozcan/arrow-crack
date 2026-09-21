@@ -125,12 +125,13 @@ available (`ART.md` 3.2), and a pan may never be mistaken for a tap
   A heart reads as "this is yours and you can lose it" in every market
   without a tutorial line.
 - A blocked tap and a mismatch bounce each cost 1 heart. Nothing else does.
-- **Readability is mandatory, because a blocked tap is punished.** An arrow
-  whose path is blocked is rendered visibly inert — desaturated, no idle
-  animation, no tap highlight — so a blocked shot is a misread of the board,
-  never a hidden trap. Without this the rule is a gotcha; with it, it is the
-  same "look before you tap" skill the color rule asks for. This is a
-  release blocker, not polish.
+- **Readability is mandatory, because a blocked tap is punished.** A
+  blocked arrow is drawn like any other, so what makes the rule fair is the
+  board being readable: the obstruction sits on the ray in plain sight, and
+  the press-and-hold exit-ray guide (`ART.md` 3.2) is free, always
+  available, and stops at whatever is in the way. The arrow itself is never
+  dimmed — colour is a rule here, and draining it fights the one channel the
+  player matches against the frame.
 - When the last life is lost, the level fails and the player is offered a
   rewarded ad: **watch to continue with +1 heart, board untouched**. Declining
   restarts the level. See `ADS.md` for the caps.
@@ -614,10 +615,10 @@ most one pending tap.
 
 1. **Blocked tap cost** — settled: costs 1 heart, confirmed and not up for
    revision (section 1.5). It is the single riskiest rule in the game,
-   because a mis-tap on a one-heart level ends the run, so the inert
-   rendering and the gesture thresholds ship _with_ it rather than after it.
+   because a mis-tap on a one-heart level ends the run, so the exit-ray
+   guide and the gesture thresholds ship _with_ it rather than after it.
    If playtests show hearts lost to fat fingers rather than to misreads, the
-   answer is stronger rendering and a wider tap tolerance — **not** a
+   answer is a more discoverable guide and a wider tap tolerance — **not** a
    first-one-free grace, which would teach players that the first tap is a
    probe.
 2. **Destroyed lane** — default: an arrow fired into a destroyed lane flies

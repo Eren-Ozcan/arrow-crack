@@ -2,7 +2,7 @@ import type { Arrow, Block, Cell } from "@/engine/types";
 import type { Layout, Point } from "./layout";
 import { cellCentre } from "./layout";
 import type { Glyph } from "./palette";
-import { desaturate, PALETTE, paletteEntry, THEME } from "./palette";
+import { PALETTE, paletteEntry, THEME } from "./palette";
 
 /**
  * Everything on the board is drawn procedurally (ART.md 8): an arrow is a
@@ -18,16 +18,12 @@ const HEAD_RATIO = 0.86;
 /** How far short of the head cell the pipe stops, so the head reads as a head. */
 const HEAD_INSET_RATIO = 0.3;
 const GLYPH_RATIO = 0.3;
-/** How far the blocked state drains a colour towards the board. */
-const INERT_MIX = 0.75;
 /** A Ghost is translucent, and its outline is the only dashed one on the board. */
 const GHOST_ALPHA = 0.5;
 /** Band length of a Joker's pipe, as a fraction of the cell (ART.md 3.1). */
 const JOKER_BAND_RATIO = 0.5;
 
 export interface ArrowStyle {
-  /** Blocked arrows are rendered visibly inert (ART.md 6.1). */
-  blocked?: boolean;
   /** 0-1; the blocker highlight pulse (ART.md 6.2). */
   pulse?: number;
   /** Board-space offset, used for the idle bob and the mistake shake. */
@@ -83,8 +79,8 @@ export function drawArrow(
   style: ArrowStyle = {},
 ): void {
   const entry = paletteEntry(arrow.color);
-  const fill = style.blocked ? desaturate(entry.fill, INERT_MIX) : entry.fill;
-  const ink = style.blocked ? THEME.disabledInk : THEME.ink;
+  const fill = entry.fill;
+  const ink = THEME.ink;
   const width = pipeWidth(layout);
   const outline = outlineWidth(layout);
   const offset = style.offset ?? { x: 0, y: 0 };
@@ -163,7 +159,7 @@ export function drawArrow(
     arrow.special === "joker" ? "all" : entry.glyph,
     layout,
     ink,
-    style.blocked ?? false,
+    false,
   );
 
   context.restore();
