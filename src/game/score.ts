@@ -9,6 +9,12 @@ import type { FireResult } from "@/engine/types";
  * decides how fast the chain climbs, so haste without accuracy is punished
  * twice — a heart and the whole multiplier — and never rewarded.
  */
+/**
+ * Bumped whenever the formula below changes, so a later rebalance cannot
+ * silently make old scores comparable with new ones (PROGRESSION.md 5).
+ */
+export const SCORE_VERSION = 1;
+
 export const BASE_SHOT_SCORE = 100;
 export const CLEAN_BONUS = 1000;
 /** A correct shot inside this window advances the chain by 2 instead of 1. */
