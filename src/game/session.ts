@@ -28,7 +28,7 @@ import type { GuideView } from "@/render/board-renderer";
 import { renderBoard, travelCells } from "@/render/board-renderer";
 import { cellAt, computeLayout } from "@/render/layout";
 import type { Layout } from "@/render/layout";
-import { blockForArrow } from "@/engine/level";
+import { blockForArrow, neighbourBlocks } from "@/engine/level";
 import { createScore, levelScore, registerShot } from "./score";
 import type { ScoreState } from "./score";
 
@@ -298,11 +298,17 @@ export class GameSession {
   #guideFor(arrow: Arrow): GuideView {
     const blocked = isBlocked(this.#state, arrow);
     const target = blockForArrow(this.#state.blocks, arrow);
+    const splash =
+      !blocked && target && arrow.special === "bomb"
+        ? neighbourBlocks(this.level, this.#state.blocks, target).map((block) => block.id)
+        : [];
+
     return {
       arrowId: arrow.id,
       clear: clearRay(this.#state, arrow),
       blocked,
       targetBlockId: blocked ? null : (target?.id ?? null),
+      splashBlockIds: splash,
     };
   }
 

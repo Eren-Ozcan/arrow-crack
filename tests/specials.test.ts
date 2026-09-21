@@ -26,7 +26,8 @@ function level(parts: Partial<LevelDef> & Pick<LevelDef, "arrows" | "blocks">): 
 const wall: Arrow = { id: "wall", color: "r", dir: "left", path: [{ col: 1, row: 1 }] };
 
 function shooter(special: Arrow["special"], color: string): Arrow {
-  return { id: "shot", color, special, dir: "up", path: [{ col: 1, row: 2 }] };
+  const arrow: Arrow = { id: "shot", color, dir: "up", path: [{ col: 1, row: 2 }] };
+  return special ? { ...arrow, special } : arrow;
 }
 
 function topBlock(lane: number, layers: string[]): Block {

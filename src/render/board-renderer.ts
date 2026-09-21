@@ -16,6 +16,11 @@ export interface GuideView {
   /** True when something is standing in the way. */
   blocked: boolean;
   targetBlockId: string | null;
+  /**
+   * Blocks the shot also reaches: a bomb's two neighbours, so the area effect
+   * is visible before the tap and not after (ART.md 3.2).
+   */
+  splashBlockIds?: readonly string[];
 }
 
 export interface RenderInput {
@@ -101,7 +106,9 @@ function drawBlocks(context: CanvasRenderingContext2D, input: RenderInput): void
 
     drawBlock(context, layout, block, blockRect(layout, block), {
       flash,
-      highlighted: guide?.targetBlockId === block.id,
+      highlighted:
+        guide?.targetBlockId === block.id ||
+        (guide?.splashBlockIds?.includes(block.id) ?? false),
     });
   }
 

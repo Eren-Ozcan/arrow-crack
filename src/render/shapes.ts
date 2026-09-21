@@ -2,7 +2,7 @@ import type { Arrow, Block, Cell } from "@/engine/types";
 import type { Layout, Point } from "./layout";
 import { cellCentre } from "./layout";
 import type { Glyph } from "./palette";
-import { desaturate, paletteEntry, THEME } from "./palette";
+import { desaturate, PALETTE, paletteEntry, THEME } from "./palette";
 
 /**
  * Everything on the board is drawn procedurally (ART.md 8): an arrow is a
@@ -20,6 +20,10 @@ const HEAD_INSET_RATIO = 0.3;
 const GLYPH_RATIO = 0.3;
 /** How far the blocked state drains a colour towards the board. */
 const INERT_MIX = 0.75;
+/** A Ghost is translucent, and its outline is the only dashed one on the board. */
+const GHOST_ALPHA = 0.5;
+/** Band length of a Joker's pipe, as a fraction of the cell (ART.md 3.1). */
+const JOKER_BAND_RATIO = 0.5;
 
 export interface ArrowStyle {
   /** Blocked arrows are rendered visibly inert (ART.md 6.1). */
@@ -129,20 +133,97 @@ export function drawArrow(
   }
 
   // Outline first: two same-coloured arrows lying side by side must still
-  // read as two objects (ART.md 3).
+  // read as two objects (ART.md 3). A Ghost's is dashed, which is the one
+  // silhouette on the board that is not continuous.
   context.strokeStyle = ink;
   context.lineWidth = width + outline * 2;
+  if (arrow.special === "ghost")
+    context.setLineDash([layout.cell * 0.22, layout.cell * 0.14]);
   tracePipe(context, points, width / 2);
   context.stroke();
+  context.setLineDash([]);
 
+  if (arrow.special === "ghost") context.globalAlpha = (style.alpha ?? 1) * GHOST_ALPHA;
   context.strokeStyle = fill;
   context.lineWidth = width;
   tracePipe(context, points, width / 2);
   context.stroke();
 
-  drawHead(context, head, towards, layout, fill, ink, outline);
-  drawGlyph(context, points[0]!, entry.glyph, layout, ink, style.blocked ?? false);
+  // The Joker carries every palette colour as a repeating band, so it reads
+  // as "not any colour" rather than as a sixth one (ART.md 3.1).
+  if (arrow.special === "joker") drawJokerBands(context, points, layout, width);
 
+  if (arrow.special === "bomb")
+    drawBombHead(context, head, towards, layout, fill, ink, outline);
+  else drawHead(context, head, towards, layout, fill, ink, outline);
+
+  drawGlyph(
+    context,
+    points[0]!,
+    arrow.special === "joker" ? "all" : entry.glyph,
+    layout,
+    ink,
+    style.blocked ?? false,
+  );
+
+  context.restore();
+}
+
+/**
+ * Bands of every palette colour along the pipe. They are drawn as a dashed
+ * overlay, one dash per colour, offset so the cycle repeats along the body.
+ */
+function drawJokerBands(
+  context: CanvasRenderingContext2D,
+  points: Point[],
+  layout: Layout,
+  width: number,
+): void {
+  const colours = Object.values(PALETTE);
+  const band = layout.cell * JOKER_BAND_RATIO;
+  const cycle = band * colours.length;
+
+  context.save();
+  context.lineWidth = width;
+  colours.forEach((colour, index) => {
+    context.strokeStyle = colour.fill;
+    context.setLineDash([band, cycle - band]);
+    context.lineDashOffset = -band * index;
+    tracePipe(context, points, width / 2);
+    context.stroke();
+  });
+  context.restore();
+}
+
+/** The one head that is not a triangle: heavy, round, with a short fuse. */
+function drawBombHead(
+  context: CanvasRenderingContext2D,
+  head: Point,
+  towards: Point,
+  layout: Layout,
+  fill: string,
+  ink: string,
+  outline: number,
+): void {
+  const radius = layout.cell * HEAD_RATIO * 0.42;
+
+  context.save();
+  context.translate(head.x, head.y);
+  context.rotate(Math.atan2(towards.y, towards.x));
+
+  context.beginPath();
+  context.moveTo(radius * 0.4, 0);
+  context.quadraticCurveTo(radius * 1.5, -radius * 0.5, radius * 1.7, -radius * 1.1);
+  context.strokeStyle = ink;
+  context.lineWidth = outline * 1.5;
+  context.stroke();
+
+  context.beginPath();
+  context.arc(0, 0, radius, 0, Math.PI * 2);
+  context.fillStyle = fill;
+  context.fill();
+  context.lineWidth = outline * 2;
+  context.stroke();
   context.restore();
 }
 
@@ -200,7 +281,8 @@ function drawHead(
 export function drawGlyph(
   context: CanvasRenderingContext2D,
   centre: Point,
-  glyph: Glyph,
+  /** "all" is the Joker's mark: every shape overlapped into one (ART.md 3.1). */
+  glyph: Glyph | "all",
   layout: Layout,
   ink: string,
   muted: boolean,
@@ -220,6 +302,17 @@ export function drawGlyph(
   context.beginPath();
 
   switch (glyph) {
+    case "all":
+      // Outlined, not filled: overlapping five solid shapes is a blob.
+      context.arc(0, 0, size / 2, 0, Math.PI * 2);
+      context.moveTo(0, -size * 0.62);
+      context.lineTo(size * 0.54, size * 0.36);
+      context.lineTo(-size * 0.54, size * 0.36);
+      context.closePath();
+      context.rect(-size * 0.36, -size * 0.36, size * 0.72, size * 0.72);
+      context.lineWidth = Math.max(1, size * 0.12);
+      context.stroke();
+      break;
     case "triangle":
       context.moveTo(0, -size / 2);
       context.lineTo(size / 2, size / 2);
