@@ -209,7 +209,13 @@ hearts.
   pressure, not a different scoring system.
 - Frequency: roughly every 15 levels from level 25, and never adjacent to a
   one-heart level. The two special types are both spikes; back to back they
-  read as a difficulty wall rather than as variety.
+  read as a difficulty wall rather than as variety. In the shipped bundle
+  that is levels **38, 53 and 68**, against one-heart levels at 20, 30, 40,
+  50, 60, 70 and 80; the gate fails the build if those two lists ever touch.
+- The engine enforces the single currency rather than trusting the level
+  data: on a timed level a mistake counts for stars and costs five seconds,
+  and `fire()` takes no heart (`DESIGN.md` 1.5). `hearts` in the level file
+  is unused there.
 - Announced on the level path and on a confirmation before entry, exactly
   like one-heart levels (`DESIGN.md` 1.5). A clock must never be a surprise.
 - The generator must respect it: a timed level needs a **short par and a

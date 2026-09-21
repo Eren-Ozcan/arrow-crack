@@ -73,11 +73,13 @@ tooling is TypeScript run through `tsx`, so the gate imports the shipped
 engine and solver directly — one implementation, three callers (CI, the
 generator, the device's override check) — with no build step in between.
 
-The checks below are the full set. Implemented today: schema, path
-integrity, solvable, `par`, witness replay, hearts, mask reachability, level
-type, the special-arrow rules, the tutorial levels that forgive, and the
-manifest. The difficulty band and the per-level solver cost arrive with the
-generator in milestone 5, and the table says so.
+The checks below are the full set, and all of them run today. The per-level
+checks live in `tools/validate.ts`; the ones that need the whole bundle at
+once — the id sequence, the manifest, the spacing between the two special
+level types, the shape of the difficulty curve and the solver-cost baseline —
+live in the CLI. The baseline itself is `tests/fixtures/level-costs.json`,
+rewritten by `npm run levels:validate -- --update-costs` when a solver change
+is meant to move it.
 
 | Check                 | Fails the build when                                                                                                                                                    |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -91,7 +93,8 @@ generator in milestone 5, and the table says so.
 | Mask                  | An arrow occupies a cell outside the mask, or a block sits on a lane no arrow inside the mask can reach — an unhittable block is an unsolvable level (`DESIGN.md` 1.10) |
 | Level type            | A timed level has no `timeLimitMs`, a non-timed level has one, or a timed level's par is too long for its clock (`PROGRESSION.md` 3)                                    |
 | Special-level spacing | A timed level sits adjacent to a one-heart level                                                                                                                        |
-| Difficulty band       | A generated level's metrics (`DESIGN.md` 4.3) fall outside the band for its index                                                                                       |
+| Difficulty band       | A generated level's metrics (`DESIGN.md` 4.3) fall outside the band for its index; a one-heart level may sit below its band, never above it                             |
+| Difficulty curve      | The rolling ten-level mean of the difficulty score falls, counting the levels that are not one-heart                                                                    |
 | Solver cost           | The worst-case node count regressed against the recorded fixture baseline                                                                                               |
 | Tutorial levels       | A level outside 1-3 forgives a mistake, or one of those three does not (`DESIGN.md` 2)                                                                                  |
 | Ids and order         | Duplicate level ids, gaps in the sequence, a manifest that disagrees with the files on disk (`npm run levels:manifest -- --check`)                                      |

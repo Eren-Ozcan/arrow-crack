@@ -520,9 +520,14 @@ built on that:
   player must see for a tap to be provably correct. A trap you can spot from
   the current board is fair; one that only reveals itself three peels later
   is what separates level 70 from level 40.
-- **Solution breadth**. Number of distinct optimal solutions. Many solutions
-  means a forgiving level; exactly one means a brutal one. Early levels want
-  breadth, late levels want it narrow but not always one.
+- **Fan-out** (forgiveness). Mean number of _free_ moves per state along the
+  optimal solution: how many taps are on offer that cost nothing. This
+  replaces the original "number of distinct optimal solutions", which
+  measures nothing on a real board — every interleaving of independent peels
+  is its own solution, so any board past a handful of arrows saturates
+  whatever cap the count is given. Fan-out is also the honest axis now that
+  `par` is not a star threshold: a move that is free but not optimal costs
+  the player nothing. Early levels want it wide, late levels narrow.
 - **Tangle density** (specific to path arrows). Mean body length, bends per
   arrow, and grid fill rate. A long bent body pins more of the grid and is
   harder to trace by eye, which raises both the real difficulty and the
@@ -532,8 +537,16 @@ built on that:
   These correlate with difficulty but do not cause it — they are tiebreakers
   in the score, not the score.
 
-Each level index gets a target band per axis. `par` is an input to the
-model, not an output the player ever sees.
+Each level index gets a target band per axis; the bands live in
+`tools/difficulty.ts` and the gate enforces them for every level from 31 on.
+`par` is an input to the model, not an output the player ever sees.
+
+One exception, and it is deliberate: a **one-heart level may sit below** the
+band for its index and never above it. Those levels are the game's
+punctuation and are built readable and a little shorter (section 1.5), so
+holding them to a neighbouring board's score would turn a pause into a
+spike. For the same reason they are left out of the monotonic-curve check
+the gate runs over the bundle.
 
 **The bands are guesses until real players hit them.** The analytics fail
 rate per level (`DESIGN.md` section 6) is the feedback signal that
@@ -561,8 +574,11 @@ src/
   state/       save game, progress, settings (localStorage + optional cloud)
   services/    ads, iap, analytics (thin wrappers, no-op in dev)
 tools/
-  generate-levels.mjs   generator
-  solve.mjs             solver CLI / CI validator
+  generate.ts           backwards construction
+  generate-levels.ts    generator CLI: the per-level knobs and the seed search
+  difficulty.ts         the difficulty model and its bands
+  solve.ts              solver CLI
+  validate-levels.ts    the level gate (CI.md 2.2)
 ```
 
 Rendering: one `<canvas>` for the board (arrows, frame, particles), DOM for

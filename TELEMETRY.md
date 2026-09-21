@@ -217,6 +217,11 @@ dead — is far worse than a missed one, where the player just restarts.
 - It runs in a **Web Worker** so a slow search never blocks input or
   animation; the result arrives asynchronously and the stuck panel appears a
   frame or two late, which is invisible.
+- The main-thread handle waits for the search budget plus a **2 s grace** and
+  no longer. A worker that fails to load, errors, or goes silent past that
+  grace resolves the caller with no answer, which reads as fail-open: board
+  solvable, no hint. Once the worker has errored every later question fails
+  open immediately rather than waiting again.
 - The stuck check is skipped entirely when it cannot matter: no arrow was
   consumed and no layer changed, so the reachable state set did not shrink.
   In practice this skips it on every mistake, which is exactly when the
