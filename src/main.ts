@@ -105,4 +105,16 @@ function onChange(view: SessionView): void {
   modals.show({ kind: "stuck", onRestart: () => session?.restart() });
 }
 
-start(LEVELS[0]!.id);
+/**
+ * Dev only: `?level=20` opens a level directly. The home screen with the
+ * level path lands in milestone 6; until then this is the only way to reach a
+ * board in the middle of the bundle, and it is stripped from a production
+ * build.
+ */
+function startingLevelId(): number {
+  if (!import.meta.env.DEV) return LEVELS[0]!.id;
+  const asked = Number(new URLSearchParams(window.location.search).get("level"));
+  return levelById(asked) ? asked : LEVELS[0]!.id;
+}
+
+start(startingLevelId());
