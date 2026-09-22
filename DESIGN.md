@@ -609,8 +609,8 @@ most one pending tap.
   **`ADS.md`**. That file is bound by the studio-wide
   `C:\Projects\pictures\ADS_POLICY.md`; no ad trigger is added without
   reading it first.
-- **Settings**: sound, music, haptics, language, restore purchases, privacy
-  policy link, delete data.
+- **Settings**: sound, music, haptics, reduced motion, high-contrast shapes,
+  language, restore purchases, privacy policy link, delete data.
 - **Language**: **English only.** Strings still live in JSON behind a lookup,
   so adding a locale later is a content task rather than a refactor — but
   nothing is translated for v1 and no string is written assuming it will be.

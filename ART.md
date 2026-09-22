@@ -52,7 +52,14 @@ protanopia, deuteranopia and tritanopia — not merely "tested afterwards".
 Board `#F4EFE6`, outline/ink `#1F1B16`, heart `#D55E00`, disabled ink
 `#8A837A`.
 
-The first three are the maximally separable triad for every common CVD type.
+The first three are the maximally separable triad for the two common CVD
+types: simulated, the closest pair of them sits at ΔE 34 under protanopia and
+ΔE 60 under deuteranopia. Under **tritanopia** blue and green come within
+ΔE 14 — still distinguishable, but that pair is read off the circle and the
+square there rather than off the colour. That is the measured floor, it is
+asserted in `tests/art-validation.test.ts`, and it is the reason the glyphs
+are not a toggle.
+
 Levels 1-30 use three colors, 31-49 four, 50+ five. Five is the hard
 ceiling: a sixth color cannot be added without breaking separability for
 someone.
@@ -70,8 +77,9 @@ low-contrast against their own fill, so a player with normal color vision
 reads color first and never notices the redundancy.
 
 What a settings toggle _does_ offer is **high-contrast glyphs**: same
-shapes, drawn larger and in full ink. That is the accessibility option —
-turning the redundancy up, not turning it on.
+shapes, drawn 30% larger and in full ink rather than embossed at 45%. That is
+the accessibility option — turning the redundancy up, not turning it on. It
+is a row on the settings screen and a field in the save, off by default.
 
 ### 2.3 Contrast rules
 
@@ -322,6 +330,12 @@ the impact frame only and disables the idle bob, particles and confetti; it
 never changes what is legible, and the win panel's text still appears — it
 carries information, not just motion.
 
+It is read from two places and either is enough: the device's
+`prefers-reduced-motion`, which is honoured without asking, and a settings
+row, for a phone that does not carry the preference and for a player who
+wants it in this game only. The switch can add to the device preference; it
+can never override it.
+
 **Nothing celebratory is ever drawn over a live board.** A line of text that
 hides the arrow the player was about to tap costs a heart, which is the one
 thing a celebration must never do. All words wait for the win panel.
@@ -378,7 +392,11 @@ indistinguishable from the incumbent's in a search result list.
 
 ## 10. Validation
 
-Before any art is called done:
+Before any art is called done. Tests 1, 2, 4 and 5 are mechanical and run in
+`tests/art-validation.test.ts` — they assert the numbers the eye test rests
+on, so a palette or layout change that breaks one fails CI rather than a
+playtest. Tests 3 and 6 need a person and a device, and the file asserts only
+what can be asserted without one.
 
 1. **Grayscale test.** Screenshot the hardest board, desaturate it, play it.
    If layers or matches become ambiguous, the glyph work is not done.
@@ -387,11 +405,22 @@ Before any art is called done:
 3. **Blocked-arrow test.** A player who has not seen the game holds an
    arrow whose path is blocked and can say, from the guide alone, what is
    stopping it.
-4. **Small-screen test.** 360dp-wide device, the most crowded 50+ board:
-   every cell still ≥ 48dp, no horizontal scroll, HUD not overlapping the
-   frame. With a 9x9 grid plus the frame this is the binding constraint on
-   how large a board can ever get — if the grid has to shrink below 48dp,
-   the level is too big, not the phone too small.
+4. **Small-screen test.** 360dp-wide device, the most crowded shipped board:
+   no horizontal scroll, HUD not overlapping the frame, and **the cell at or
+   above 32dp**.
+
+   A 48dp _cell_ is not reachable and never was: 8 cells plus the frame need
+   more than 360dp, so the earlier wording contradicted section 4's own "a
+   9x9 tangle on a 360dp phone is legible but tight". What carries the 48dp
+   rule instead is what section 3 already says — **the tap target is the
+   whole path**, every cell of it, and the zoom is one double-tap away. The
+   32dp floor is what the layout must hold; a level that would break it is
+   too big, not the phone too small.
+
+   The one case the path does not cover is a single-cell arrow, which is its
+   own tap target at cell size. There are 19 of those across the 80 shipped
+   levels. They are the reason the floor is a floor and not a preference, and
+   the reason a future board may not grow past 8x8.
 5. **Tangle test.** Two same-colored arrows running parallel and adjacent,
    and one arrow's body crossing between another's head and the frame. Both
    must be unambiguous in a still screenshot. This is the failure mode the
