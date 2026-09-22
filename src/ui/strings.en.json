@@ -16,6 +16,8 @@
   "hud.multiplier": "x{multiplier}",
   "hud.back": "Back",
 
+  "win.perfectBadge": "Perfect",
+
   "win.title": "Level clear",
   "win.next": "Next level",
   "win.replay": "Replay",
@@ -50,6 +52,8 @@
   "settings.sound": "Sound effects",
   "settings.music": "Music",
   "settings.haptics": "Vibration",
+  "settings.reducedMotion": "Reduced motion",
+  "settings.highContrastGlyphs": "High-contrast shapes",
   "settings.language": "Language",
   "settings.languageValue": "English",
   "settings.languageNote": "English only for now.",

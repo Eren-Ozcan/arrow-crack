@@ -23,6 +23,18 @@ export interface Settings {
   sound: boolean;
   music: boolean;
   haptics: boolean;
+  /**
+   * Cuts every duration to the impact frame and drops the idle bob, the
+   * particles and the confetti (ART.md 7). Off by default because the device
+   * preference is read on top of it: the switch is there for a player whose
+   * phone does not carry one, and for one who wants it in this game only.
+   */
+  reducedMotion: boolean;
+  /**
+   * Larger glyphs in full ink (ART.md 2.2). The glyphs are always on, so this
+   * turns the redundancy up rather than turning it on.
+   */
+  highContrastGlyphs: boolean;
   /** English only in v1 (STORE.md); the field exists so a locale is content. */
   language: string;
 }
@@ -45,6 +57,8 @@ export const DEFAULT_SETTINGS: Settings = {
   sound: true,
   music: true,
   haptics: true,
+  reducedMotion: false,
+  highContrastGlyphs: false,
   language: "en",
 };
 
@@ -263,6 +277,13 @@ function parseSettings(value: unknown): Settings {
     sound: asBoolean(value["sound"], DEFAULT_SETTINGS.sound),
     music: asBoolean(value["music"], DEFAULT_SETTINGS.music),
     haptics: asBoolean(value["haptics"], DEFAULT_SETTINGS.haptics),
+    // A save written before these existed simply has neither field, and an
+    // absent boolean is its default — which is why they need no migration.
+    reducedMotion: asBoolean(value["reducedMotion"], DEFAULT_SETTINGS.reducedMotion),
+    highContrastGlyphs: asBoolean(
+      value["highContrastGlyphs"],
+      DEFAULT_SETTINGS.highContrastGlyphs,
+    ),
     language:
       typeof value["language"] === "string"
         ? value["language"]

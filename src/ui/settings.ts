@@ -13,9 +13,16 @@ export interface SettingsHandlers {
   onClose: () => void;
 }
 
+/** Every setting that is a plain on/off row. */
+type BooleanSetting = {
+  [K in keyof Settings]: Settings[K] extends boolean ? K : never;
+}[keyof Settings];
+
 /**
  * The settings screen (DESIGN.md 6): sound, music, haptics, language, the
- * privacy policy and deleting the save. Language is a row rather than a
+ * privacy policy and deleting the save, plus the two accessibility rows —
+ * reduced motion and high-contrast shapes (ART.md 2.2, 7). Language is a row
+ * rather than a
  * chooser in v1 — English only, and a row that lies about being a choice is
  * worse than one that states the fact (STORE.md).
  */
@@ -70,13 +77,15 @@ export class SettingsScreen {
       this.#toggle("settings.sound", "sound"),
       this.#toggle("settings.music", "music"),
       this.#toggle("settings.haptics", "haptics"),
+      this.#toggle("settings.reducedMotion", "reducedMotion"),
+      this.#toggle("settings.highContrastGlyphs", "highContrastGlyphs"),
       this.#language(),
       this.#privacy(),
       ...this.#deleteRows(),
     );
   }
 
-  #toggle(labelKey: StringKey, field: "sound" | "music" | "haptics"): HTMLElement {
+  #toggle(labelKey: StringKey, field: BooleanSetting): HTMLElement {
     const value = this.#settings?.[field] ?? true;
     const row = element("div", "settings-row");
 
