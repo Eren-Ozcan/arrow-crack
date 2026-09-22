@@ -193,8 +193,93 @@ body {
 
 .stars {
   font-size: 32px;
-  color: #f0e442;
   letter-spacing: 6px;
+}
+
+/* The stars reveal one at a time, 200 ms apart (ART.md 7). Every star is in
+   the layout from the first frame, so the panel never reflows under a thumb. */
+.star {
+  display: inline-block;
+  color: rgba(242, 244, 248, 0.25);
+  transition:
+    opacity 160ms ease-out,
+    transform 160ms ease-out;
+}
+
+.star.is-earned {
+  color: #f0e442;
+}
+
+.star.is-pending {
+  opacity: 0;
+  transform: scale(0.4);
+}
+
+/* Zero mistakes (PROGRESSION.md 2.2). */
+.modal-badge {
+  margin: 0;
+  align-self: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(240, 228, 66, 0.16);
+  color: #f0e442;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.modal-badge[hidden] {
+  display: none;
+}
+
+.modal-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* The line fades in after the count-up, and the buttons arrive last so
+   nobody taps through the celebration by accident (PROGRESSION.md 2.2). */
+.modal-line,
+.modal-badge,
+.modal-buttons {
+  transition: opacity 250ms ease-out;
+}
+
+.modal-line.is-pending,
+.modal-badge.is-pending,
+.modal-buttons.is-pending {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* One short burst behind the card, in the palette the level was played in. */
+.confetti {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: -12px;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  animation: confetti-fall 900ms ease-in forwards;
+}
+
+@keyframes confetti-fall {
+  from {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(70vh) rotate(540deg);
+    opacity: 0;
+  }
 }
 
 .modal-score {
@@ -210,9 +295,20 @@ body {
   font-size: 14px;
 }
 
+/* The panel and its text still appear; the motion does not (PROGRESSION.md
+   2.5). The reduced-motion setting is applied in the same place the device
+   preference is (ART.md 7), so this covers both. */
 @media (prefers-reduced-motion: reduce) {
-  .hud-badge {
+  .hud-badge,
+  .star,
+  .modal-line,
+  .modal-badge,
+  .modal-buttons {
     transition: none;
+  }
+
+  .confetti {
+    display: none;
   }
 }
 
