@@ -26,6 +26,8 @@ const JOKER_BAND_RATIO = 0.5;
 export interface ArrowStyle {
   /** 0-1; the blocker highlight pulse (ART.md 6.2). */
   pulse?: number;
+  /** Turns the glyph redundancy up rather than on (ART.md 2.2). */
+  highContrastGlyph?: boolean;
   /** Board-space offset, used for the idle bob and the mistake shake. */
   offset?: Point;
   /**
@@ -159,7 +161,9 @@ export function drawArrow(
     arrow.special === "joker" ? "all" : entry.glyph,
     layout,
     ink,
-    false,
+    {
+      highContrast: style.highContrastGlyph ?? false,
+    },
   );
 
   context.restore();
@@ -274,6 +278,19 @@ function drawHead(
   context.restore();
 }
 
+export interface GlyphStyle {
+  /** Same shapes, larger and in full ink: the accessibility option turns the
+   * redundancy up, it does not turn it on (ART.md 2.2). */
+  highContrast?: boolean;
+  /** Fraction of a cell the glyph spans before the high-contrast bump. */
+  scale?: number;
+}
+
+/** Ink alpha of the default embossed glyph; ART.md 2.3 floors it at 1.8:1. */
+export const GLYPH_ALPHA = 0.45;
+/** How much larger a high-contrast glyph is drawn. */
+export const HIGH_CONTRAST_GLYPH_SCALE = 1.3;
+
 export function drawGlyph(
   context: CanvasRenderingContext2D,
   centre: Point,
@@ -281,16 +298,19 @@ export function drawGlyph(
   glyph: Glyph | "all",
   layout: Layout,
   ink: string,
-  muted: boolean,
-  scale = GLYPH_RATIO,
+  style: GlyphStyle = {},
 ): void {
-  const size = layout.cell * scale;
+  const highContrast = style.highContrast ?? false;
+  const size =
+    layout.cell *
+    (style.scale ?? GLYPH_RATIO) *
+    (highContrast ? HIGH_CONTRAST_GLYPH_SCALE : 1);
 
   context.save();
   context.translate(centre.x, centre.y);
   // Embossed and low contrast by default: a player with normal colour vision
   // reads colour first and never notices the redundancy (ART.md 2.2).
-  context.globalAlpha = muted ? 0.3 : 0.45;
+  context.globalAlpha = highContrast ? 1 : GLYPH_ALPHA;
   context.fillStyle = ink;
   context.strokeStyle = ink;
   context.lineWidth = Math.max(1, size * 0.22);
@@ -347,6 +367,8 @@ export function drawGlyph(
 export interface BlockStyle {
   /** 0-1, for the impact flash. */
   flash?: number;
+  /** Turns the glyph redundancy up rather than on (ART.md 2.2). */
+  highContrastGlyph?: boolean;
   /** Outline for the press-and-hold target (ART.md 3.2). */
   highlighted?: boolean;
   alpha?: number;
@@ -434,8 +456,7 @@ export function drawBlock(
     entry.glyph,
     layout,
     THEME.ink,
-    false,
-    vertical ? 0.26 : 0.3,
+    { highContrast: style.highContrastGlyph ?? false, scale: vertical ? 0.26 : 0.3 },
   );
 
   // A deeper stack shows a count badge instead of an unreadable sandwich.

@@ -6,7 +6,8 @@ import { boardToScreen } from "./camera";
 import type { Layout, Point } from "./layout";
 import { blockRect, cellCentre, cellRect, laneExitPoint } from "./layout";
 import { paletteEntry, THEME } from "./palette";
-import { drawArrow, drawBlock, drawGlyph, pipeWidth } from "./shapes";
+import { burst, hashString, settleOffset } from "./particles";
+import { drawArrow, drawBlock, drawGlyph, outlineWidth, pipeWidth } from "./shapes";
 import { directionUnit, trailPoints } from "./trail";
 
 export interface GuideView {
@@ -39,6 +40,8 @@ export interface RenderInput {
   now?: number;
   /** Grid lines help trace a tangle; off by default. */
   showGrid: boolean;
+  /** Turns the glyph redundancy up rather than on (ART.md 2.2). */
+  highContrastGlyphs?: boolean;
 }
 
 export function renderBoard(context: CanvasRenderingContext2D, input: RenderInput): void {
@@ -47,6 +50,11 @@ export function renderBoard(context: CanvasRenderingContext2D, input: RenderInpu
   context.save();
   context.fillStyle = THEME.backdrop;
   context.fillRect(0, 0, viewport.width, viewport.height);
+
+  // The whole board takes the hit when an arrow bounces, applied before the
+  // camera transform so a zoomed board kicks by the same amount on screen.
+  const shake = screenShake(input);
+  context.translate(shake.x, shake.y);
 
   context.translate(camera.offset.x, camera.offset.y);
   context.scale(camera.scale, camera.scale);
@@ -60,6 +68,31 @@ export function renderBoard(context: CanvasRenderingContext2D, input: RenderInpu
   context.restore();
 
   if (input.guide) drawEdgeMarker(context, input, input.guide);
+}
+
+/** Board kick on a bounce, as a fraction of a cell. */
+const SCREEN_SHAKE_RATIO = 0.09;
+/** How far the exposed layer sinks before it springs back, per cell. */
+const SETTLE_RATIO = 0.07;
+
+/**
+ * A mismatch is the one event the board itself reacts to: the arrow recoils
+ * and the board kicks along the shot's own axis, so the two read as one
+ * impact (ART.md 6). A blocked tap never shakes the board — nothing touched
+ * anything there, and the blocker pulse is what explains it (ART.md 6.2).
+ *
+ * Reduced motion drops the recoil phase outright, so this returns zero.
+ */
+function screenShake(input: RenderInput): Point {
+  const { animation, layout } = input;
+  if (!animation || animation.plan.event !== "bounced") return { x: 0, y: 0 };
+
+  const phase = phaseAt(animation.plan, animation.elapsed);
+  if (phase?.kind !== "recoil") return { x: 0, y: 0 };
+
+  const unit = directionUnit(animation.plan.arrow.dir);
+  const amount = shakeOffset(phase.t, layout.cell * SCREEN_SHAKE_RATIO);
+  return { x: unit.x * amount, y: unit.y * amount };
 }
 
 function drawBoardSurface(
@@ -133,52 +166,83 @@ function drawBoardSurface(
 function drawBlocks(context: CanvasRenderingContext2D, input: RenderInput): void {
   const { state, layout, animation, guide } = input;
   const phase = animation ? phaseAt(animation.plan, animation.elapsed) : null;
-  const hitBlockId = animation?.plan.block?.id;
+  const hit = animation?.plan.block;
 
   for (const block of state.blocks) {
-    const flash = phase?.kind === "impact" && block.id === hitBlockId ? 1 - phase.t : 0;
+    const isHit = phase?.kind === "impact" && block.id === hit?.id;
+    const flash = isHit ? 1 - phase.t : 0;
+    // The layer the slab was hiding drops in and springs back, which is what
+    // makes a peel read as a stack losing its top rather than as a recolour.
+    const settle =
+      isHit && animation?.plan.event === "peeled"
+        ? settleOffset(phase.t, layout.cell * SETTLE_RATIO)
+        : 0;
+    const inward = innerDirection(block.side);
 
+    context.save();
+    context.translate(inward.x * settle, inward.y * settle);
     drawBlock(context, layout, block, blockRect(layout, block), {
       flash,
       highlighted:
         guide?.targetBlockId === block.id ||
         (guide?.splashBlockIds?.includes(block.id) ?? false),
+      highContrastGlyph: input.highContrastGlyphs ?? false,
     });
+    context.restore();
   }
 
-  // A block destroyed this turn is already gone from the state; play its
-  // shatter as a fading ghost so the frame gap becomes obvious.
-  if (phase?.kind === "shatter" && animation?.plan.block) {
-    drawShatter(context, layout, animation.plan.block, phase.t);
+  // The slab that came off is thrown, and a block destroyed this turn is
+  // already gone from the state, so its whole shatter is thrown instead — the
+  // frame gap it leaves behind is the point (ART.md 6).
+  if (hit && phase?.kind === "impact" && animation?.plan.event === "peeled") {
+    drawShards(context, layout, hit, phase.t, "peel");
+  }
+  if (hit && phase?.kind === "shatter") {
+    drawShards(context, layout, hit, phase.t, "shatter");
   }
 }
 
-function drawShatter(
+/**
+ * The shards of one slab (a peel) or of a whole block (a shatter). The burst
+ * is deterministic per block, so a frame of it can be asserted in a test.
+ */
+function drawShards(
   context: CanvasRenderingContext2D,
   layout: Layout,
   block: Block,
   t: number,
+  kind: "peel" | "shatter",
 ): void {
   const rect = blockRect(layout, block);
   const entry = paletteEntry(block.layers[0] ?? "v");
-  const shards = 6;
+  const whole = kind === "shatter";
+
+  const shards = burst({
+    seed: hashString(block.id),
+    count: whole ? 9 : 6,
+    t,
+    origin: { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 },
+    spread: layout.cell * (whole ? 0.95 : 0.5),
+    size: Math.min(rect.width, rect.height) * (whole ? 0.34 : 0.26),
+    gravity: layout.cell * (whole ? 0.4 : 0.18),
+  });
 
   context.save();
-  context.globalAlpha = 1 - t;
   context.fillStyle = entry.fill;
+  context.strokeStyle = THEME.ink;
+  context.lineWidth = Math.max(1, outlineWidth(layout) * 0.6);
 
-  for (let index = 0; index < shards; index += 1) {
-    const angle = (index / shards) * Math.PI * 2 + t;
-    const spread = layout.cell * 0.7 * t;
-    const size = Math.min(rect.width, rect.height) * 0.34 * (1 - t * 0.5);
-
+  for (const shard of shards) {
     context.save();
-    context.translate(
-      rect.x + rect.width / 2 + Math.cos(angle) * spread,
-      rect.y + rect.height / 2 + Math.sin(angle) * spread,
-    );
-    context.rotate(angle);
-    context.fillRect(-size / 2, -size / 2, size, size);
+    context.globalAlpha = shard.alpha;
+    context.translate(shard.centre.x, shard.centre.y);
+    context.rotate(shard.rotation);
+    // Outlined like everything else on the board: a bare fill of the yellow
+    // would vanish against the board the moment it left the ink (ART.md 2.3).
+    context.beginPath();
+    context.rect(-shard.size / 2, -shard.size / 2, shard.size, shard.size);
+    context.fill();
+    context.stroke();
     context.restore();
   }
 
@@ -254,23 +318,27 @@ function drawArrows(context: CanvasRenderingContext2D, input: RenderInput): void
     drawArrow(context, layout, arrow, {
       pulse: pulse?.arrowIds.includes(arrow.id) ? 1 - pulse.t : 0,
       offset: { x: 0, y: bob },
+      highContrastGlyph: input.highContrastGlyphs ?? false,
     });
   }
 
   // Once the arrow has landed it is gone: the impact frame is the last one
   // that draws it, and the shatter belongs to the block.
   if (phase && animation && phase.kind !== "shatter") {
-    drawAnimatedArrow(context, layout, animation, phase.kind, phase.t);
+    drawAnimatedArrow(
+      context,
+      layout,
+      animation,
+      phase.kind,
+      phase.t,
+      input.highContrastGlyphs ?? false,
+    );
   }
 }
 
 /** Spreads the idle bob so a board of arrows does not pulse in unison. */
 function hashId(id: string): number {
-  let hash = 0;
-  for (let index = 0; index < id.length; index += 1) {
-    hash = (hash * 31 + id.charCodeAt(index)) % 628;
-  }
-  return hash / 100;
+  return (hashString(id) % 628) / 100;
 }
 
 function drawAnimatedArrow(
@@ -279,6 +347,7 @@ function drawAnimatedArrow(
   animation: { plan: AnimationPlan; elapsed: number },
   kind: string,
   t: number,
+  highContrastGlyph: boolean,
 ): void {
   const { plan } = animation;
   const arrow = plan.arrow;
@@ -310,6 +379,7 @@ function drawAnimatedArrow(
   drawArrow(context, layout, arrow, {
     offset,
     alpha,
+    highContrastGlyph,
     ...(travelled > 0 ? { points: trailPoints(layout, arrow, travelled) } : {}),
   });
 }
@@ -407,7 +477,10 @@ function drawEdgeMarker(
   context.lineWidth = 2;
   context.fill();
   context.stroke();
-  drawGlyph(context, marker, entry.glyph, layout, THEME.ink, false, 0.22);
+  drawGlyph(context, marker, entry.glyph, layout, THEME.ink, {
+    highContrast: input.highContrastGlyphs ?? false,
+    scale: 0.22,
+  });
   context.restore();
 }
 
