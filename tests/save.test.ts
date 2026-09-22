@@ -133,6 +133,25 @@ describe("the local save", () => {
     expect(levelRecord(save, 3)).toBeUndefined();
   });
 
+  it("reads a save written before the display settings existed", () => {
+    // Adding a boolean needs no migration: an absent one is its default, and
+    // the defaults are the behaviour that shipped before the switch did.
+    const save = parseSave(
+      JSON.stringify({
+        version: SAVE_VERSION,
+        scoreVersion: SCORE_VERSION,
+        hints: 2,
+        settings: { sound: true, music: false, haptics: true, language: "en" },
+        levels: {},
+      }),
+    );
+
+    expect(save.settings.reducedMotion).toBe(false);
+    expect(save.settings.highContrastGlyphs).toBe(false);
+    expect(save.settings.music).toBe(false);
+    expect(save.hints).toBe(2);
+  });
+
   it("drops scores from an older formula but keeps the progress", () => {
     const old = serialiseSave({
       ...createSave(),
