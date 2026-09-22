@@ -1,0 +1,472 @@
+import { describe, expect, it } from "vitest";
+import { createState } from "@/engine/level";
+import { clearRay } from "@/engine/rays";
+import type { LevelDef } from "@/engine/types";
+import { LEVELS } from "@/levels";
+import { renderBoard } from "@/render/board-renderer";
+import { fitCamera } from "@/render/camera";
+import { computeLayout, cellCentre } from "@/render/layout";
+import { contrastRatio, luminance, PALETTE, THEME } from "@/render/palette";
+import { drawGlyph, GLYPH_ALPHA, outlineWidth, pipeWidth } from "@/render/shapes";
+import type { Glyph } from "@/render/palette";
+
+/**
+ * The six acceptance tests in ART.md section 10. Four of them are mechanical
+ * and live here; the two that need a real pair of eyes — the sunlight test and
+ * a first-time player reading a blocked arrow — are checked here only as far
+ * as the numbers they rest on go, and the rest is done on a device.
+ *
+ * Every rule these assert is a rule the game's difficulty depends on: a
+ * misread costs a heart (DESIGN.md 1.5), so readability is not a preference.
+ */
+
+/** Records what was drawn, so a still frame can be asserted without a canvas. */
+interface Call {
+  method: string;
+  args: unknown[];
+}
+
+function recorder(): { context: CanvasRenderingContext2D; calls: Call[] } {
+  const calls: Call[] = [];
+  const properties: Record<string, unknown> = {};
+
+  const context = new Proxy(
+    {},
+    {
+      get(_target, property: string) {
+        if (property in properties) return properties[property];
+        return (...args: unknown[]): undefined => {
+          calls.push({ method: property, args });
+          return undefined;
+        };
+      },
+      set(_target, property: string, value: unknown) {
+        properties[property] = value;
+        calls.push({ method: `set:${property}`, args: [value] });
+        return true;
+      },
+    },
+  ) as unknown as CanvasRenderingContext2D;
+
+  return { context, calls };
+}
+
+const VIEWPORT = { width: 360, height: 720 };
+
+/**
+ * One block per colour with an arrow aimed at it, plus a second arrow parked
+ * in front of the first — the tangle the still tests are about.
+ */
+const BOARD: LevelDef = {
+  id: 900,
+  cols: 4,
+  rows: 4,
+  hearts: 3,
+  par: 3,
+  palette: ["v", "b", "g"],
+  arrows: [
+    { id: "a1", color: "v", dir: "up", path: [{ col: 0, row: 3 }] },
+    {
+      id: "a2",
+      color: "b",
+      dir: "up",
+      path: [
+        { col: 1, row: 3 },
+        { col: 1, row: 2 },
+      ],
+    },
+    // Parallel and adjacent to a2, same colour: the tangle failure mode.
+    {
+      id: "a3",
+      color: "b",
+      dir: "up",
+      path: [
+        { col: 2, row: 3 },
+        { col: 2, row: 2 },
+      ],
+    },
+    // Sits across a1's lane, so a1 is blocked and something on the board says so.
+    {
+      id: "a4",
+      color: "g",
+      dir: "right",
+      path: [
+        { col: 0, row: 1 },
+        { col: 1, row: 1 },
+      ],
+    },
+  ],
+  blocks: [
+    { id: "b1", side: "top", start: 0, span: 1, layers: ["v", "b"] },
+    { id: "b2", side: "top", start: 1, span: 1, layers: ["b"] },
+    { id: "b3", side: "top", start: 2, span: 1, layers: ["g"] },
+    { id: "b4", side: "right", start: 1, span: 1, layers: ["g"] },
+  ],
+};
+
+function render(options: { highContrastGlyphs?: boolean } = {}): Call[] {
+  const state = createState(BOARD);
+  const layout = computeLayout(BOARD, VIEWPORT);
+  const { context, calls } = recorder();
+
+  renderBoard(context, {
+    state,
+    layout,
+    camera: fitCamera(),
+    viewport: VIEWPORT,
+    showGrid: false,
+    ...options,
+  });
+
+  return calls;
+}
+
+/** Glyphs are the only thing drawn at this exact alpha (ART.md 2.2). */
+function glyphDraws(calls: Call[]): number {
+  return calls.filter(
+    (call) => call.method === "set:globalAlpha" && call.args[0] === GLYPH_ALPHA,
+  ).length;
+}
+
+describe("ART.md 10.1 — grayscale", () => {
+  // Desaturated, the palette is not separable by lightness and was never
+  // meant to be: vermillion against green is 1.13. The glyphs carry it, which
+  // is why they are always on and never a toggle (ART.md 2.3).
+  it("does not rely on lightness to tell two colours apart", () => {
+    const entries = Object.values(PALETTE);
+    const pairs = entries.flatMap((first, index) =>
+      entries.slice(index + 1).map((second) => ({
+        first,
+        second,
+        ratio: contrastRatio(first.fill, second.fill),
+      })),
+    );
+
+    const ambiguous = pairs.filter((pair) => pair.ratio < 1.3);
+    expect(ambiguous.length).toBeGreaterThan(0);
+    for (const pair of ambiguous) {
+      expect(
+        pair.first.glyph,
+        `${pair.first.name} and ${pair.second.name} are ${pair.ratio.toFixed(2)}:1 apart in grayscale`,
+      ).not.toBe(pair.second.glyph);
+    }
+  });
+
+  it("draws a different path for every glyph", () => {
+    const paths = new Map<Glyph, string>();
+    const layout = computeLayout(BOARD, VIEWPORT);
+
+    for (const entry of Object.values(PALETTE)) {
+      const { context, calls } = recorder();
+      drawGlyph(context, { x: 0, y: 0 }, entry.glyph, layout, THEME.ink);
+      paths.set(
+        entry.glyph,
+        calls
+          .filter((call) => call.method !== "set:globalAlpha")
+          .map((call) => `${call.method}(${call.args.join(",")})`)
+          .join("|"),
+      );
+    }
+
+    expect(new Set(paths.values()).size).toBe(paths.size);
+  });
+
+  it("puts a glyph on every arrow and every block it draws", () => {
+    // Matching has to be possible on shape alone, so nothing carrying a
+    // colour may ever be drawn without the shape that colour owns.
+    expect(glyphDraws(render())).toBeGreaterThanOrEqual(
+      BOARD.arrows.length + BOARD.blocks.length,
+    );
+  });
+
+  it("turns the redundancy up rather than on in high contrast", () => {
+    // High contrast is full ink, so nothing is left at the embossed alpha.
+    expect(glyphDraws(render({ highContrastGlyphs: true }))).toBe(0);
+  });
+
+  it("keeps a glyph readable against its own fill in both modes", () => {
+    for (const entry of Object.values(PALETTE)) {
+      const embossed = mix(entry.fill, THEME.ink, GLYPH_ALPHA);
+      expect(
+        contrastRatio(embossed, entry.fill),
+        `${entry.name}, embossed`,
+      ).toBeGreaterThanOrEqual(1.8);
+      expect(
+        contrastRatio(THEME.ink, entry.fill),
+        `${entry.name}, high contrast`,
+      ).toBeGreaterThanOrEqual(3);
+    }
+  });
+});
+
+describe("ART.md 10.2 — colour vision deficiency", () => {
+  // Viénot, Brettel and Mollon (1999) dichromat simulation, applied in linear
+  // RGB. The numbers are CIE76 distances in Lab.
+  const SIMULATIONS = {
+    protanopia: [
+      [0.11238, 0.88762, 0],
+      [0.07276, 0.92724, 0],
+      [0.00399, -0.00399, 1],
+    ],
+    deuteranopia: [
+      [0.29275, 0.70725, 0],
+      [0.30323, 0.69677, 0],
+      [-0.02426, 0.02426, 1],
+    ],
+    tritanopia: [
+      [1.01354, 0.14268, -0.15622],
+      [-0.01181, 0.87561, 0.13619],
+      [0.07707, 0.81208, 0.11085],
+    ],
+  } as const;
+
+  /** Nothing in the palette may collapse onto anything else, for anyone. */
+  const FLOOR = 10;
+  /** The level 1-30 triad has to be more than merely distinguishable. */
+  const TRIAD_FLOOR = 30;
+  const TRIAD = ["v", "b", "g"] as const;
+
+  function separations(matrix: readonly (readonly number[])[]): Map<string, number> {
+    const entries = Object.values(PALETTE);
+    const result = new Map<string, number>();
+
+    for (let i = 0; i < entries.length; i += 1) {
+      for (let j = i + 1; j < entries.length; j += 1) {
+        const first = entries[i]!;
+        const second = entries[j]!;
+        result.set(
+          `${first.key}${second.key}`,
+          deltaE(simulate(first.fill, matrix), simulate(second.fill, matrix)),
+        );
+      }
+    }
+    return result;
+  }
+
+  for (const [name, matrix] of Object.entries(SIMULATIONS)) {
+    it(`keeps every pair distinguishable under ${name}`, () => {
+      for (const [pair, distance] of separations(matrix)) {
+        expect(distance, `${pair} under ${name}`).toBeGreaterThanOrEqual(FLOOR);
+      }
+    });
+  }
+
+  it("keeps the level-1 triad far apart for the two common types", () => {
+    for (const name of ["protanopia", "deuteranopia"] as const) {
+      const distances = separations(SIMULATIONS[name]);
+      for (let i = 0; i < TRIAD.length; i += 1) {
+        for (let j = i + 1; j < TRIAD.length; j += 1) {
+          expect(
+            distances.get(`${TRIAD[i]}${TRIAD[j]}`)!,
+            `${TRIAD[i]}${TRIAD[j]} under ${name}`,
+          ).toBeGreaterThanOrEqual(TRIAD_FLOOR);
+        }
+      }
+    }
+  });
+
+  it("records that blue and green lean on their glyphs under tritanopia", () => {
+    // The one measured weakness in the set, kept as a number so a palette
+    // edit that makes it worse fails rather than passes quietly (ART.md 2.1).
+    const distance = separations(SIMULATIONS.tritanopia).get("bg")!;
+    expect(distance).toBeGreaterThan(12);
+    expect(distance).toBeLessThan(TRIAD_FLOOR);
+    expect(PALETTE.b!.glyph).not.toBe(PALETTE.g!.glyph);
+  });
+});
+
+describe("ART.md 10.3 — a blocked arrow is read off the board", () => {
+  it("stops the hold guide at the obstruction, in the disabled ink", () => {
+    const state = createState(BOARD);
+    const layout = computeLayout(BOARD, VIEWPORT);
+    const blocked = state.arrows.find((arrow) => arrow.id === "a1")!;
+    const clear = clearRay(state, blocked);
+    const { context, calls } = recorder();
+
+    renderBoard(context, {
+      state,
+      layout,
+      camera: fitCamera(),
+      viewport: VIEWPORT,
+      showGrid: false,
+      guide: {
+        arrowId: blocked.id,
+        clear: [...clear],
+        blocked: true,
+        targetBlockId: null,
+      },
+    });
+
+    // The ray never reaches the frame: it ends on the last cell it can cross,
+    // which is the cell the player has to look at.
+    const stop = cellCentre(layout, clear[clear.length - 1]!);
+    const guide = guideStroke(calls);
+
+    expect(guide.strokeStyle).toBe(THEME.disabledInk);
+    expect(guide.to.x).toBeCloseTo(stop.x);
+    expect(guide.to.y).toBeCloseTo(stop.y);
+    expect(guide.to.y).toBeGreaterThan(layout.origin.y);
+  });
+
+  it("draws the blocked arrow exactly like any other (ART.md 6.1)", () => {
+    // Nothing on a blocked arrow is drawn in the disabled ink: a board full
+    // of drained colours reads as broken rather than as informative.
+    const calls = render();
+    const drained = calls.filter(
+      (call) =>
+        (call.method === "set:strokeStyle" || call.method === "set:fillStyle") &&
+        call.args[0] === THEME.disabledInk,
+    );
+    expect(drained).toHaveLength(0);
+  });
+});
+
+/** The dashed stroke the hold guide is drawn with, and where it ended. */
+function guideStroke(calls: Call[]): {
+  strokeStyle: unknown;
+  to: { x: number; y: number };
+} {
+  // Every arrow clears its dash after drawing its outline, so the guide is
+  // the last dashed stroke on the frame, not the first.
+  const dashAt = calls.reduce(
+    (found, call, index) =>
+      call.method === "setLineDash" && (call.args[0] as unknown[]).length > 0
+        ? index
+        : found,
+    -1,
+  );
+  expect(dashAt).toBeGreaterThan(-1);
+
+  const before = calls.slice(0, dashAt).reverse();
+  const strokeStyle = before.find((call) => call.method === "set:strokeStyle")?.args[0];
+  const lineTo = calls.slice(dashAt).find((call) => call.method === "lineTo");
+
+  return {
+    strokeStyle,
+    to: { x: lineTo!.args[0] as number, y: lineTo!.args[1] as number },
+  };
+}
+
+describe("ART.md 10.4 — 360dp", () => {
+  const widest = LEVELS.reduce((worst, level) =>
+    level.cols * level.rows > worst.cols * worst.rows ? level : worst,
+  );
+
+  it("fits the most crowded shipped board with no scrolling", () => {
+    const layout = computeLayout(widest, VIEWPORT);
+
+    expect(layout.bounds.width).toBeLessThanOrEqual(VIEWPORT.width);
+    expect(layout.bounds.height).toBeLessThanOrEqual(VIEWPORT.height);
+    expect(layout.bounds.x).toBeGreaterThanOrEqual(0);
+  });
+
+  it("keeps the HUD clear of the frame", () => {
+    // The HUD is a band at the top of the screen; the board is centred, so
+    // what protects it is the margin above the frame.
+    const layout = computeLayout(widest, VIEWPORT);
+    expect(layout.bounds.y).toBeGreaterThanOrEqual(HUD_BAND_DP);
+  });
+
+  it("holds the cell above the floor the tap targets rest on", () => {
+    // A 48dp cell is impossible on a board this wide — 8 cells plus the frame
+    // do not fit into 360dp — so the cell floor is what the layout can hold
+    // and the 48dp rule is met by the path, which is many cells, and by the
+    // zoom (ART.md 3, 4). A level that would break this floor is too big.
+    const layout = computeLayout(widest, VIEWPORT);
+    expect(layout.cell).toBeGreaterThanOrEqual(MIN_CELL_DP);
+  });
+});
+
+/** Height of the HUD band at the top of the screen, in dp. */
+const HUD_BAND_DP = 96;
+/** The smallest cell the layout may produce on the narrowest phone. */
+const MIN_CELL_DP = 32;
+
+describe("ART.md 10.5 — tangle", () => {
+  const layout = computeLayout(BOARD, VIEWPORT);
+
+  it("leaves a gutter between two parallel runs", () => {
+    // Two same-coloured arrows lying side by side must still read as two
+    // objects, and the outline is what solves it — so pipe plus both outlines
+    // has to stay inside the cell with room left over.
+    const drawn = pipeWidth(layout) + 2 * outlineWidth(layout);
+    expect(drawn).toBeLessThan(layout.cell);
+    expect(layout.cell - drawn).toBeGreaterThanOrEqual(layout.cell * 0.15);
+  });
+
+  it("draws every arrow outlined, whatever else is on the board", () => {
+    const calls = render();
+    const inked = calls.filter(
+      (call) => call.method === "set:strokeStyle" && call.args[0] === THEME.ink,
+    );
+    expect(inked.length).toBeGreaterThanOrEqual(BOARD.arrows.length);
+  });
+});
+
+describe("ART.md 10.6 — sunlight", () => {
+  it("holds the ink far clear of the board", () => {
+    expect(contrastRatio(THEME.ink, THEME.board)).toBeGreaterThanOrEqual(7);
+  });
+
+  it("keeps the board the lighter surface, so the outline is what is read", () => {
+    expect(luminance(THEME.board)).toBeGreaterThan(luminance(THEME.ink));
+  });
+
+  it("never lets the outline thin out below a hairline", () => {
+    for (const width of [200, 360, 1024]) {
+      const layout = computeLayout(BOARD, { width, height: width * 2 });
+      expect(outlineWidth(layout)).toBeGreaterThanOrEqual(1.5);
+      expect(outlineWidth(layout)).toBeGreaterThanOrEqual(layout.cell * 0.1 - 1e-9);
+    }
+  });
+});
+
+/** sRGB mix, as the canvas composites an alpha fill over its own colour. */
+function mix(from: string, to: string, amount: number): string {
+  const a = channels(from);
+  const b = channels(to);
+  const at = (index: number): string =>
+    Math.round(a[index]! + (b[index]! - a[index]!) * amount)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${at(0)}${at(1)}${at(2)}`;
+}
+
+function channels(hex: string): [number, number, number] {
+  const value = hex.replace("#", "");
+  return [
+    Number.parseInt(value.slice(0, 2), 16),
+    Number.parseInt(value.slice(2, 4), 16),
+    Number.parseInt(value.slice(4, 6), 16),
+  ];
+}
+
+function linear(value: number): number {
+  const scaled = value / 255;
+  return scaled <= 0.04045 ? scaled / 12.92 : ((scaled + 0.055) / 1.055) ** 2.4;
+}
+
+function simulate(
+  hex: string,
+  matrix: readonly (readonly number[])[],
+): [number, number, number] {
+  const rgb = channels(hex).map(linear);
+  return matrix.map((row) =>
+    row.reduce((sum, weight, index) => sum + weight * rgb[index]!, 0),
+  ) as [number, number, number];
+}
+
+/** Linear RGB to CIE Lab, D65. */
+function lab([r, g, b]: [number, number, number]): [number, number, number] {
+  const x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047;
+  const y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  const z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883;
+  const f = (t: number): number => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  return [116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))];
+}
+
+function deltaE(first: [number, number, number], second: [number, number, number]) {
+  const a = lab(first);
+  const b = lab(second);
+  return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+}
