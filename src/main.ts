@@ -22,7 +22,18 @@ const app = document.querySelector<HTMLElement>("#app");
 const canvas = document.querySelector<HTMLCanvasElement>("#board");
 if (!app || !canvas) throw new Error("app shell missing");
 
-const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+/**
+ * The device preference is honoured without asking, and the settings switch
+ * can only add to it: a player whose phone asks for less motion gets less
+ * motion whatever this save says (ART.md 7).
+ */
+const prefersReducedMotion = window.matchMedia(
+  "(prefers-reduced-motion: reduce)",
+).matches;
+
+function reducedMotion(): boolean {
+  return prefersReducedMotion || store.save.settings.reducedMotion;
+}
 const solver = new SolverClient();
 const modals = new Modals();
 const store = new SaveStore();
@@ -84,11 +95,13 @@ function start(levelId: number): void {
   const next = new GameSession({
     canvas: canvas!,
     level,
-    reducedMotion,
+    reducedMotion: reducedMotion(),
+    highContrastGlyphs: store.save.settings.highContrastGlyphs,
     checkStuck: (state) => solver.isSolvable(state),
     onChange: (view) => onChange(view),
   });
 
+  modals.reducedMotion = reducedMotion();
   hud ??= mountHud();
   hud.root.hidden = false;
   session = next;
@@ -215,6 +228,7 @@ function onWin(view: SessionView): void {
     kind: "win",
     stars: view.stars,
     score,
+    perfect: view.mistakes === 0,
     commentary: commentaryFor({
       mistakes: view.mistakes,
       heartsLeft: view.heartsLeft,

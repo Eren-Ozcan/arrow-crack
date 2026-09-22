@@ -72,6 +72,8 @@ export interface SessionOptions {
   level: LevelDef;
   onChange: (view: SessionView) => void;
   reducedMotion?: boolean;
+  /** Larger glyphs in full ink (ART.md 2.2). */
+  highContrastGlyphs?: boolean;
   /** Runs the stuck check off the main thread; omitted in tests. */
   checkStuck?: (state: GameState) => Promise<boolean>;
 }
@@ -90,6 +92,7 @@ export class GameSession {
   #context: CanvasRenderingContext2D;
   #onChange: (view: SessionView) => void;
   #reducedMotion: boolean;
+  #highContrastGlyphs: boolean;
   #checkStuck: ((state: GameState) => Promise<boolean>) | undefined;
 
   #state: GameState;
@@ -118,6 +121,7 @@ export class GameSession {
     this.#canvas = options.canvas;
     this.#onChange = options.onChange;
     this.#reducedMotion = options.reducedMotion ?? false;
+    this.#highContrastGlyphs = options.highContrastGlyphs ?? false;
     this.#checkStuck = options.checkStuck;
 
     const context = options.canvas.getContext("2d");
@@ -343,6 +347,7 @@ export class GameSession {
         ? { plan: this.#animation.plan, elapsed: now - this.#animation.startedAt }
         : null,
       showGrid: this.#showGrid,
+      highContrastGlyphs: this.#highContrastGlyphs,
       gained: this.#gained,
       ...(this.#reducedMotion ? {} : { now }),
     });
