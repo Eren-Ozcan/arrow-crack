@@ -89,6 +89,9 @@ const CELEBRATION = {
 
 const STAR_COUNT = 3;
 
+/** How long the buttons stay dead when there is no celebration to wait out. */
+const TAP_GUARD_MS = 250;
+
 export class Modals {
   readonly root: HTMLElement;
 
@@ -260,6 +263,14 @@ export class Modals {
 
     if (this.reducedMotion) {
       for (const node of [line, badge, buttons]) node.classList.remove("is-pending");
+      // The buttons are drawn with everything else, but they stay dead for a
+      // beat: with no celebration to watch, a tap already in flight would
+      // otherwise land on "Next level" (PROGRESSION.md 2.2). Nothing moves
+      // here — it is an input guard, not an animation.
+      buttons.classList.add("is-locked");
+      this.#timers.push(
+        setTimeout(() => buttons.classList.remove("is-locked"), TAP_GUARD_MS),
+      );
       return () => {};
     }
 

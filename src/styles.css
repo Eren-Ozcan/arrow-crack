@@ -254,6 +254,11 @@ body {
   pointer-events: none;
 }
 
+/* Visible, but not yet tappable. */
+.modal-buttons.is-locked {
+  pointer-events: none;
+}
+
 /* One short burst behind the card, in the palette the level was played in. */
 .confetti {
   position: absolute;
