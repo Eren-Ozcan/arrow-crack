@@ -151,8 +151,18 @@ const arrow: Arrow = {
 };
 
 describe("animation plans", () => {
-  it("shakes in place on a blocked tap, with nothing leaving the board", () => {
+  it("runs a blocked arrow into what stopped it, then shakes it back", () => {
+    // `travel` is the cells it can cross, so the slide ends on the
+    // obstruction rather than at the frame, and nothing leaves the board.
     const plan = planAnimation({ event: "blocked", arrow, travel: 2 });
+    expect(plan.phases).toEqual([
+      { kind: "slide", durationMs: 2 * TIMING.slidePerCellMs },
+      { kind: "recoil", durationMs: TIMING.recoilMs },
+    ]);
+  });
+
+  it("leaves a blocked arrow with nowhere to go shaking where it stands", () => {
+    const plan = planAnimation({ event: "blocked", arrow, travel: 0 });
     expect(plan.phases).toEqual([{ kind: "recoil", durationMs: TIMING.recoilMs }]);
   });
 
@@ -165,13 +175,22 @@ describe("animation plans", () => {
     ]);
   });
 
-  it("caps the slide so a long body never stalls the turn", () => {
+  it("runs at one speed, whatever the arrow is and wherever it stands", () => {
+    // The slide is the cells the head crosses, at a fixed cost per cell:
+    // neither the body's own length nor a cap bends it, because two arrows
+    // crossing the same gap at different speeds read as the game hesitating.
     const long: Arrow = {
       ...arrow,
       path: Array.from({ length: 40 }, (_, index) => ({ col: 1, row: index })),
     };
-    const plan = planAnimation({ event: "flewOff", arrow: long, travel: 20 });
-    expect(plan.totalMs).toBe(TIMING.slideCapMs);
+    const short = planAnimation({ event: "flewOff", arrow, travel: 6 });
+    const stretched = planAnimation({ event: "flewOff", arrow: long, travel: 6 });
+
+    expect(short.totalMs).toBe(6 * TIMING.slidePerCellMs);
+    expect(stretched.totalMs).toBe(short.totalMs);
+    expect(planAnimation({ event: "flewOff", arrow, travel: 12 }).totalMs).toBe(
+      short.totalMs * 2,
+    );
   });
 
   it("cuts to the impact frame under reduced motion", () => {

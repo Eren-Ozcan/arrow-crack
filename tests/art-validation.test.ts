@@ -1,18 +1,22 @@
 import { describe, expect, it } from "vitest";
+import { fire } from "@/engine/fire";
 import { createState } from "@/engine/level";
 import { clearRay } from "@/engine/rays";
 import type { LevelDef } from "@/engine/types";
 import { LEVELS } from "@/levels";
 import { renderBoard } from "@/render/board-renderer";
 import { fitCamera } from "@/render/camera";
-import { computeLayout, cellCentre } from "@/render/layout";
-import { contrastRatio, luminance, PALETTE, THEME } from "@/render/palette";
+import { planAnimation } from "@/render/animation";
+import { blockRect, computeLayout, cellCentre } from "@/render/layout";
+import { contrastRatio, luminance, PALETTE, paletteEntry, THEME } from "@/render/palette";
 import {
   backingWidth,
+  edgeColour,
   drawGlyph,
-  GLYPH_ALPHA,
+  glyphWidth,
   outlineWidth,
   pipeWidth,
+  tailWidth,
 } from "@/render/shapes";
 import type { Glyph } from "@/render/palette";
 
@@ -41,6 +45,22 @@ function recorder(): { context: CanvasRenderingContext2D; calls: Call[] } {
     {
       get(_target, property: string) {
         if (property in properties) return properties[property];
+        // A gradient is a shade of the colour it is built from, so the
+        // recorder answers with the stops themselves: a style assertion can
+        // then read a gradient exactly as it reads a flat colour.
+        if (property === "createLinearGradient" || property === "createRadialGradient") {
+          return (...args: unknown[]): CanvasGradient => {
+            calls.push({ method: property, args });
+            const stops: string[] = [];
+            return {
+              addColorStop: (_offset: number, colour: string) => {
+                stops.push(colour);
+                calls.push({ method: "addColorStop", args: [colour] });
+              },
+              stops,
+            } as unknown as CanvasGradient;
+          };
+        }
         return (...args: unknown[]): undefined => {
           calls.push({ method: property, args });
           return undefined;
@@ -110,7 +130,7 @@ const BOARD: LevelDef = {
   ],
 };
 
-function render(options: { highContrastGlyphs?: boolean } = {}): Call[] {
+function render(options: { colourBlindMode?: boolean } = {}): Call[] {
   const state = createState(BOARD);
   const layout = computeLayout(BOARD, VIEWPORT);
   const { context, calls } = recorder();
@@ -127,11 +147,14 @@ function render(options: { highContrastGlyphs?: boolean } = {}): Call[] {
   return calls;
 }
 
-/** Glyphs are the only thing drawn at this exact alpha (ART.md 2.2). */
+/**
+ * A glyph is the only mark drawn around its own origin, so the translate
+ * calls a render makes are the board's own transforms plus one per glyph
+ * (ART.md 2.2). Counting them off one render says nothing; the difference
+ * between the two modes is the glyph count.
+ */
 function glyphDraws(calls: Call[]): number {
-  return calls.filter(
-    (call) => call.method === "set:globalAlpha" && call.args[0] === GLYPH_ALPHA,
-  ).length;
+  return calls.filter((call) => call.method === "translate").length;
 }
 
 describe("ART.md 10.1 — grayscale", () => {
@@ -177,33 +200,49 @@ describe("ART.md 10.1 — grayscale", () => {
     expect(new Set(paths.values()).size).toBe(paths.size);
   });
 
-  it("puts a glyph on every arrow and every block it draws", () => {
-    // Matching has to be possible on shape alone, so nothing carrying a
-    // colour may ever be drawn without the shape that colour owns.
-    expect(glyphDraws(render())).toBeGreaterThanOrEqual(
-      BOARD.arrows.length + BOARD.blocks.length,
-    );
+  it("puts a glyph on every arrow and every block in colour-blind mode", () => {
+    // With the mode on, matching has to be possible on shape alone, so
+    // nothing carrying a colour may be drawn without the shape it owns.
+    const marks = glyphDraws(render({ colourBlindMode: true })) - glyphDraws(render());
+
+    expect(marks).toBeGreaterThanOrEqual(BOARD.arrows.length + BOARD.blocks.length);
   });
 
-  it("turns the redundancy up rather than on in high contrast", () => {
-    // High contrast is full ink, so nothing is left at the embossed alpha.
-    expect(glyphDraws(render({ highContrastGlyphs: true }))).toBe(0);
+  it("gives the glyph a tail wide enough to be read at the smallest cell", () => {
+    // The glyph used to ride the pipe, which on the narrowest shipped board
+    // left it under 4dp — a mark nobody can match a colour by. It sits on a
+    // widened tail knob instead, and the knob has to hold the larger
+    // high-contrast glyph with an ink edge to spare (ART.md 3).
+    const layout = computeLayout(widestShipped(), VIEWPORT);
+    const glyph = glyphWidth(layout);
+
+    expect(tailWidth(layout)).toBeGreaterThan(pipeWidth(layout));
+    expect(glyph).toBeLessThanOrEqual(tailWidth(layout) - outlineWidth(layout));
+    expect(glyph).toBeGreaterThanOrEqual(5);
   });
 
-  it("keeps a glyph readable against its own fill in both modes", () => {
+  it("keeps the tail knob inside its own cell", () => {
+    // A knob that spilled past the cell would touch the arrow in the next
+    // lane, which is the tangle failure ART.md 10.5 exists to catch.
+    const layout = computeLayout(widestShipped(), VIEWPORT);
+    expect(tailWidth(layout) + 2 * outlineWidth(layout)).toBeLessThan(layout.cell);
+  });
+
+  it("keeps a glyph readable against its own fill", () => {
+    // A glyph is only drawn in colour-blind mode, where it is the signal
+    // rather than a hint under the colour: full ink, no embossed floor.
     for (const entry of Object.values(PALETTE)) {
-      const embossed = mix(entry.fill, THEME.ink, GLYPH_ALPHA);
-      expect(
-        contrastRatio(embossed, entry.fill),
-        `${entry.name}, embossed`,
-      ).toBeGreaterThanOrEqual(1.8);
-      expect(
-        contrastRatio(THEME.ink, entry.fill),
-        `${entry.name}, high contrast`,
-      ).toBeGreaterThanOrEqual(3);
+      expect(contrastRatio(THEME.ink, entry.fill), entry.name).toBeGreaterThanOrEqual(3);
     }
   });
 });
+
+/** The board that produces the smallest cell any shipped level can ask for. */
+function widestShipped(): LevelDef {
+  return LEVELS.reduce((worst, level) =>
+    level.cols * level.rows > worst.cols * worst.rows ? level : worst,
+  );
+}
 
 describe("ART.md 10.2 — colour vision deficiency", () => {
   // Viénot, Brettel and Mollon (1999) dichromat simulation, applied in linear
@@ -400,29 +439,34 @@ describe("ART.md 10.5 — tangle", () => {
     expect(layout.cell - drawn).toBeGreaterThanOrEqual(layout.cell * 0.15);
   });
 
-  it("draws every arrow outlined, whatever else is on the board", () => {
+  it("draws every arrow on its own dark edge, whatever else is on the board", () => {
+    // The edge is the colour's own dark, never black (ART.md 1), and it is
+    // what separates two same-coloured arrows lying side by side.
     const calls = render();
-    const inked = calls.filter(
-      (call) => call.method === "set:strokeStyle" && call.args[0] === THEME.ink,
-    );
-    expect(inked.length).toBeGreaterThanOrEqual(BOARD.arrows.length);
+    for (const arrow of BOARD.arrows) {
+      const edge = edgeColour(paletteEntry(arrow.color).fill);
+      const edged = calls.filter(
+        (call) => call.method === "set:strokeStyle" && call.args[0] === edge,
+      );
+      expect(edged.length, `${arrow.id} (${arrow.color})`).toBeGreaterThan(0);
+    }
   });
 });
 
 describe("ART.md 10.6 — sunlight", () => {
-  it("holds the ink far clear of the board", () => {
+  it("holds the ink far clear of the board, for the glyphs and the type", () => {
     expect(contrastRatio(THEME.ink, THEME.board)).toBeGreaterThanOrEqual(7);
   });
 
-  it("keeps the board the lighter surface, so the outline is what is read", () => {
+  it("keeps the board the lighter surface, so the edge is what is read", () => {
     expect(luminance(THEME.board)).toBeGreaterThan(luminance(THEME.ink));
   });
 
-  it("never lets the ink backing thin out below a hairline", () => {
+  it("never lets the edge backing thin out below a hairline", () => {
     for (const width of [200, 360, 1024]) {
       const layout = computeLayout(BOARD, { width, height: width * 2 });
       expect(outlineWidth(layout)).toBeGreaterThanOrEqual(1.5);
-      // The ink edge each side of the coloured stroke (ART.md 3): it is what
+      // The edge each side of the coloured stroke (ART.md 3): it is what
       // separates two same-coloured arrows, so it may never round away.
       expect(outlineWidth(layout)).toBeGreaterThanOrEqual(layout.cell * 0.05 - 1e-9);
       expect(backingWidth(layout)).toBeGreaterThan(pipeWidth(layout));
@@ -447,17 +491,6 @@ describe("ART.md 2.1 — red means damage, and only damage", () => {
     expect(contrastRatio(THEME.wrong, THEME.ink)).toBeGreaterThanOrEqual(3);
   });
 });
-
-/** sRGB mix, as the canvas composites an alpha fill over its own colour. */
-function mix(from: string, to: string, amount: number): string {
-  const a = channels(from);
-  const b = channels(to);
-  const at = (index: number): string =>
-    Math.round(a[index]! + (b[index]! - a[index]!) * amount)
-      .toString(16)
-      .padStart(2, "0");
-  return `#${at(0)}${at(1)}${at(2)}`;
-}
 
 function channels(hex: string): [number, number, number] {
   const value = hex.replace("#", "");
@@ -497,3 +530,77 @@ function deltaE(first: [number, number, number], second: [number, number, number
   const b = lab(second);
   return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 }
+
+describe("ART.md 6 — the block comes apart when the arrow reaches it", () => {
+  /** One arrow, one matching single-layer block: a tap that destroys it. */
+  const SHOT_BOARD: LevelDef = {
+    id: 901,
+    cols: 3,
+    rows: 4,
+    hearts: 3,
+    par: 1,
+    palette: ["v"],
+    arrows: [{ id: "s1", color: "v", dir: "up", path: [{ col: 1, row: 3 }] }],
+    blocks: [{ id: "sb", side: "top", start: 1, span: 1, layers: ["v"] }],
+  };
+
+  function drawnAt(
+    calls: Call[],
+    rect: { x: number; y: number; width: number; height: number },
+  ): boolean {
+    // A block starts its edge shape a corner radius along its own top edge,
+    // so that point is where the block is, and nothing else draws there.
+    const radius = Math.min(rect.width, rect.height) * 0.44;
+    return calls.some(
+      (call) =>
+        call.method === "moveTo" &&
+        Math.abs((call.args[0] as number) - (rect.x + radius)) < 0.5 &&
+        Math.abs((call.args[1] as number) - rect.y) < 0.5,
+    );
+  }
+
+  function frame(elapsed: number | null): Call[] {
+    const before = createState(SHOT_BOARD);
+    const layout = computeLayout(SHOT_BOARD, VIEWPORT);
+    const target = before.blocks[0]!;
+    const arrow = before.arrows[0]!;
+    const { state, event } = fire(before, arrow.id);
+    expect(event).toBe("destroyed");
+
+    const plan = planAnimation({ event, arrow, block: target, travel: 3 });
+    const { context, calls } = recorder();
+
+    renderBoard(context, {
+      state,
+      layout,
+      camera: fitCamera(),
+      viewport: VIEWPORT,
+      showGrid: false,
+      ...(elapsed === null ? {} : { animations: [{ plan, elapsed }] }),
+    });
+
+    return calls;
+  }
+
+  it("still draws the target while the body is on its way", () => {
+    // The reducer resolved the shot at the tap, but the player has not seen
+    // the arrow arrive yet: a block that vanishes under a travelling arrow
+    // reads as the tap breaking it, not the hit.
+    const layout = computeLayout(SHOT_BOARD, VIEWPORT);
+    const rect = blockRect(layout, createState(SHOT_BOARD).blocks[0]!);
+    const slideMs = planAnimation({
+      event: "destroyed",
+      arrow: createState(SHOT_BOARD).arrows[0]!,
+      travel: 3,
+    }).phases[0]!.durationMs;
+
+    expect(drawnAt(frame(slideMs * 0.5), rect)).toBe(true);
+  });
+
+  it("has it gone once the shot has landed", () => {
+    const layout = computeLayout(SHOT_BOARD, VIEWPORT);
+    const rect = blockRect(layout, createState(SHOT_BOARD).blocks[0]!);
+
+    expect(drawnAt(frame(null), rect)).toBe(false);
+  });
+});
