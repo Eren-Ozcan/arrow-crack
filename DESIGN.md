@@ -50,8 +50,8 @@ Play's 30-character limit. In-app and in conversation the game is called
 
 - A block holds a **layer stack**: an ordered list of colors, top first
   (e.g. `[red, blue, green]`).
-- The visible color is the top layer. Lower layers show as slab edges along
-  the block's inner side so the player can plan ahead (`ART.md` section 5).
+- The visible color is the top layer. Lower layers show as nested bands
+  inside the block's outline so the player can plan ahead (`ART.md` 5).
 - Peeling the top layer reveals the next. A block with an empty stack is
   **destroyed** and removed from the frame.
 
@@ -356,7 +356,7 @@ Tutorial beats, one new idea at a time, no text walls:
 | 1     | Tap an arrow to fire it                                           |
 | 2     | A blocked arrow cannot move — and tapping it anyway costs a heart |
 | 3     | Wrong color bounces and costs a heart                             |
-| 5     | Layered blocks: the slab edges show what is underneath            |
+| 5     | Layered blocks: the inner bands show what is underneath           |
 | 8     | Hearts and stars: a clean solve is 3 stars                        |
 | 20    | The first one-heart level, announced before it starts             |
 | 31    | Wide blocks: several lanes, one stack                             |

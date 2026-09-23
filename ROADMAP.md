@@ -92,9 +92,10 @@ stays inside 8 ms on the target device.
 Implements `ART.md`; nothing on the board is a sprite, everything is drawn
 procedurally from the palette table.
 
-- Canvas renderer: grid, **path arrows** drawn as heavy-outlined pipes with
-  rounded bends, an oversized head and a rounded tail carrying the glyph;
-  frame blocks with layer slabs; wide blocks spanning lanes.
+- Canvas renderer: grid, **path arrows** drawn as a coloured stroke over an
+  ink backing, with rounded bends, an open chevron head and a rounded tail
+  carrying the glyph; frame blocks with nested layer bands; wide blocks
+  spanning lanes.
 - Press-and-hold exit-ray guide (`ART.md` 3.2) — free, not ad-gated.
 - **Blocked arrows are drawn like any other** — what makes a blocked tap
   fair is the board and the free exit-ray guide, not a treatment on the

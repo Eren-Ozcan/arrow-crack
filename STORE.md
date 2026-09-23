@@ -96,7 +96,7 @@ people ever see:
 Never a screenshot of arrows alone — that is indistinguishable from the
 incumbent's, and theirs has 241K reviews behind it.
 
-Feature graphic: one block cracking under one arrow, vermillion on blue,
+Feature graphic: one block cracking under one arrow, orange on blue,
 heavy outline, the title set small. No screenshot collage.
 
 ## 6. Privacy, data safety, deletion

@@ -9,24 +9,30 @@ Single **light** theme. One palette, calibrated once.
 
 ---
 
-## 1. Direction: tactile toy blocks
+## 1. Direction: flat, seen straight on
 
-Thick-outlined, slightly dimensional plastic-and-wood blocks on a warm
-neutral board. Chosen over a flat geometric look for one concrete reason:
-**layer preview solves itself physically.** A stack of slabs shows the edge
-of the slab underneath because that is what a stack does — no invented
-stripe notation to teach. Destroying a layer is a slab shattering off the
-top, which reads as progress without any UI text.
+Flat shapes on a warm neutral board, viewed **at 90 degrees** — no
+perspective, no tilt, no isometric angle, and nothing drawn with thickness.
+An arrow is a coloured line; a block is a coloured square. There are no side
+faces and no offset slabs, because a board read at a glance should not ask
+the eye to resolve a fake third dimension first.
 
-The thick dark outline is not decoration. It is what keeps a pale color
-(the yellow) legible on a light board, and what separates two same-coloured
-arrows lying side by side.
+Depth is therefore never drawn. What sits under a block is shown as **nested
+bands on the same plane**: thin rings of the coming layers hugging the inside
+of the outline, outermost first, so the order the player will meet them reads
+from the outside in. It is a notation, and it is taught in one level.
+
+The dark ink is not decoration. Every coloured line is drawn over a heavier
+ink line, and every block face is outlined in it. That ink is what keeps a
+pale colour (the yellow) legible on a light board, and what separates two
+same-coloured arrows lying side by side.
 
 ```
-  ┏━━━━━━━┓   ← top layer, full face + glyph
-  ┃ ▲▲▲▲▲ ┃
-  ┡━━━━━━━┩   ← next layer, only its edge slab shows
-  ╰───────╯   ← bottom layer
+  ┌───────┐   ← the face: its colour, its glyph
+  │ ┌───┐ │   ← next layer, as a band inside the outline
+  │ │ ▲ │ │
+  │ └───┘ │
+  └───────┘
 ```
 
 ---
@@ -43,22 +49,36 @@ protanopia, deuteranopia and tritanopia — not merely "tested afterwards".
 
 | Key | Name       | Hex       | Glyph    | Introduced |
 | --- | ---------- | --------- | -------- | ---------- |
-| `v` | vermillion | `#D55E00` | triangle | level 1    |
+| `v` | orange     | `#E69F00` | triangle | level 1    |
 | `b` | blue       | `#0072B2` | circle   | level 1    |
 | `g` | green      | `#009E73` | square   | level 1    |
 | `y` | yellow     | `#F0E442` | diamond  | level 31   |
 | `p` | purple     | `#CC79A7` | cross    | level 50   |
 
-Board `#F4EFE6`, outline/ink `#1F1B16`, heart `#D55E00`, disabled ink
-`#8A837A`.
+Board `#F4EFE6`, outline/ink `#1F1B16`, damage red `#E63946`, disabled ink
+`#8A837A`. The data key stays `v` — it names the slot, not the hue, and
+renaming it would rewrite eighty level files to say nothing new.
+
+**Red is never an arrow colour.** It carries the two damage signals and
+nothing else: the hearts, and an arrow that was tapped wrong (section 6).
+Vermillion `#D55E00` used to be both an arrow and the heart; it is gone from
+the game, because a colour that is a rule and a warning at once is neither.
+That is also what the tritanopia measurement below is about: under that type
+`#D55E00` and the purple arrow collapse onto each other (ΔE 0.9), which a
+permanent red state cannot survive.
 
 The first three are the maximally separable triad for the two common CVD
-types: simulated, the closest pair of them sits at ΔE 34 under protanopia and
+types: simulated, the closest pair of them sits at ΔE 51 under protanopia and
 ΔE 60 under deuteranopia. Under **tritanopia** blue and green come within
 ΔE 14 — still distinguishable, but that pair is read off the circle and the
 square there rather than off the colour. That is the measured floor, it is
 asserted in `tests/art-validation.test.ts`, and it is the reason the glyphs
 are not a toggle.
+
+The damage red is **not** separable from the purple arrow under tritanopia,
+and no red is. That is a known, accepted cost of the wrong-tap state in
+section 6: a player with that type reads the mistake off the tail glyph,
+which the red never replaces.
 
 Levels 1-30 use three colors, 31-49 four, 50+ five. Five is the hard
 ceiling: a sixth color cannot be added without breaking separability for
@@ -87,11 +107,12 @@ Measured against board `#F4EFE6` and ink `#1F1B16`:
 
 | Colour     | vs board | vs ink |
 | ---------- | -------- | ------ |
-| vermillion | 3.38     | 4.43   |
+| orange     | 1.97     | 7.60   |
 | blue       | 4.53     | 3.30   |
 | green      | 2.99     | 5.00   |
 | yellow     | **1.15** | 12.95  |
 | purple     | 2.67     | 5.59   |
+| damage red | 3.64     | 4.11   |
 
 Those numbers settle an earlier rule that could not be met. A fill-against-
 board minimum of 3:1 is impossible for the Okabe-Ito yellow on a light board —
@@ -108,8 +129,8 @@ are:
 - Every glyph against its own fill: ≥ 3:1 in high-contrast mode, ≥ 1.8:1 in
   the default embossed treatment.
 - Adjacent colours on the same block stack should differ in hue and, where
-  the palette allows, in lightness. It cannot be a hard threshold: vermillion
-  against green is 1.13, and both are in the level-1 triad. **Grayscale
+  the palette allows, in lightness. It cannot be a hard threshold: green
+  against purple is 1.12, and both are on the board from level 50. **Grayscale
   separation is carried by the glyphs, not by lightness** — which is exactly
   why they are always on and never a toggle.
   **The grayscale test is still the acceptance test**: if a board is
@@ -123,9 +144,18 @@ cannot drift out of them unnoticed.
 ## 3. Arrow anatomy
 
 An arrow is a **tangled path**, not a chevron in a cell: a one-cell-wide
-polyline with rounded bends and an arrowhead at one end, drawn as a thick
-outlined pipe. The reference form is the interlocking-arrow maze look —
-heavy ink outline, flat fill, generous corner radius.
+polyline with rounded bends and an arrowhead at one end, drawn as a flat
+line. The reference form is the interlocking-arrow maze look — a coloured
+stroke over a heavier ink stroke, generous corner radius, nothing filled.
+
+Measurements, all as a fraction of the cell: **stroke 0.14**, **ink edge 0.05
+each side** (so the backing is 0.24 wide), **chevron arm 0.34**, **tail glyph
+0.10**. The chevron is longer than the backing is wide on purpose: arms
+shorter than the line they end merge into a blob, and the V is the whole of
+the direction signal. A one-cell arrow is drawn 0.72 of a cell long so a
+shaft still shows once the head's inset is taken off it. The ink edge is
+asserted in `tests/art-validation.test.ts`, because the gutter between two
+parallel runs is what it buys.
 
 ```
    ╭──────╮
@@ -135,21 +165,23 @@ heavy ink outline, flat fill, generous corner radius.
       ╰──╯
 ```
 
-- **Outline first.** Every arrow carries the same heavy ink outline, so
-  overlapping and adjacent paths never visually merge. Two same-colored
-  arrows lying next to each other must still read as two objects — this is
-  the single hardest legibility problem in the tangled form, and the outline
-  is what solves it.
-- **The head is the only pointed end**, drawn oversized relative to the pipe
-  width. Direction has to be readable at a glance in a screen full of bends.
+- **Backing first.** Every arrow is drawn twice: the ink stroke, then the
+  colour on top of it. Overlapping and adjacent paths therefore never merge.
+  Two same-coloured arrows lying next to each other must still read as two
+  objects — this is the single hardest legibility problem in the tangled
+  form, and that ink edge is what solves it.
+- **The head is an open chevron**, the body's own line turning a corner, not
+  a filled triangle stuck on the end. It is the only pointed end. Direction
+  has to be readable at a glance in a screen full of bends.
 - **The tail is a rounded cap**, clearly not a head. Never a second point,
-  never an ambiguous square end.
+  never an ambiguous square end, and never fletching or barbs — anything
+  pointed at the back is a second head to the eye.
 - **The glyph sits once, near the tail** — not repeated along the body,
   which would turn a crowded board into noise. Colour reads from the whole
   pipe; shape reads from one stable spot per arrow.
 - **Bends are rounded**, following the pipe's centre line, so the eye can
   trace a path around corners without losing it under a crossing neighbour.
-- Pipe width is roughly 60% of a cell, leaving a visible gutter between
+- Stroke plus backing is 24% of a cell, leaving a wide gutter between
   parallel runs. If two parallel paths ever touch, the cell is too small.
 - **Tap target is the whole path**, every cell of it — which makes these
   arrows far easier to hit than single-cell ones. The minimum 48dp rule
@@ -168,8 +200,11 @@ crowded tangle at a glance and in grayscale:
   solid. It is the only arrow whose outline is not continuous, so the
   exception it embodies is visible in its silhouette. The dash is also what
   survives grayscale.
-- **Bomb** — a heavy round head instead of a pointed one, with a short fuse
-  mark. The one arrow whose head is not a triangle.
+- **Bomb** — a bullseye at the head: a filled disc, a lighter ring inside it,
+  a dot at the centre, all in the arrow's own colour with thin ink between
+  the rings. A small chevron still sits at the very tip, so a Bomb is read
+  for direction exactly like every other arrow; the rings are what say it is
+  a Bomb. No fuse, because a fuse is the first thing to vanish at 48 px.
 
 None of the three is drawn with glow, sparkle or animation beyond the shared
 idle bob. A piece that advertises itself louder than the board teaches
@@ -244,12 +279,13 @@ the player did not spend.
 
 ## 5. Block anatomy
 
-- **Top face**: the current color, full saturation, with its glyph.
-- **Layer edges**: each remaining layer shows a slab edge along the inner
-  side, at reduced height. Three visible edges maximum; deeper stacks show
-  the third edge with a count badge (`+2`) rather than an unreadable stripe
-  sandwich.
-- **Wide blocks** are drawn as a single slab spanning their lanes, with the
+- **Face**: the current colour, full saturation, with its glyph, owning the
+  whole square. The top colour is never the thing that shrinks.
+- **Layer bands**: each remaining layer is a thin ring inset from the
+  outline, on the same plane — never an offset slab, because nothing here is
+  drawn with thickness (section 1). Two visible bands maximum; deeper stacks
+  carry a count badge (`+2`) rather than an unreadable ring sandwich.
+- **Wide blocks** are drawn as a single face spanning their lanes, with the
   lane divisions marked only on the board side — so it reads as one object
   that several lanes feed, which is exactly the rule.
 - The frame sits outside the grid with a visible gap, so "on the board" and
@@ -265,7 +301,8 @@ the player did not spend.
 ## 6. States
 
 The state table is the readability contract. Every state is distinguishable
-without color.
+without colour — with one deliberate exception, the wrong tap, which is
+colour and nothing else.
 
 | State             | Treatment                                                                                                                            |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -274,13 +311,36 @@ without color.
 | **Blocked**       | Drawn exactly like a fireable arrow. What stops it is read off the board, or off the hold guide, which stops at the obstruction      |
 | Press and hold    | Exit ray guide + target block outline (section 3.1)                                                                                  |
 | Firing            | The whole path slides out head-first along its own route, the tail following the head's track; slight squash on launch               |
-| Impact — match    | Block flashes white, top slab shatters into shards, next layer settles down with a small bounce                                      |
+| Impact — match    | Block flashes white, the face breaks into shards, the band underneath becomes the face and settles with a small bounce               |
 | Impact — mismatch | Arrow recoils, hard shake, one heart drains with a distinct sound; the block does not move at all                                    |
+| **Wrong arrow**   | The body goes damage red and **stays red until the next arrow is tapped**. Same geometry, same weight: the colour is the whole state |
+| Cracked           | One ink hairline across the face, half the weight of the outline — damage that does not shout over the colour it is matched against  |
 | Block destroyed   | Full shatter, the frame gap stays visible so the empty lane is obvious                                                               |
 | Stuck panel       | Board dims, no failure language — "No moves left", free restart                                                                      |
 | Combo step up     | Multiplier badge grows and pulses, floating score off the peeled block. **No text over the board** (`PROGRESSION.md` 2.1)            |
 | Combo break       | Badge shrinks back to x1. No sting, no red — the heart already delivered the bad news                                                |
 | Timed level       | A clock replaces the hearts in the HUD; under 10 seconds it pulses. Never a heartbeat sound stacked on the music                     |
+
+### 6.0 The wrong arrow stays red
+
+A wrong tap is the one thing in this game that costs something, and 220 ms of
+recoil is gone before a player who looked away has seen it. So the arrow that
+was tapped wrong is repainted in the damage red and **holds** it: the mistake
+is still on the board when the player looks back, and it clears the moment
+any arrow is tapped, including that same one. It marks the last wrong tap; it
+never disables a piece.
+
+Two costs, both accepted on purpose:
+
+- **It is the one state that does not survive greyscale.** Everything else in
+  this table is shape. The wrong arrow is colour alone, because a badge on a
+  live board is one more thing to read before a tap.
+- **No red separates from the purple arrow under tritanopia** (section 2.1).
+  The tail glyph is never repainted, so what colour the arrow actually is
+  stays readable underneath the state.
+
+This is not the blocked treatment. A blocked arrow has not cost anything yet,
+and section 6.1 still applies to it.
 
 ### 6.1 A blocked arrow is not marked
 
@@ -318,7 +378,7 @@ Fast, because the player taps in sequences.
 | Arrow slide (per cell of path travelled) | 40 ms, linear, capped at 500 ms total so a long body never stalls the turn |
 | Impact and peel                          | 180 ms                                                                     |
 | Mismatch recoil                          | 220 ms                                                                     |
-| Block shatter                            | 320 ms                                                                     |
+| Block shatter                            | 320 ms — six blunt shards, mixed sizes, fading by `1 − t²`                 |
 | Star reveal                              | 3 × 200 ms, staggered                                                      |
 | Commentary line on the win panel         | 250 ms fade in, after the score count-up                                   |
 | Score count-up                           | 600 ms, easing out                                                         |
@@ -380,8 +440,7 @@ Icon, feature graphic and screenshots follow the studio rule: they are
 in the project's `CLAUDE.md`.
 
 The icon has to work at 48px: one block being cracked by one arrow, the two
-maximally separable colors (vermillion arrow, blue block), heavy outline, no
-text. **Not a tangle of arrows** — that is the reference game's icon and
+maximally separable colours (orange arrow, blue block), heavy ink, no text. **Not a tangle of arrows** — that is the reference game's icon and
 loses the comparison on sight (`REFERENCE.md` 4).
 
 Every screenshot leads with the frame: a mid-game board showing a layered
