@@ -15,7 +15,7 @@ export interface PaletteEntry {
 }
 
 export const PALETTE: Record<Color, PaletteEntry> = {
-  v: { key: "v", name: "vermillion", fill: "#D55E00", glyph: "triangle" },
+  v: { key: "v", name: "orange", fill: "#E69F00", glyph: "triangle" },
   b: { key: "b", name: "blue", fill: "#0072B2", glyph: "circle" },
   g: { key: "g", name: "green", fill: "#009E73", glyph: "square" },
   y: { key: "y", name: "yellow", fill: "#F0E442", glyph: "diamond" },
@@ -26,7 +26,13 @@ export const THEME = {
   board: "#F4EFE6",
   ink: "#1F1B16",
   disabledInk: "#8A837A",
-  heart: "#D55E00",
+  /**
+   * One red carries every damage signal: the hearts, and an arrow that was
+   * tapped wrong (ART.md 6). It is never an arrow colour, so red on the board
+   * only ever means "this cost you" — there is nothing else to learn.
+   */
+  heart: "#E63946",
+  wrong: "#E63946",
   /** Behind the board, and the colour the native window is painted with. */
   backdrop: "#12131A",
 } as const;
@@ -35,11 +41,6 @@ export function paletteEntry(color: Color): PaletteEntry {
   const entry = PALETTE[color];
   if (!entry) throw new Error(`no palette entry for colour ${color}`);
   return entry;
-}
-
-/** Mix towards the board colour; used for the inert blocked state. */
-export function desaturate(hex: string, amount: number): string {
-  return mix(hex, THEME.board, amount);
 }
 
 export function mix(from: string, to: string, amount: number): string {
