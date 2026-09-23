@@ -45,8 +45,12 @@ export interface RenderInput {
   layout: Layout;
   camera: Camera;
   viewport: { width: number; height: number };
-  /** Press-and-hold exit-ray guide (ART.md 3.2). */
-  guide?: GuideView | null;
+  /**
+   * The exit-ray guides on screen (ART.md 3.2): the arrow under the finger,
+   * plus every arrow a previous hold left its line on. More than one at a
+   * time is the point — an ordering question is about two arrows, not one.
+   */
+  guides?: readonly GuideView[] | null;
   /** Blocker highlight after a blocked tap (ART.md 6.2). */
   pulse?: { arrowIds: readonly string[]; t: number } | null;
   /**
@@ -86,12 +90,12 @@ export function renderBoard(context: CanvasRenderingContext2D, input: RenderInpu
   drawBoardSurface(context, layout, input.showGrid, input.state.level.mask);
   drawBlocks(context, input);
   drawArrows(context, input);
-  if (input.guide) drawGuide(context, input, input.guide);
+  for (const guide of input.guides ?? []) drawGuide(context, input, guide);
 
   drawFloatingScore(context, input);
   context.restore();
 
-  if (input.guide) drawEdgeMarker(context, input, input.guide);
+  for (const guide of input.guides ?? []) drawEdgeMarker(context, input, guide);
 }
 
 /** Board kick on a bounce, as a fraction of a cell. */
@@ -196,7 +200,8 @@ function drawBoardSurface(
 }
 
 function drawBlocks(context: CanvasRenderingContext2D, input: RenderInput): void {
-  const { state, layout, guide } = input;
+  const { state, layout } = input;
+  const guides = input.guides ?? [];
   const playing = livePhases(input);
 
   // The reducer resolves a shot at the tap, but the block it hit may not come
@@ -235,9 +240,11 @@ function drawBlocks(context: CanvasRenderingContext2D, input: RenderInput): void
     context.translate(inward.x * settle, inward.y * settle);
     drawBlock(context, layout, block, blockRect(layout, block), {
       flash,
-      highlighted:
-        guide?.targetBlockId === block.id ||
-        (guide?.splashBlockIds?.includes(block.id) ?? false),
+      highlighted: guides.some(
+        (guide) =>
+          guide.targetBlockId === block.id ||
+          (guide.splashBlockIds?.includes(block.id) ?? false),
+      ),
       colourBlind: input.colourBlindMode ?? false,
     });
     context.restore();
@@ -480,6 +487,11 @@ function drawAnimatedArrow(
   });
 }
 
+/** The zoom the guide has to undo to reach the edge of a zoomed-in screen. */
+function camera(input: RenderInput): number {
+  return input.camera.scale;
+}
+
 function drawGuide(
   context: CanvasRenderingContext2D,
   input: RenderInput,
@@ -491,45 +503,44 @@ function drawGuide(
 
   const head = arrow.path[arrow.path.length - 1]!;
   const from = cellCentre(layout, head);
-  const last = guide.clear[guide.clear.length - 1];
-  const to = last ? cellCentre(layout, last) : from;
 
   context.save();
   context.lineCap = "round";
-  context.lineWidth = pipeWidth(layout) * 0.45;
-  context.globalAlpha = 0.5;
+  // A clear ray is a hairline that runs off the screen: it is a direction,
+  // not a piece, and the thinner it is the less it argues with the board it
+  // crosses. A blocked one is heavier and dashed, because it is a statement
+  // about one short stretch of board rather than about a whole lane.
+  context.lineWidth = pipeWidth(layout) * (guide.blocked ? 0.45 : 0.14);
+  context.globalAlpha = guide.blocked ? 0.5 : 0.6;
   // Clear rays are drawn in the arrow's own colour; a blocked one stops at
   // the obstruction and is drawn in the disabled ink.
   context.strokeStyle = guide.blocked
     ? THEME.disabledInk
     : paletteEntry(arrow.color).fill;
-  context.setLineDash([layout.cell * 0.18, layout.cell * 0.16]);
+  if (guide.blocked) context.setLineDash([layout.cell * 0.18, layout.cell * 0.16]);
 
   context.beginPath();
   context.moveTo(from.x, from.y);
   if (!guide.blocked) {
-    const exit = laneExitPoint(layout, sideFor(arrow.dir), laneFor(arrow));
-    context.lineTo(exit.x, exit.y);
+    // Past the frame and off the screen. Where the shot ends up is not on
+    // the board, so the line that says so does not stop at its edge — and a
+    // ray that leaves the screen is read as "this one is out of here" at a
+    // glance, without following it.
+    const unit = directionUnit(arrow.dir);
+    const reach =
+      (input.viewport.width + input.viewport.height) / Math.max(camera(input), 0.1);
+    context.lineTo(from.x + unit.x * reach, from.y + unit.y * reach);
   } else {
-    context.lineTo(to.x, to.y);
+    // The line has to reach what stopped it. When the obstruction is in the
+    // very next cell there is no clear cell to draw to, and the guide used
+    // to come out as a dot on the arrow's own head — which read as no guide
+    // at all. So it is drawn to the edge of the blocking cell instead.
+    const unit = directionUnit(arrow.dir);
+    const reach = (guide.clear.length + 0.5) * layout.cell;
+    context.lineTo(from.x + unit.x * reach, from.y + unit.y * reach);
   }
   context.stroke();
   context.restore();
-}
-
-function sideFor(dir: Arrow["dir"]): "top" | "bottom" | "left" | "right" {
-  return dir === "up"
-    ? "top"
-    : dir === "down"
-      ? "bottom"
-      : dir === "left"
-        ? "left"
-        : "right";
-}
-
-function laneFor(arrow: Arrow): number {
-  const head = arrow.path[arrow.path.length - 1]!;
-  return arrow.dir === "left" || arrow.dir === "right" ? head.row : head.col;
 }
 
 /**

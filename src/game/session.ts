@@ -116,6 +116,18 @@ export class GameSession {
    */
   #animations: { plan: AnimationPlan; startedAt: number; gained: number }[] = [];
   #guide: GuideView | null = null;
+  /**
+   * The standing guide (ART.md 3.2): one entry per arrow whose ray is clear.
+   * It is recomputed when the board changes rather than per frame â€” the
+   * answer only moves when a shot lands.
+   */
+  /**
+   * The guides left behind by holds (ART.md 3.2). Each belongs to the arrow
+   * that was held and stays until that arrow is held again; several can be
+   * up at once, because the question a hold answers â€” which of these two do
+   * I fire first â€” is about more than one arrow.
+   */
+  #stickyGuides: GuideView[] = [];
   #pulse: { arrowIds: string[]; startedAt: number } | null = null;
   /**
    * The arrow that was tapped wrong. It stays red until the next arrow is
@@ -176,9 +188,13 @@ export class GameSession {
 
   /** Restarting is always free and instant (DESIGN.md 1.5). */
   restart(): void {
-    this.#state = createState(this.level);
+    this.#stickyGuides = [];
+    this.#setState(createState(this.level));
     this.#clock = this.#freshClock();
     this.#score = createScore();
+    this.#shotsFired = 0;
+    this.#maxMultiplier = 1;
+    this.#attemptStartedAt = performance.now();
     this.#shownBeats.clear();
     this.#coach = null;
     this.#teach("start");
@@ -194,7 +210,7 @@ export class GameSession {
   /** After a rewarded ad: +1 heart, or +30 seconds on a timed level. */
   continueAfterAd(): void {
     if (this.#state.status !== "lost") return;
-    this.#state = grantContinue(this.#state);
+    this.#setState(grantContinue(this.#state));
     if (this.#clock) this.#clock = grantTime(this.#clock);
     this.#publish();
   }
@@ -336,7 +352,7 @@ export class GameSession {
     this.#clock = advance(this.#clock, now);
 
     if (isExpired(this.#clock) && this.#state.status === "playing") {
-      this.#state = markOutOfTime(this.#state);
+      this.#setState(markOutOfTime(this.#state));
       this.#syncClock(now);
       this.#publish();
       return;
@@ -354,7 +370,12 @@ export class GameSession {
       layout: this.#layout,
       camera: this.#camera,
       viewport: this.#viewport,
-      guide: this.#guide,
+      // The arrow under the finger is drawn last, over the lines it may
+      // already be one of, so a held arrow never draws its ray twice.
+      guides: [
+        ...this.#stickyGuides.filter((guide) => guide.arrowId !== this.#guide?.arrowId),
+        ...(this.#guide ? [this.#guide] : []),
+      ],
       pulse: this.#pulse
         ? {
             arrowIds: this.#pulse.arrowIds,
@@ -428,12 +449,47 @@ export class GameSession {
       case "holdStart": {
         const arrow = this.#arrowAt(gesture.point);
         this.#guide = arrow ? this.#guideFor(arrow) : null;
+        // The hold leaves its line behind: holding an arrow adds it, holding
+        // it again takes it away, and holding the empty board clears every
+        // line at once (ART.md 3.2).
+        if (!arrow) this.#stickyGuides = [];
+        else if (this.#stickyGuides.some((guide) => guide.arrowId === arrow.id)) {
+          this.#stickyGuides = this.#stickyGuides.filter(
+            (guide) => guide.arrowId !== arrow.id,
+          );
+        } else {
+          this.#stickyGuides = [...this.#stickyGuides, this.#guideFor(arrow)];
+        }
         break;
       }
       case "holdEnd":
         this.#guide = null;
         break;
     }
+  }
+
+  /**
+   * The one place the board is replaced. Everything derived from it â€” today
+   * the standing guide â€” is refreshed here, so a new rule cannot forget to.
+   */
+  #setState(next: GameState): void {
+    this.#state = next;
+    this.#refreshStickyGuides();
+  }
+
+  /**
+   * A line a hold left behind answers for the board it was asked about, so
+   * each is redrawn when the board changes and dropped when its arrow goes.
+   */
+  #refreshStickyGuides(): void {
+    if (this.#stickyGuides.length === 0) return;
+
+    this.#stickyGuides = this.#stickyGuides.flatMap((guide) => {
+      const arrow = this.#state.arrows.find(
+        (candidate) => candidate.id === guide.arrowId,
+      );
+      return arrow ? [this.#guideFor(arrow)] : [];
+    });
   }
 
   #guideFor(arrow: Arrow): GuideView {
@@ -472,9 +528,16 @@ export class GameSession {
     // A tap answers the opening line, and may raise one of its own.
     this.#coach = null;
     this.#teach(event);
+    // Told after the beat, never before it: a listener that answers with a
+    // line of its own (`note()`) must lose to the tutorial rather than be
+    // silently wiped by it a line later â€” on level 32 both want the same
+    // bounce, and the beat is the one teaching the rule.
+    if (event === "blocked" || event === "bounced") this.#onMistake?.(event);
     this.#score = shot.state;
+    this.#shotsFired += 1;
+    this.#maxMultiplier = Math.max(this.#maxMultiplier, shot.state.multiplier);
     this.#gained = shot.gained;
-    this.#state = state;
+    this.#setState(state);
 
     // On a timed level a mistake costs five seconds rather than a heart;
     // `fire()` has already declined to take one (PROGRESSION.md 3).
@@ -552,7 +615,7 @@ export class GameSession {
     // The board may have moved on while the worker was thinking.
     if (solvable || this.#state !== checked) return;
 
-    this.#state = markStuck(this.#state);
+    this.#setState(markStuck(this.#state));
     this.#publish();
   }
 

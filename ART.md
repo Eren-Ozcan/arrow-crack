@@ -275,16 +275,41 @@ Only the straight ray ahead of the head decides whether a shot is legal
 (`DESIGN.md` section 1.4), so the art has to make that ray findable in a
 tangle:
 
-- On press-and-hold, the ray from the head to the frame is drawn as a faint
-  guide, and the target block is outlined. This is free, always available,
-  and not an ad-gated hint — it shows what the rules already say, not what
-  the player should do.
-- When the ray is clear, the guide is drawn in the arrow's own colour and
-  the target block lifts slightly. When it is blocked, the guide stops at
-  the obstruction and the blocking arrow gets the pulse from section 6.2.
+- **A hold leaves its line behind.** Press and hold an arrow and its ray is
+  drawn from the head to the frame, its target block outlined — and it
+  **stays** when the finger lifts. Holding that arrow again takes its line
+  away; holding the empty board clears every line at once. Off by default, so
+  a board is first met on its own terms, and cleared by a restart along with
+  everything else the attempt had.
+- **Several at once.** Lines are kept per arrow, not one at a time, because
+  the question a hold answers is rarely about one arrow: which of these two
+  do I fire first, and does firing that one free this one. Two rays up
+  together answer it; a guide that could only ever show one would make the
+  player hold each in turn and hold the comparison in their head.
+- **A clear ray is a hairline that runs off the screen**, in the arrow's own
+  colour, straight through the frame and out of the viewport, with the target
+  block lifting under it. Where a clear shot ends up is not on the board, so
+  the line that says so does not stop at the board's edge: a ray leaving the
+  screen reads as "this one is out of here" without being followed. Thin on
+  purpose — it is a direction, not a piece, and the less ink it spends the
+  less it argues with the tangle it crosses.
+- **A blocked ray is short, heavier and dashed**, in the disabled ink, and
+  ends against the thing that stopped it rather than at the last clear cell —
+  with the obstruction in the very next cell there is no clear cell to draw
+  to, and the guide used to come out as a dot on the arrow's own head, which
+  read as no guide at all on exactly the arrows that most need one. **The
+  guide draws only the ray**: the arrows in the way are not lit while it is
+  up. Where the line stops is what names them, and marking them as well
+  turned a quiet answer into a board that highlights itself. The pulse in
+  section 6.2 stays what it always was — the answer to a blocked **tap**,
+  after the heart is spent, not something the guide does.
+- This is free, always available, and not an ad-gated hint — it shows what
+  the rules already say, not what the player should do.
 
 This is what keeps "a blocked tap costs a heart" fair once bodies are long
-enough to hide across half the board.
+enough to hide across half the board. The heart is charged for not looking,
+never for not being able to see: one hold is the whole price of asking, and
+the answer stays on the board until the player takes it down.
 
 For a **Ghost** the guide draws straight through every obstruction to the
 frame, which is how the player learns what it does without a text box. For a

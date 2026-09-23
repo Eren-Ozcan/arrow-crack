@@ -354,23 +354,81 @@ describe("ART.md 10.3 — a blocked arrow is read off the board", () => {
       camera: fitCamera(),
       viewport: VIEWPORT,
       showGrid: false,
-      guide: {
-        arrowId: blocked.id,
-        clear: [...clear],
-        blocked: true,
-        targetBlockId: null,
-      },
+      guides: [
+        {
+          arrowId: blocked.id,
+          clear: [...clear],
+          blocked: true,
+          targetBlockId: null,
+        },
+      ],
     });
 
-    // The ray never reaches the frame: it ends on the last cell it can cross,
-    // which is the cell the player has to look at.
+    // The ray never reaches the frame: it ends against the thing that stopped
+    // it, half a cell past the last cell it can cross, which is the cell the
+    // player has to look at.
     const stop = cellCentre(layout, clear[clear.length - 1]!);
     const guide = guideStroke(calls);
 
     expect(guide.strokeStyle).toBe(THEME.disabledInk);
     expect(guide.to.x).toBeCloseTo(stop.x);
-    expect(guide.to.y).toBeCloseTo(stop.y);
+    expect(guide.to.y).toBeCloseTo(stop.y - layout.cell / 2);
     expect(guide.to.y).toBeGreaterThan(layout.origin.y);
+  });
+
+  it("still draws a line when the obstruction is in the very next cell", () => {
+    // With nothing clear ahead there is no cell to draw to, and the guide
+    // came out as a dot on the arrow's own head — which reads as no guide at
+    // all, on exactly the arrows a player most needs one for.
+    const state = createState(BOARD);
+    const layout = computeLayout(BOARD, VIEWPORT);
+    const blocked = state.arrows.find((arrow) => arrow.id === "a1")!;
+    const { context, calls } = recorder();
+
+    renderBoard(context, {
+      state,
+      layout,
+      camera: fitCamera(),
+      viewport: VIEWPORT,
+      showGrid: false,
+      guides: [{ arrowId: blocked.id, clear: [], blocked: true, targetBlockId: null }],
+    });
+
+    const guide = guideStroke(calls);
+    const length = Math.hypot(guide.to.x - guide.from.x, guide.to.y - guide.from.y);
+    expect(length).toBeCloseTo(layout.cell / 2);
+  });
+
+  it("runs a clear ray off the screen, not to the frame", () => {
+    // Where a clear shot ends up is not on the board, so the line that says
+    // so does not stop at its edge: a ray that leaves the screen is read as
+    // "this one is out of here" without following it (ART.md 3.2).
+    const state = createState(BOARD);
+    const layout = computeLayout(BOARD, VIEWPORT);
+    const free = state.arrows.find((arrow) => arrow.id === "a2")!;
+    const { context, calls } = recorder();
+
+    renderBoard(context, {
+      state,
+      layout,
+      camera: fitCamera(),
+      viewport: VIEWPORT,
+      showGrid: false,
+      guides: [
+        {
+          arrowId: free.id,
+          clear: [...clearRay(state, free)],
+          blocked: false,
+          targetBlockId: "b2",
+        },
+      ],
+    });
+
+    const guide = guideStroke(calls);
+    expect(guide.strokeStyle).toBe(paletteEntry(free.color).fill);
+    // Past the top of the board, and past the top of the screen with it.
+    expect(guide.to.y).toBeLessThan(layout.bounds.y);
+    expect(guide.to.y).toBeLessThan(0);
   });
 
   it("draws the blocked arrow exactly like any other (ART.md 6.1)", () => {
@@ -389,25 +447,27 @@ describe("ART.md 10.3 — a blocked arrow is read off the board", () => {
 /** The dashed stroke the hold guide is drawn with, and where it ended. */
 function guideStroke(calls: Call[]): {
   strokeStyle: unknown;
+  from: { x: number; y: number };
   to: { x: number; y: number };
 } {
-  // Every arrow clears its dash after drawing its outline, so the guide is
-  // the last dashed stroke on the frame, not the first.
-  const dashAt = calls.reduce(
-    (found, call, index) =>
-      call.method === "setLineDash" && (call.args[0] as unknown[]).length > 0
-        ? index
-        : found,
+  // The guide is the last line drawn on the board — arrows and blocks are
+  // done by then, and nothing after it draws a straight segment. Reading it
+  // as "the last moveTo/lineTo pair" keeps the helper honest whether the
+  // ray is the dashed blocked one or the hairline clear one.
+  const moveAt = calls.reduce(
+    (found, call, index) => (call.method === "moveTo" ? index : found),
     -1,
   );
-  expect(dashAt).toBeGreaterThan(-1);
+  expect(moveAt).toBeGreaterThan(-1);
 
-  const before = calls.slice(0, dashAt).reverse();
+  const before = calls.slice(0, moveAt).reverse();
   const strokeStyle = before.find((call) => call.method === "set:strokeStyle")?.args[0];
-  const lineTo = calls.slice(dashAt).find((call) => call.method === "lineTo");
+  const moveTo = calls[moveAt]!;
+  const lineTo = calls.slice(moveAt).find((call) => call.method === "lineTo");
 
   return {
     strokeStyle,
+    from: { x: moveTo.args[0] as number, y: moveTo.args[1] as number },
     to: { x: lineTo!.args[0] as number, y: lineTo!.args[1] as number },
   };
 }
