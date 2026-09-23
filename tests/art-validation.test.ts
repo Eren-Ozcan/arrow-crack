@@ -399,10 +399,10 @@ describe("ART.md 10.3 — a blocked arrow is read off the board", () => {
     expect(length).toBeCloseTo(layout.cell / 2);
   });
 
-  it("runs a clear ray off the screen, not to the frame", () => {
-    // Where a clear shot ends up is not on the board, so the line that says
-    // so does not stop at its edge: a ray that leaves the screen is read as
-    // "this one is out of here" without following it (ART.md 3.2).
+  it("stops a clear ray on the face of the block it is aimed at", () => {
+    // The ray answers "what does this one hit", so it ends on the face that
+    // answers it: drawing on through the block and off the screen crossed
+    // the one thing the player is reading (ART.md 3.2).
     const state = createState(BOARD);
     const layout = computeLayout(BOARD, VIEWPORT);
     const free = state.arrows.find((arrow) => arrow.id === "a2")!;
@@ -425,10 +425,12 @@ describe("ART.md 10.3 — a blocked arrow is read off the board", () => {
     });
 
     const guide = guideStroke(calls);
+    const target = state.blocks.find((block) => block.id === "b2")!;
+    const rect = blockRect(layout, target);
     expect(guide.strokeStyle).toBe(paletteEntry(free.color).fill);
-    // Past the top of the board, and past the top of the screen with it.
-    expect(guide.to.y).toBeLessThan(layout.bounds.y);
-    expect(guide.to.y).toBeLessThan(0);
+    // On the bottom face of the block above, never inside it or past it.
+    expect(guide.to.y).toBeCloseTo(rect.y + rect.height);
+    expect(guide.to.y).toBeGreaterThan(rect.y);
   });
 
   it("draws the blocked arrow exactly like any other (ART.md 6.1)", () => {

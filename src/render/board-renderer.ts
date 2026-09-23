@@ -522,13 +522,12 @@ function drawGuide(
   context.beginPath();
   context.moveTo(from.x, from.y);
   if (!guide.blocked) {
-    // Past the frame and off the screen. Where the shot ends up is not on
-    // the board, so the line that says so does not stop at its edge — and a
-    // ray that leaves the screen is read as "this one is out of here" at a
-    // glance, without following it.
+    // Up to the block it will meet, and not a pixel further: the ray answers
+    // "what does this one hit", so it ends on the face that answers it. A
+    // line drawn through the block and off the screen crossed the very thing
+    // it was pointing at, and the block is what the player is reading.
     const unit = directionUnit(arrow.dir);
-    const reach =
-      (input.viewport.width + input.viewport.height) / Math.max(camera(input), 0.1);
+    const reach = faceReach(input, guide, arrow, from);
     context.lineTo(from.x + unit.x * reach, from.y + unit.y * reach);
   } else {
     // The line has to reach what stopped it. When the obstruction is in the
@@ -541,6 +540,37 @@ function drawGuide(
   }
   context.stroke();
   context.restore();
+}
+
+/**
+ * How far a clear ray runs: from the arrow's head to the near face of the
+ * block it is aimed at. Without a target block — a Ghost's ray through a hole
+ * in the frame, or a board whose target has already gone — it falls back to
+ * running off the screen, because a ray that stops in mid-air would read as a
+ * blocked one.
+ */
+function faceReach(
+  input: RenderInput,
+  guide: GuideView,
+  arrow: Arrow,
+  from: Point,
+): number {
+  const { state, layout } = input;
+  const block = state.blocks.find((candidate) => candidate.id === guide.targetBlockId);
+  if (block) {
+    const rect = blockRect(layout, block);
+    switch (arrow.dir) {
+      case "up":
+        return from.y - (rect.y + rect.height);
+      case "down":
+        return rect.y - from.y;
+      case "left":
+        return from.x - (rect.x + rect.width);
+      case "right":
+        return rect.x - from.x;
+    }
+  }
+  return (input.viewport.width + input.viewport.height) / Math.max(camera(input), 0.1);
 }
 
 /**
