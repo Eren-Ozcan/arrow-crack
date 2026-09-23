@@ -7,7 +7,14 @@ import type { Layout, Point } from "./layout";
 import { blockRect, cellCentre, cellRect, laneExitPoint } from "./layout";
 import { paletteEntry, THEME } from "./palette";
 import { burst, hashString, settleOffset } from "./particles";
-import { drawArrow, drawBlock, drawGlyph, outlineWidth, pipeWidth } from "./shapes";
+import {
+  drawArrow,
+  drawBlock,
+  drawGlyph,
+  outlineWidth,
+  pipeWidth,
+  roundedRect,
+} from "./shapes";
 import { directionUnit, trailPoints } from "./trail";
 
 export interface GuideView {
@@ -42,6 +49,11 @@ export interface RenderInput {
   showGrid: boolean;
   /** Turns the glyph redundancy up rather than on (ART.md 2.2). */
   highContrastGlyphs?: boolean;
+  /**
+   * The arrow that was tapped wrong. It is drawn red and stays red until
+   * another arrow is tapped (ART.md 6).
+   */
+  wrongArrowId?: string | null;
 }
 
 export function renderBoard(context: CanvasRenderingContext2D, input: RenderInput): void {
@@ -219,11 +231,11 @@ function drawShards(
 
   const shards = burst({
     seed: hashString(block.id),
-    count: whole ? 9 : 6,
+    count: whole ? 6 : 4,
     t,
     origin: { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 },
-    spread: layout.cell * (whole ? 0.95 : 0.5),
-    size: Math.min(rect.width, rect.height) * (whole ? 0.34 : 0.26),
+    spread: layout.cell * (whole ? 1.05 : 0.55),
+    size: Math.min(rect.width, rect.height) * (whole ? 0.38 : 0.28),
     gravity: layout.cell * (whole ? 0.4 : 0.18),
   });
 
@@ -239,8 +251,15 @@ function drawShards(
     context.rotate(shard.rotation);
     // Outlined like everything else on the board: a bare fill of the yellow
     // would vanish against the board the moment it left the ink (ART.md 2.3).
-    context.beginPath();
-    context.rect(-shard.size / 2, -shard.size / 2, shard.size, shard.size);
+    // Blunt and rounded, never a sliver: a shard is a piece of the block.
+    roundedRect(
+      context,
+      -shard.size / 2,
+      (-shard.size * 0.74) / 2,
+      shard.size,
+      shard.size * 0.74,
+      shard.size * 0.2,
+    );
     context.fill();
     context.stroke();
     context.restore();
@@ -319,6 +338,7 @@ function drawArrows(context: CanvasRenderingContext2D, input: RenderInput): void
       pulse: pulse?.arrowIds.includes(arrow.id) ? 1 - pulse.t : 0,
       offset: { x: 0, y: bob },
       highContrastGlyph: input.highContrastGlyphs ?? false,
+      wrong: arrow.id === input.wrongArrowId,
     });
   }
 

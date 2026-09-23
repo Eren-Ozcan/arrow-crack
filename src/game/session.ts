@@ -105,6 +105,12 @@ export class GameSession {
   #queuedTap: string | null = null;
   #guide: GuideView | null = null;
   #pulse: { arrowIds: string[]; startedAt: number } | null = null;
+  /**
+   * The arrow that was tapped wrong. It stays red until the next arrow is
+   * tapped, so the mistake is still on the board when the player looks back
+   * at it rather than gone in 220 ms (ART.md 6).
+   */
+  #wrongArrowId: string | null = null;
   #gained = 0;
   #coach: Beat | null = null;
   #shownBeats = new Set<string>();
@@ -167,6 +173,7 @@ export class GameSession {
     this.#queuedTap = null;
     this.#guide = null;
     this.#pulse = null;
+    this.#wrongArrowId = null;
     this.#camera = fitCamera();
     this.#onResize();
     this.#publish();
@@ -348,6 +355,7 @@ export class GameSession {
         : null,
       showGrid: this.#showGrid,
       highContrastGlyphs: this.#highContrastGlyphs,
+      wrongArrowId: this.#wrongArrowId,
       gained: this.#gained,
       ...(this.#reducedMotion ? {} : { now }),
     });
@@ -442,6 +450,10 @@ export class GameSession {
     const blockers = blockersOf(this.#state, arrow);
     const target = blockForArrow(this.#state.blocks, arrow);
     const { state, event, peels, destroyed } = fire(this.#state, arrowId);
+
+    // Tapping any arrow clears the last mistake, including tapping the red
+    // one again: the state marks the last wrong tap, not a disabled piece.
+    this.#wrongArrowId = event === "blocked" || event === "bounced" ? arrowId : null;
 
     const shot = registerShot(this.#score, { event, peels, destroyed }, now);
     // A tap answers the opening line, and may raise one of its own.
