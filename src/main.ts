@@ -1,4 +1,6 @@
 import "./styles.css";
+import { AudioEngine } from "./audio/engine";
+import { cuesFor, cuesForWin } from "./audio/script";
 import { GameSession } from "./game/session";
 import type { SessionView } from "./game/session";
 import { LEVELS, levelById, nextLevelId } from "./levels";
@@ -39,6 +41,39 @@ const modals = new Modals();
 const store = new SaveStore();
 setLanguage(store.save.settings.language);
 
+const audio = new AudioEngine(audioSettings());
+
+function audioSettings(): {
+  sound: boolean;
+  music: boolean;
+  haptics: boolean;
+  reducedAudio: boolean;
+} {
+  const { sound, music, haptics, reducedAudio } = store.save.settings;
+  return { sound, music, haptics, reducedAudio };
+}
+
+/**
+ * The soft tick under ten seconds (AUDIO.md 1). It is driven off the clock
+ * the session publishes rather than a timer of its own, so it stops the
+ * moment the level does — and it is one tick per whole second, never a
+ * heartbeat.
+ */
+const TICK_FROM_MS = 10_000;
+let lastTickSecond: number | null = null;
+
+function tickClockSound(remainingMs: number | null): void {
+  if (remainingMs === null || remainingMs > TICK_FROM_MS) {
+    lastTickSecond = null;
+    return;
+  }
+
+  const second = Math.ceil(remainingMs / 1000);
+  if (second === lastTickSecond) return;
+  lastTickSecond = second;
+  audio.play("tick");
+}
+
 const ORDER = LEVELS.map((level) => level.id);
 
 let session: GameSession | null = null;
@@ -66,6 +101,7 @@ const settings = new SettingsScreen({
 function applySettings(patch: Partial<Settings>): void {
   const save = store.update((current) => updateSettings(current, patch));
   if (patch.language !== undefined) setLanguage(save.settings.language);
+  audio.update(audioSettings());
   settings.render(save.settings, save.hints);
 }
 
@@ -76,15 +112,16 @@ function showHome(): void {
   waitingToStart = false;
   modals.close();
 
+  audio.stopAll();
   canvas!.hidden = true;
   if (hud) hud.root.hidden = true;
   coach?.update(null);
   home.show(store.save);
 }
 
-function start(levelId: number): void {
+function start(levelId: number, force = false): void {
   const level = levelById(levelId) ?? LEVELS[0]!;
-  if (!isUnlocked(store.save, level.id, ORDER)) return;
+  if (!force && !isUnlocked(store.save, level.id, ORDER)) return;
 
   session?.destroy();
   modals.close();
@@ -96,15 +133,18 @@ function start(levelId: number): void {
     canvas: canvas!,
     level,
     reducedMotion: reducedMotion(),
-    highContrastGlyphs: store.save.settings.highContrastGlyphs,
+    colourBlindMode: store.save.settings.colourBlindMode,
     checkStuck: (state) => solver.isSolvable(state),
     onChange: (view) => onChange(view),
+    onSound: (event) => audio.playSequence(cuesFor(event)),
   });
 
   modals.reducedMotion = reducedMotion();
   hud ??= mountHud();
   hud.root.hidden = false;
   session = next;
+  lastTickSecond = null;
+  audio.startMusic();
   next.start();
 
   // A one-heart level and a timed level each announce themselves before they
@@ -172,11 +212,19 @@ function mountHud(): Hud {
 function onChange(view: SessionView): void {
   hud?.update(view);
   coach?.update(view.coach);
+  tickClockSound(view.remainingMs);
 
   if (view.status === "playing") {
     if (!waitingToStart) modals.close();
     return;
   }
+
+  // Every end panel waits for the shot that ended the level to land. The
+  // reducer knows the outcome the moment the tap resolves, so a level that
+  // ends on a tap publishes its status twice — once at the tap and once when
+  // the animation finishes — and the panel was shown for both of them. The
+  // player has not seen the last block come apart at the first one.
+  if (view.busy) return;
 
   if (view.status === "won") {
     onWin(view);
@@ -184,6 +232,7 @@ function onChange(view: SessionView): void {
   }
 
   if (view.status === "lost") {
+    audio.stopAll();
     // The rewarded ad lands in milestone 8; the grant itself is the engine's.
     const onContinue = (): void => session?.continueAfterAd();
     const onRestart = (): void => session?.restart();
@@ -199,6 +248,7 @@ function onChange(view: SessionView): void {
     return;
   }
 
+  audio.stopAll();
   modals.show({
     kind: "stuck",
     onRestart: () => session?.restart(),
@@ -223,6 +273,8 @@ function onWin(view: SessionView): void {
     }),
   );
 
+  audio.playSequence(cuesForWin(view.stars, view.mistakes === 0));
+
   const next = nextLevelId(view.levelId);
   modals.show({
     kind: "win",
@@ -242,6 +294,21 @@ function onWin(view: SessionView): void {
   });
 }
 
+/**
+ * Dev only: `?level=67` opens a level directly, past the unlock gate, so a
+ * board in the middle of the bundle can be reached without playing to it —
+ * which is what the ART.md section 10 screenshots need. It is stripped from a
+ * production build.
+ */
+function devJump(): number | null {
+  if (!import.meta.env.DEV) return null;
+  const asked = Number(new URLSearchParams(window.location.search).get("level"));
+  return levelById(asked) ? asked : null;
+}
+
 watchVisibility();
 app.append(home.root, settings.root);
-showHome();
+
+const jump = devJump();
+if (jump === null) showHome();
+else start(jump, true);

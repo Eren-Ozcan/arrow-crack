@@ -13,6 +13,7 @@ import {
 } from "@/input/gestures";
 import type { Gesture } from "@/input/gestures";
 import type { AnimationPlan } from "@/render/animation";
+import type { SoundEvent } from "@/audio/script";
 import { planAnimation } from "@/render/animation";
 import type { Camera } from "@/render/camera";
 import {
@@ -71,9 +72,15 @@ export interface SessionOptions {
   canvas: HTMLCanvasElement;
   level: LevelDef;
   onChange: (view: SessionView) => void;
+  /**
+   * What the shot sounded like (`AUDIO.md` 1). The session knows what
+   * happened and when; it deliberately does not know how to make a noise, so
+   * the cue set stays in `src/audio` and this stays testable without one.
+   */
+  onSound?: (event: SoundEvent) => void;
   reducedMotion?: boolean;
   /** Larger glyphs in full ink (ART.md 2.2). */
-  highContrastGlyphs?: boolean;
+  colourBlindMode?: boolean;
   /** Runs the stuck check off the main thread; omitted in tests. */
   checkStuck?: (state: GameState) => Promise<boolean>;
 }
@@ -91,8 +98,9 @@ export class GameSession {
   #canvas: HTMLCanvasElement;
   #context: CanvasRenderingContext2D;
   #onChange: (view: SessionView) => void;
+  #onSound: ((event: SoundEvent) => void) | undefined;
   #reducedMotion: boolean;
-  #highContrastGlyphs: boolean;
+  #colourBlindMode: boolean;
   #checkStuck: ((state: GameState) => Promise<boolean>) | undefined;
 
   #state: GameState;
@@ -101,8 +109,12 @@ export class GameSession {
   #camera: Camera = fitCamera();
   #gestures = createGestureState();
 
-  #animation: { plan: AnimationPlan; startedAt: number } | null = null;
-  #queuedTap: string | null = null;
+  /**
+   * Every shot still playing, oldest first. A tap is answered at once rather
+   * than queued behind the shot before it (DESIGN.md 5), so a player who taps
+   * in sequences has several bodies in the air at the same time.
+   */
+  #animations: { plan: AnimationPlan; startedAt: number; gained: number }[] = [];
   #guide: GuideView | null = null;
   #pulse: { arrowIds: string[]; startedAt: number } | null = null;
   /**
@@ -126,8 +138,9 @@ export class GameSession {
     this.level = options.level;
     this.#canvas = options.canvas;
     this.#onChange = options.onChange;
+    this.#onSound = options.onSound;
     this.#reducedMotion = options.reducedMotion ?? false;
-    this.#highContrastGlyphs = options.highContrastGlyphs ?? false;
+    this.#colourBlindMode = options.colourBlindMode ?? false;
     this.#checkStuck = options.checkStuck;
 
     const context = options.canvas.getContext("2d");
@@ -169,8 +182,7 @@ export class GameSession {
     this.#shownBeats.clear();
     this.#coach = null;
     this.#teach("start");
-    this.#animation = null;
-    this.#queuedTap = null;
+    this.#animations = [];
     this.#guide = null;
     this.#pulse = null;
     this.#wrongArrowId = null;
@@ -279,7 +291,7 @@ export class GameSession {
       remainingMs: this.#clock?.remainingMs ?? null,
       showGrid: this.#showGrid,
       fitted: isFitted(this.#camera),
-      busy: this.#animation !== null,
+      busy: this.#animations.length > 0,
       coach: this.#coach?.key ?? null,
     });
   }
@@ -303,11 +315,10 @@ export class GameSession {
 
     for (const gesture of tick(this.#gestures, now)) this.#handle(gesture, now);
 
-    if (
-      this.#animation &&
-      now - this.#animation.startedAt >= this.#animation.plan.totalMs
-    ) {
-      this.#animation = null;
+    if (this.#animations.some((one) => now - one.startedAt >= one.plan.totalMs)) {
+      this.#animations = this.#animations.filter(
+        (one) => now - one.startedAt < one.plan.totalMs,
+      );
       this.#afterAnimation();
     }
     if (this.#pulse && now - this.#pulse.startedAt >= PULSE_MS) this.#pulse = null;
@@ -350,13 +361,14 @@ export class GameSession {
             t: (now - this.#pulse.startedAt) / PULSE_MS,
           }
         : null,
-      animation: this.#animation
-        ? { plan: this.#animation.plan, elapsed: now - this.#animation.startedAt }
-        : null,
+      animations: this.#animations.map((animation) => ({
+        plan: animation.plan,
+        elapsed: now - animation.startedAt,
+        gained: animation.gained,
+      })),
       showGrid: this.#showGrid,
-      highContrastGlyphs: this.#highContrastGlyphs,
+      colourBlindMode: this.#colourBlindMode,
       wrongArrowId: this.#wrongArrowId,
-      gained: this.#gained,
       ...(this.#reducedMotion ? {} : { now }),
     });
   }
@@ -375,7 +387,13 @@ export class GameSession {
     switch (gesture.type) {
       case "tap": {
         const arrow = this.#arrowAt(gesture.point);
-        if (arrow) this.#fire(arrow.id, now);
+        if (!arrow) break;
+        // `AUDIO.md` 1 puts the select click on touch-down. It fires here
+        // instead, the moment the touch is ruled a tap: a click on every
+        // touch-down would also sound for a pan, and a pan can never become a
+        // fire (`ART.md` 4.1). It is still ahead of the outcome.
+        this.#onSound?.({ kind: "select" });
+        this.#fire(arrow.id, now);
         break;
       }
       case "doubleTap": {
@@ -438,12 +456,6 @@ export class GameSession {
   #fire(arrowId: string, now: number): void {
     if (this.#state.status !== "playing") return;
 
-    // Input is locked during playback; at most one tap is queued.
-    if (this.#animation) {
-      this.#queuedTap = arrowId;
-      return;
-    }
-
     const arrow = this.#state.arrows.find((candidate) => candidate.id === arrowId);
     if (!arrow) return;
 
@@ -455,6 +467,7 @@ export class GameSession {
     // one again: the state marks the last wrong tap, not a disabled piece.
     this.#wrongArrowId = event === "blocked" || event === "bounced" ? arrowId : null;
 
+    const heartsBefore = this.#state.heartsLeft;
     const shot = registerShot(this.#score, { event, peels, destroyed }, now);
     // A tap answers the opening line, and may raise one of its own.
     this.#coach = null;
@@ -476,17 +489,41 @@ export class GameSession {
       this.#pulse = { arrowIds: blockers, startedAt: now };
     }
 
+    // A blocked arrow travels as far as it can and no further: up to the
+    // piece that stopped it. Every other shot travels off the board.
+    const travel =
+      event === "blocked"
+        ? clearRay(this.#state, arrow).length
+        : travelCells(this.#state, arrow);
+
     const plan = planAnimation({
       event,
       arrow,
       block: target,
-      travel: travelCells(this.#state, arrow),
+      travel,
       reducedMotion: this.#reducedMotion,
     });
 
+    this.#onSound?.({
+      kind: "shot",
+      event,
+      special: arrow.special ?? null,
+      travel: Math.min(
+        travelCells(this.#state, arrow) / (this.level.cols + this.level.rows),
+        1,
+      ),
+      slideMs: plan.phases[0]?.kind === "slide" ? plan.phases[0].durationMs : 0,
+      multiplier: shot.state.multiplier,
+      heartLost: state.heartsLeft < heartsBefore,
+      comboStepped: shot.steppedUp,
+    });
+
     this.#guide = null;
-    this.#animation = plan.totalMs > 0 ? { plan, startedAt: now } : null;
-    if (!this.#animation) this.#afterAnimation();
+    if (plan.totalMs > 0) {
+      this.#animations.push({ plan, startedAt: now, gained: shot.gained });
+    } else {
+      this.#afterAnimation();
+    }
     this.#publish();
   }
 
@@ -500,19 +537,11 @@ export class GameSession {
     this.#pulse = { arrowIds: [target], startedAt: now };
   }
 
+  /** A shot has landed. The board is only settled once they all have. */
   #afterAnimation(): void {
     this.#gained = 0;
-
-    const queued = this.#queuedTap;
-    this.#queuedTap = null;
-
-    if (queued && this.#state.status === "playing") {
-      this.#fire(queued, performance.now());
-      return;
-    }
-
     this.#publish();
-    void this.#runStuckCheck();
+    if (this.#animations.length === 0) void this.#runStuckCheck();
   }
 
   async #runStuckCheck(): Promise<void> {
