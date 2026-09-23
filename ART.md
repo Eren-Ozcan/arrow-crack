@@ -608,3 +608,44 @@ that pass is what moved the glyph from the pipe onto the tail knob.
    path form introduces and the one most likely to be missed in motion.
 6. **Sunlight test.** Real phone, outdoors, at 50% brightness — the reason
    the theme is light and the edges are heavy.
+
+### 10.7 Pass log
+
+A pass is recorded here with what it changed, so a later reader can tell a
+rule that was argued from one that was merely inherited.
+
+**2026-09-24 — the candy direction, on stills and on a device.** Level 67
+through all five filters, with the mode on and off, plus a debug build played
+on a POT-LX1 (1080x2340 at 480dpi, which is exactly the 360dp phone 10.4 is
+written against).
+
+- **10.1 grayscale, mode on: failed, then fixed.** Blue and green both read
+  as an unmarked dark knob — the glyph was drawn in ink on every fill, and on
+  blue that is 3.30, which survives a contrast table and not a screenshot.
+  The ink is now chosen per fill (`glyphInk()`, section 2.2), the floor is
+  4.5, and the re-shot still separates all five.
+- **10.2 CVD.** With the mode on, all three filters are readable on shape.
+  With the mode **off**, tritanopia collapses the palette to two families —
+  yellow, orange and purple all read red-pink, blue and green both read teal.
+  This is accepted rather than fixed: the Okabe-Ito set is chosen for the two
+  common types, and re-tuning it for the rarest one costs the separation the
+  other two rely on. **The cost is paid by the setting being found**, which
+  is why the game now names it after three wrong-colour taps (`DESIGN.md` 6).
+- **10.4 small screen: passes, with no room spare.** The cell on level 67 at
+  360dp is ~33dp against a 32dp floor. The vertical space left over is not
+  slack the board can take: the grid is square and the phone is 20:9, so the
+  cell is width-bound. It is the ceiling on board size, not on cell size.
+- **10.5 tangle.** No ambiguity found on 67 in either mode.
+- **On the device**: taps, the win panel, stars and the commentary line all
+  behave as in Chrome; a 250ms swipe across an arrow pans and does not fire,
+  so 4.1 holds under a real finger; the audio engine holds a started AAudio
+  stream, so the synthesised set reaches the speaker from a WebView.
+- **Still outstanding, both needing a person**: 10.3 (a new player naming the
+  blocker from the guide alone) and 10.6 (sunlight). Neither is a code
+  change, and neither blocks milestone 8.
+- **Found here, fixed since**: the game took no Android **audio focus** —
+  Web Audio in a WebView does not request it, so music from another app was
+  not ducked and ours did not pause for a call. It now holds focus through
+  `AudioFocusPlugin` in `android/` (`AUDIO.md` 4). The focus request is
+  confirmed on the device; the loss and duck paths are covered by tests and
+  still want a real call to hear.

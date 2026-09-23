@@ -136,14 +136,14 @@ export class GameSession {
   #guide: GuideView | null = null;
   /**
    * The standing guide (ART.md 3.2): one entry per arrow whose ray is clear.
-   * It is recomputed when the board changes rather than per frame â€” the
+   * It is recomputed when the board changes rather than per frame — the
    * answer only moves when a shot lands.
    */
   /**
    * The guides left behind by holds (ART.md 3.2). Each belongs to the arrow
    * that was held and stays until that arrow is held again; several can be
-   * up at once, because the question a hold answers â€” which of these two do
-   * I fire first â€” is about more than one arrow.
+   * up at once, because the question a hold answers — which of these two do
+   * I fire first — is about more than one arrow.
    */
   #stickyGuides: GuideView[] = [];
   #pulse: { arrowIds: string[]; startedAt: number } | null = null;
@@ -506,8 +506,8 @@ export class GameSession {
   }
 
   /**
-   * The one place the board is replaced. Everything derived from it â€” today
-   * the standing guide â€” is refreshed here, so a new rule cannot forget to.
+   * The one place the board is replaced. Everything derived from it — today
+   * the standing guide — is refreshed here, so a new rule cannot forget to.
    */
   #setState(next: GameState): void {
     this.#state = next;
