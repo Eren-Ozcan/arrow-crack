@@ -2,22 +2,38 @@ import type { Arrow, Block, Cell } from "@/engine/types";
 import type { Layout, Point } from "./layout";
 import { cellCentre } from "./layout";
 import type { Glyph } from "./palette";
-import { PALETTE, paletteEntry, THEME } from "./palette";
+import { mix, PALETTE, paletteEntry, THEME } from "./palette";
 
 /**
- * Everything on the board is drawn procedurally (ART.md 8): an arrow is a
- * heavy-outlined pipe with rounded bends, an oversized head and a rounded
- * tail carrying the glyph; a block is a slab with its remaining layers
- * showing as edges along the inner side.
+ * Everything on the board is drawn procedurally (ART.md 8), flat and seen
+ * straight on: an arrow is a coloured stroke over a heavier ink stroke, with
+ * an open chevron head and the glyph on its tail; a block is a flat face with
+ * the layers underneath shown as nested bands on the same plane. Nothing is
+ * drawn with thickness, and nothing is offset to fake depth.
  */
 
-/** Pipe width as a fraction of the cell, leaving a gutter between runs. */
-const PIPE_RATIO = 0.6;
-const OUTLINE_RATIO = 0.1;
-const HEAD_RATIO = 0.86;
-/** How far short of the head cell the pipe stops, so the head reads as a head. */
+/** Stroke width as a fraction of the cell, leaving a gutter between runs. */
+const PIPE_RATIO = 0.14;
+/**
+ * The ink stroke the colour is drawn over. Two same-coloured arrows lying
+ * side by side must still read as two objects, and this is what solves it
+ * (ART.md 3) — so it is a backing, not an outline around a fill.
+ */
+const OUTLINE_RATIO = 0.05;
+/**
+ * The chevron's arm length. It has to stay comfortably longer than the
+ * backing is wide, or the two arms merge into a blob instead of reading as
+ * a V — which is the whole of the direction signal.
+ */
+const HEAD_RATIO = 0.34;
+/**
+ * How far short of the head the stroke stops. It has to clear the chevron's
+ * own width: a rounded cap left showing behind the head turns the silhouette
+ * into a spade, which is the shape of neither an arrow nor a direction.
+ */
 const HEAD_INSET_RATIO = 0.3;
-const GLYPH_RATIO = 0.3;
+/** The tail glyph rides on the stroke, so it cannot be wider than it. */
+const GLYPH_RATIO = 0.1;
 /** A Ghost is translucent, and its outline is the only dashed one on the board. */
 const GHOST_ALPHA = 0.5;
 /** Band length of a Joker's pipe, as a fraction of the cell (ART.md 3.1). */
@@ -37,6 +53,11 @@ export interface ArrowStyle {
   points?: Point[];
   /** 0-1, for a fading arrow. */
   alpha?: number;
+  /**
+   * The arrow that was tapped wrong: the body is drawn in the damage red and
+   * stays there until another arrow is tapped (ART.md 6).
+   */
+  wrong?: boolean;
 }
 
 export function pipeWidth(layout: Layout): number {
@@ -45,6 +66,11 @@ export function pipeWidth(layout: Layout): number {
 
 export function outlineWidth(layout: Layout): number {
   return Math.max(1.5, layout.cell * OUTLINE_RATIO);
+}
+
+/** Width of the ink backing: the coloured stroke plus an ink edge each side. */
+export function backingWidth(layout: Layout): number {
+  return pipeWidth(layout) + outlineWidth(layout) * 2;
 }
 
 /** Centre-line of an arrow's path, tail first. */
@@ -81,7 +107,10 @@ export function drawArrow(
   style: ArrowStyle = {},
 ): void {
   const entry = paletteEntry(arrow.color);
-  const fill = entry.fill;
+  // A wrong tap paints the whole body red and holds it there until another
+  // arrow is tapped (ART.md 6). The tail glyph is left alone: it is what
+  // still says which colour the arrow is while the red is on it.
+  const fill = style.wrong ? THEME.wrong : entry.fill;
   const ink = THEME.ink;
   const width = pipeWidth(layout);
   const outline = outlineWidth(layout);
@@ -106,9 +135,11 @@ export function drawArrow(
   if (points.length === 1) {
     // A one-cell arrow still needs a body: a bare head has no tail to carry
     // the glyph, and no shape to tap.
+    // Long enough that a shaft still shows once the head's inset is taken
+    // off it: a one-cell arrow with a stub reads as a keyhole, not an arrow.
     points[0] = {
-      x: head.x - towards.x * layout.cell * 0.42,
-      y: head.y - towards.y * layout.cell * 0.42,
+      x: head.x - towards.x * layout.cell * 0.72,
+      y: head.y - towards.y * layout.cell * 0.72,
     };
     points.push(pipeEnd);
   } else {
@@ -124,13 +155,13 @@ export function drawArrow(
     context.save();
     context.strokeStyle = THEME.ink;
     context.globalAlpha = (style.alpha ?? 1) * 0.35 * style.pulse;
-    context.lineWidth = width + outline * 4;
+    context.lineWidth = width + outline * 5;
     tracePipe(context, points, width / 2);
     context.stroke();
     context.restore();
   }
 
-  // Outline first: two same-coloured arrows lying side by side must still
+  // The backing first: two same-coloured arrows lying side by side must still
   // read as two objects (ART.md 3). A Ghost's is dashed, which is the one
   // silhouette on the board that is not continuous.
   context.strokeStyle = ink;
@@ -195,7 +226,9 @@ function drawJokerBands(
   context.restore();
 }
 
-/** The one head that is not a triangle: heavy, round, with a short fuse. */
+/** The one head that is not a chevron alone: a bullseye, with a small point
+ * still at the very tip so a Bomb is read for direction like any other arrow
+ * (ART.md 3.1). */
 function drawBombHead(
   context: CanvasRenderingContext2D,
   head: Point,
@@ -205,25 +238,31 @@ function drawBombHead(
   ink: string,
   outline: number,
 ): void {
-  const radius = layout.cell * HEAD_RATIO * 0.42;
+  const radius = layout.cell * 0.27;
+  const inkEdge = Math.max(1, layout.cell * 0.055);
+  const light = mix(fill, "#FFFFFF", 0.55);
+
+  // The point first, so the rings sit on top of its root.
+  const tip = {
+    x: head.x + towards.x * radius * 1.7,
+    y: head.y + towards.y * radius * 1.7,
+  };
+  drawHead(context, tip, towards, layout, fill, ink, outline);
+
+  const ring = (r: number, colour: string, edge: number): void => {
+    context.beginPath();
+    context.arc(head.x, head.y, r, 0, Math.PI * 2);
+    context.fillStyle = colour;
+    context.fill();
+    context.strokeStyle = ink;
+    context.lineWidth = edge;
+    context.stroke();
+  };
 
   context.save();
-  context.translate(head.x, head.y);
-  context.rotate(Math.atan2(towards.y, towards.x));
-
-  context.beginPath();
-  context.moveTo(radius * 0.4, 0);
-  context.quadraticCurveTo(radius * 1.5, -radius * 0.5, radius * 1.7, -radius * 1.1);
-  context.strokeStyle = ink;
-  context.lineWidth = outline * 1.5;
-  context.stroke();
-
-  context.beginPath();
-  context.arc(0, 0, radius, 0, Math.PI * 2);
-  context.fillStyle = fill;
-  context.fill();
-  context.lineWidth = outline * 2;
-  context.stroke();
+  ring(radius, fill, inkEdge);
+  ring(radius * 0.64, light, inkEdge * 0.55);
+  ring(radius * 0.28, fill, inkEdge * 0.55);
   context.restore();
 }
 
@@ -256,25 +295,33 @@ function drawHead(
   outline: number,
 ): void {
   const size = layout.cell * HEAD_RATIO;
+  const width = pipeWidth(layout);
   const angle = Math.atan2(towards.y, towards.x);
 
   context.save();
   context.translate(head.x, head.y);
   context.rotate(angle);
 
-  // The head is the only pointed end, oversized so direction reads at a
-  // glance in a screen full of bends.
-  context.beginPath();
-  context.moveTo(size * 0.5, 0);
-  context.lineTo(-size * 0.25, size * 0.42);
-  context.lineTo(-size * 0.25, -size * 0.42);
-  context.closePath();
+  // An open chevron drawn in the same two strokes as the body, so the head is
+  // the body's own line turning a corner rather than a separate object.
+  const trace = (): void => {
+    context.beginPath();
+    context.moveTo(-size, -size * 0.8);
+    context.lineTo(0, 0);
+    context.lineTo(-size, size * 0.8);
+  };
 
-  context.fillStyle = fill;
+  context.lineCap = "round";
+  context.lineJoin = "round";
   context.strokeStyle = ink;
-  context.lineWidth = outline * 2;
+  context.lineWidth = width + outline * 2;
+  trace();
   context.stroke();
-  context.fill();
+
+  context.strokeStyle = fill;
+  context.lineWidth = width;
+  trace();
+  context.stroke();
   context.restore();
 }
 
@@ -367,6 +414,8 @@ export function drawGlyph(
 export interface BlockStyle {
   /** 0-1, for the impact flash. */
   flash?: number;
+  /** The hairline that shows a block has been hit but not yet broken. */
+  cracked?: boolean;
   /** Turns the glyph redundancy up rather than on (ART.md 2.2). */
   highContrastGlyph?: boolean;
   /** Outline for the press-and-hold target (ART.md 3.2). */
@@ -374,8 +423,8 @@ export interface BlockStyle {
   alpha?: number;
 }
 
-/** How many layer edges are drawn before the count badge takes over. */
-const MAX_VISIBLE_EDGES = 3;
+/** How many layer bands are drawn before the count badge takes over. */
+const MAX_VISIBLE_BANDS = 2;
 
 export function drawBlock(
   context: CanvasRenderingContext2D,
@@ -391,41 +440,58 @@ export function drawBlock(
   const outline = outlineWidth(layout);
   const radius = Math.min(rect.width, rect.height) * 0.22;
   const vertical = block.side === "left" || block.side === "right";
-  const edgeDepth = Math.min(rect.width, rect.height) * 0.16;
+  const band = Math.min(rect.width, rect.height) * 0.1;
 
   context.save();
   context.globalAlpha = style.alpha ?? 1;
 
-  // Layer edges, drawn along the inner side so the stack reads as a stack.
-  const hidden = block.layers.length - 1;
-  const edges = Math.min(hidden, MAX_VISIBLE_EDGES - 1);
-  for (let index = edges; index >= 1; index -= 1) {
-    const layer = block.layers[index];
-    if (!layer) continue;
-
-    const shift = index * edgeDepth;
-    const inner = innerShift(block.side, shift);
-    context.fillStyle = paletteEntry(layer).fill;
-    context.strokeStyle = THEME.ink;
-    context.lineWidth = outline;
-    roundedRect(
-      context,
-      rect.x + inner.x,
-      rect.y + inner.y,
-      rect.width,
-      rect.height,
-      radius,
-    );
-    context.fill();
-    context.stroke();
-  }
-
+  // The face owns the square; the layers underneath are nested bands hugging
+  // the inside of the outline, on the same plane. Nothing is offset, because
+  // nothing on this board is drawn with thickness (ART.md 5).
   context.fillStyle = entry.fill;
   context.strokeStyle = THEME.ink;
   context.lineWidth = outline * 1.6;
   roundedRect(context, rect.x, rect.y, rect.width, rect.height, radius);
   context.fill();
   context.stroke();
+
+  const hidden = block.layers.length - 1;
+  const bands = Math.min(hidden, MAX_VISIBLE_BANDS);
+  for (let index = 1; index <= bands; index += 1) {
+    const layer = block.layers[index];
+    if (!layer) continue;
+
+    // Outermost band is the layer that comes next, so the order the player
+    // will meet them reads from the outside in.
+    const inset = outline * 0.8 + band * (index - 0.5);
+    const width = rect.width - inset * 2;
+    const height = rect.height - inset * 2;
+    if (width <= band || height <= band) break;
+
+    context.strokeStyle = paletteEntry(layer).fill;
+    context.lineWidth = band;
+    roundedRect(
+      context,
+      rect.x + inset,
+      rect.y + inset,
+      width,
+      height,
+      Math.max(1, radius - inset),
+    );
+    context.stroke();
+
+    context.strokeStyle = THEME.ink;
+    context.lineWidth = Math.max(1, outline * 0.5);
+    roundedRect(
+      context,
+      rect.x + inset + band / 2,
+      rect.y + inset + band / 2,
+      width - band,
+      height - band,
+      Math.max(1, radius - inset - band / 2),
+    );
+    context.stroke();
+  }
 
   if (style.flash) {
     context.save();
@@ -434,6 +500,10 @@ export function drawBlock(
     roundedRect(context, rect.x, rect.y, rect.width, rect.height, radius);
     context.fill();
     context.restore();
+  }
+
+  if (style.cracked) {
+    drawCrack(context, layout, rect);
   }
 
   if (style.highlighted) {
@@ -460,24 +530,36 @@ export function drawBlock(
   );
 
   // A deeper stack shows a count badge instead of an unreadable sandwich.
-  if (hidden >= MAX_VISIBLE_EDGES) {
-    drawLayerCount(context, layout, rect, hidden - (MAX_VISIBLE_EDGES - 1));
+  if (hidden > MAX_VISIBLE_BANDS) {
+    drawLayerCount(context, layout, rect, hidden - MAX_VISIBLE_BANDS);
   }
 
   context.restore();
 }
 
-function innerShift(side: Block["side"], shift: number): Point {
-  switch (side) {
-    case "top":
-      return { x: 0, y: -shift };
-    case "bottom":
-      return { x: 0, y: shift };
-    case "left":
-      return { x: -shift, y: 0 };
-    case "right":
-      return { x: shift, y: 0 };
-  }
+/**
+ * A hairline, half the weight of the outline: a cracked block has to read as
+ * damaged without shouting over the colour it is matched against (ART.md 6).
+ */
+function drawCrack(
+  context: CanvasRenderingContext2D,
+  layout: Layout,
+  rect: { x: number; y: number; width: number; height: number },
+): void {
+  const { x, y, width, height } = rect;
+
+  context.save();
+  context.strokeStyle = THEME.ink;
+  context.lineWidth = Math.max(1, outlineWidth(layout) * 0.5);
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  context.beginPath();
+  context.moveTo(x + width * 0.18, y);
+  context.lineTo(x + width * 0.3, y + height * 0.34);
+  context.lineTo(x + width * 0.22, y + height * 0.62);
+  context.lineTo(x + width * 0.36, y + height);
+  context.stroke();
+  context.restore();
 }
 
 function drawLayerCount(
