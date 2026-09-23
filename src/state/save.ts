@@ -46,6 +46,24 @@ export interface Settings {
   language: string;
 }
 
+/**
+ * What the game has already said once and must never say again (DESIGN.md 6).
+ * Colour-blind mode is a real switch now, and a player who cannot separate
+ * two fills has no way of knowing it exists — the board never mentions it.
+ * So the game counts wrong-colour taps and points at the setting once,
+ * instead of asking everyone at first launch about a problem most of them do
+ * not have.
+ */
+export interface Nudges {
+  /** Wrong-colour taps made with the mode off, across the whole save. */
+  colourMistakes: number;
+  /** Set once the line has been shown, or the player found the switch. */
+  colourBlindOffered: boolean;
+}
+
+/** Wrong-colour taps before the game mentions the setting. */
+export const COLOUR_NUDGE_AT = 3;
+
 export interface SaveData {
   version: number;
   /**
@@ -58,6 +76,7 @@ export interface SaveData {
   /** The hint balance, acquired in-level only (PROGRESSION.md 4.1). */
   hints: number;
   settings: Settings;
+  nudges: Nudges;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -70,6 +89,11 @@ export const DEFAULT_SETTINGS: Settings = {
   language: "en",
 };
 
+export const DEFAULT_NUDGES: Nudges = {
+  colourMistakes: 0,
+  colourBlindOffered: false,
+};
+
 export function createSave(): SaveData {
   return {
     version: SAVE_VERSION,
@@ -77,6 +101,7 @@ export function createSave(): SaveData {
     levels: {},
     hints: 0,
     settings: { ...DEFAULT_SETTINGS },
+    nudges: { ...DEFAULT_NUDGES },
   };
 }
 
@@ -100,6 +125,7 @@ export function parseSave(raw: string | null): SaveData {
   const save = createSave();
   save.hints = asCount(parsed["hints"]);
   save.settings = parseSettings(parsed["settings"]);
+  save.nudges = parseNudges(parsed["nudges"]);
 
   const scoreVersion =
     typeof parsed["scoreVersion"] === "number" ? parsed["scoreVersion"] : 0;
@@ -166,7 +192,41 @@ export function spendHint(save: SaveData): SaveData {
 }
 
 export function updateSettings(save: SaveData, patch: Partial<Settings>): SaveData {
-  return { ...save, settings: { ...save.settings, ...patch } };
+  const settings = { ...save.settings, ...patch };
+  // A player who found the switch has answered the question, whichever way
+  // they set it: the line would be telling them what they already know.
+  const nudges =
+    patch.colourBlindMode === undefined
+      ? save.nudges
+      : { ...save.nudges, colourBlindOffered: true };
+  return { ...save, settings, nudges };
+}
+
+/**
+ * A wrong-colour tap, counted only while the mode is off and only until the
+ * line has been shown. A blocked tap is not counted: it is a reading mistake
+ * about the board, not about colour, and it is the split `TELEMETRY.md` 2.3
+ * keeps for exactly this reason.
+ */
+export function recordColourMistake(save: SaveData): SaveData {
+  if (save.settings.colourBlindMode || save.nudges.colourBlindOffered) return save;
+  return {
+    ...save,
+    nudges: { ...save.nudges, colourMistakes: save.nudges.colourMistakes + 1 },
+  };
+}
+
+/** True when the count has reached the threshold and nothing has been said. */
+export function owesColourNudge(save: SaveData): boolean {
+  return (
+    !save.settings.colourBlindMode &&
+    !save.nudges.colourBlindOffered &&
+    save.nudges.colourMistakes >= COLOUR_NUDGE_AT
+  );
+}
+
+export function markColourNudgeShown(save: SaveData): SaveData {
+  return { ...save, nudges: { ...save.nudges, colourBlindOffered: true } };
 }
 
 export function levelRecord(save: SaveData, levelId: number): LevelRecord | undefined {
@@ -297,6 +357,17 @@ function parseSettings(value: unknown): Settings {
       typeof value["language"] === "string"
         ? value["language"]
         : DEFAULT_SETTINGS.language,
+  };
+}
+
+function parseNudges(value: unknown): Nudges {
+  if (!isRecord(value)) return { ...DEFAULT_NUDGES };
+  return {
+    colourMistakes: asCount(value["colourMistakes"]),
+    colourBlindOffered: asBoolean(
+      value["colourBlindOffered"],
+      DEFAULT_NUDGES.colourBlindOffered,
+    ),
   };
 }
 

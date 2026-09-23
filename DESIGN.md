@@ -640,6 +640,24 @@ shot has landed (`ART.md` 7).
   then matchable on shape alone. With the mode off the board is flat: color
   and silhouette, no marks. Plus reduced-motion and reduced-audio settings.
   Full art spec, palette and validation tests: `ART.md`.
+- **Finding colour-blind mode.** The mode is worth nothing to a player who
+  cannot guess it exists, and under tritanopia with the mode off the palette
+  collapses to two families (`ART.md` 10.2) — so the setting carries real
+  weight. It is still not a first-run question: an accessibility prompt shown
+  to everyone before the first level is a wall in front of a game that
+  teaches itself, and most players do not have the problem it asks about. The
+  game waits for evidence instead. After **three wrong-colour taps** across
+  the save, with the mode off, one coach line at the edge of the board names
+  the setting, once and never again (`coach.colourBlind`). A blocked tap does
+  not count — that is a mistake about the board, not about colour, and the
+  `mistake` split in `TELEMETRY.md` 2.3 already keeps the two apart. Opening
+  the switch, either way, counts as the answer and retires the line. The
+  evidence cannot appear before level 32 (section 2), so up to there the
+  settings row is the only route in — which is an argument for keeping that
+  row plainly named, not for asking everyone at first launch. Level 32 is
+  also where the mismatch beat lives, and two lines never share the board:
+  the beat wins, the nudge is not spent, and it is offered again at the next
+  wrong-colour tap.
 
 ---
 

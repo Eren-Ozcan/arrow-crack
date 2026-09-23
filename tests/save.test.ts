@@ -9,12 +9,16 @@ import {
   currentLevelId,
   isUnlocked,
   levelRecord,
+  markColourNudgeShown,
+  owesColourNudge,
   parseSave,
+  recordColourMistake,
   recordWin,
   serialiseSave,
   spendHint,
   totalStars,
   updateSettings,
+  COLOUR_NUDGE_AT,
 } from "@/state/save";
 import type { SaveStorage } from "@/state/save";
 
@@ -193,5 +197,42 @@ describe("the local save", () => {
     expect(store.clear()).toEqual(createSave());
     expect(storage.map.has(STORAGE_KEY)).toBe(false);
     expect(new SaveStore(storage).save).toEqual(createSave());
+  });
+
+  it("points at colour-blind mode only after enough wrong-colour taps", () => {
+    let save = createSave();
+    for (let i = 0; i < COLOUR_NUDGE_AT - 1; i += 1) {
+      save = recordColourMistake(save);
+      expect(owesColourNudge(save)).toBe(false);
+    }
+
+    save = recordColourMistake(save);
+    expect(owesColourNudge(save)).toBe(true);
+
+    save = markColourNudgeShown(save);
+    expect(owesColourNudge(save)).toBe(false);
+    // The count keeps no meaning once the line has been shown.
+    expect(owesColourNudge(recordColourMistake(save))).toBe(false);
+  });
+
+  it("never mentions the mode to a player who already found it", () => {
+    let save = updateSettings(createSave(), { colourBlindMode: true });
+    for (let i = 0; i < COLOUR_NUDGE_AT + 2; i += 1) save = recordColourMistake(save);
+    expect(owesColourNudge(save)).toBe(false);
+    expect(save.nudges.colourMistakes).toBe(0);
+
+    // Turning it back off is still an answer: the switch has been seen.
+    save = updateSettings(save, { colourBlindMode: false });
+    for (let i = 0; i < COLOUR_NUDGE_AT + 2; i += 1) save = recordColourMistake(save);
+    expect(owesColourNudge(save)).toBe(false);
+  });
+
+  it("carries the nudge state through a round trip, and survives its absence", () => {
+    const save = markColourNudgeShown(recordColourMistake(createSave()));
+    expect(parseSave(serialiseSave(save)).nudges).toEqual(save.nudges);
+
+    const older = JSON.parse(serialiseSave(createSave())) as Record<string, unknown>;
+    delete older["nudges"];
+    expect(parseSave(JSON.stringify(older)).nudges).toEqual(createSave().nudges);
   });
 });

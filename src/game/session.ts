@@ -83,6 +83,13 @@ export interface SessionOptions {
   colourBlindMode?: boolean;
   /** Runs the stuck check off the main thread; omitted in tests. */
   checkStuck?: (state: GameState) => Promise<boolean>;
+  /**
+   * Every mistake, as it happens. The session does not know what a wrong
+   * colour means beyond a lost heart — the app counts them, because the one
+   * thing it can do about them (point at colour-blind mode) outlives the
+   * attempt (DESIGN.md 6).
+   */
+  onMistake?: (event: "blocked" | "bounced") => void;
 }
 
 const PULSE_MS = 420;
@@ -99,12 +106,17 @@ export class GameSession {
   #context: CanvasRenderingContext2D;
   #onChange: (view: SessionView) => void;
   #onSound: ((event: SoundEvent) => void) | undefined;
+  #onMistake: ((event: "blocked" | "bounced") => void) | undefined;
   #reducedMotion: boolean;
   #colourBlindMode: boolean;
   #checkStuck: ((state: GameState) => Promise<boolean>) | undefined;
 
   #state: GameState;
   #score: ScoreState = createScore();
+  /** Counters the session keeps only because the schema asks for them. */
+  #shotsFired = 0;
+  #maxMultiplier = 1;
+  #attemptStartedAt = performance.now();
   #layout: Layout;
   #camera: Camera = fitCamera();
   #gestures = createGestureState();
@@ -136,7 +148,8 @@ export class GameSession {
    */
   #wrongArrowId: string | null = null;
   #gained = 0;
-  #coach: Beat | null = null;
+  /** A tutorial beat, or a one-off note the app asked for; both are one line. */
+  #coach: Beat | { key: StringKey } | null = null;
   #shownBeats = new Set<string>();
   #showGrid = false;
   /** Timed levels only (PROGRESSION.md 3). */
@@ -151,6 +164,7 @@ export class GameSession {
     this.#canvas = options.canvas;
     this.#onChange = options.onChange;
     this.#onSound = options.onSound;
+    this.#onMistake = options.onMistake;
     this.#reducedMotion = options.reducedMotion ?? false;
     this.#colourBlindMode = options.colourBlindMode ?? false;
     this.#checkStuck = options.checkStuck;
@@ -248,6 +262,19 @@ export class GameSession {
     const shouldRun =
       !this.#suspended && this.#coach === null && this.#state.status === "playing";
     this.#clock = shouldRun ? resume(this.#clock, now) : pause(this.#clock, now);
+  }
+
+  /**
+   * Shows a line the app raised rather than the tutorial. It waits for a
+   * quiet moment: a beat is a rule the board is teaching right now and always
+   * wins, and nothing is ever written over a finished level.
+   */
+  note(key: StringKey): boolean {
+    if (this.#coach !== null || this.#state.status !== "playing") return false;
+    this.#coach = { key };
+    this.#syncClock(performance.now());
+    this.#publish();
+    return true;
   }
 
   /** The player read the line, or moved on; either way it goes. */
@@ -530,7 +557,7 @@ export class GameSession {
     this.#teach(event);
     // Told after the beat, never before it: a listener that answers with a
     // line of its own (`note()`) must lose to the tutorial rather than be
-    // silently wiped by it a line later â€” on level 32 both want the same
+    // silently wiped by it a line later — on level 32 both want the same
     // bounce, and the beat is the one teaching the rule.
     if (event === "blocked" || event === "bounced") this.#onMistake?.(event);
     this.#score = shot.state;

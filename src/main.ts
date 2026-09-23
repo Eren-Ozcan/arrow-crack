@@ -1,14 +1,21 @@
 import "./styles.css";
 import { AudioEngine } from "./audio/engine";
+import { audioFocusBridge } from "./audio/focus-plugin";
 import { cuesFor, cuesForWin } from "./audio/script";
 import { GameSession } from "./game/session";
 import type { SessionView } from "./game/session";
 import { LEVELS, levelById, nextLevelId } from "./levels";
+import { AdService } from "./services/ads";
+import { Analytics } from "./services/analytics";
+import { IapService } from "./services/iap";
 import { SolverClient } from "./solver/client";
 import {
   SaveStore,
   isUnlocked,
   levelRecord,
+  markColourNudgeShown,
+  owesColourNudge,
+  recordColourMistake,
   recordWin,
   updateSettings,
 } from "./state/save";
@@ -137,6 +144,7 @@ function start(levelId: number, force = false): void {
     checkStuck: (state) => solver.isSolvable(state),
     onChange: (view) => onChange(view),
     onSound: (event) => audio.playSequence(cuesFor(event)),
+    onMistake: (event) => onMistake(event),
   });
 
   modals.reducedMotion = reducedMotion();
@@ -209,7 +217,39 @@ function mountHud(): Hud {
   return mounted;
 }
 
+/**
+ * Colour-blind mode is a switch nobody is told about, and the player who
+ * needs it is the one least able to guess it exists. Rather than a first-run
+ * prompt for everyone, the game waits for evidence — three wrong-colour taps
+ * across the save — and then points at the setting once, as a coach line at
+ * the edge of the board (DESIGN.md 6, ART.md 2.2). A blocked tap is not
+ * evidence: that is a mistake about the board, not about colour.
+ */
+function onMistake(event: "blocked" | "bounced"): void {
+  analytics.log({
+    name: "mistake",
+    level_id: session?.level.id ?? 0,
+    kind: event === "blocked" ? "blocked_tap" : "color_mismatch",
+    shots_fired: lastView?.shotsFired ?? 0,
+    hearts_left: session?.state.heartsLeft ?? 0,
+  });
+
+  if (event !== "bounced") return;
+
+  const save = store.update((current) => recordColourMistake(current));
+  if (!owesColourNudge(save)) return;
+  // The line can arrive on the tap that lost the last heart, where the panel
+  // owns the screen; then it is not spent, and the next mistake offers again.
+  if (session?.note("coach.colourBlind")) {
+    store.update((current) => markColourNudgeShown(current));
+  }
+}
+
+/** The last view published, for the events raised outside `onChange`. */
+let lastView: SessionView | null = null;
+
 function onChange(view: SessionView): void {
+  lastView = view;
   hud?.update(view);
   coach?.update(view.coach);
   tickClockSound(view.remainingMs);
