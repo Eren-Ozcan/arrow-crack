@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Arrow Crack — shape lab</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #12131a;
+        color: #f2f4f8;
+        font:
+          16px/1.5 system-ui,
+          sans-serif;
+      }
+      h1 {
+        font-size: 20px;
+        margin: 0 0 4px;
+      }
+      p.note {
+        color: #9aa0ae;
+        margin: 0 0 20px;
+        max-width: 70ch;
+      }
+      h2 {
+        font-size: 15px;
+        margin: 28px 0 10px;
+        color: #e69f00;
+      }
+      .grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+      figure {
+        margin: 0;
+      }
+      figcaption {
+        color: #9aa0ae;
+        font-size: 12px;
+        margin-top: 4px;
+      }
+      canvas {
+        background: #f4efe6;
+        border-radius: 8px;
+        display: block;
+      }
+      label {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        background: #1f2230;
+        border: 1px solid #333849;
+        border-radius: 10px;
+        padding: 8px 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Shape lab</h1>
+    <p class="note">
+      Every block and arrow variant the renderer can draw, at a 96px cell, straight out of
+      <code>src/render/shapes.ts</code>. This page ships with the repo but never with the
+      app: it is for looking at a change to ART.md 3 and 5 without hunting for a level
+      that happens to contain the case.
+    </p>
+    <label><input id="cb" type="checkbox" /> Colour-blind mode</label>
+    <div id="out"></div>
+
+    <script type="module">
+      import { drawArrow, drawBlock } from "/src/render/shapes.ts";
+      import { PALETTE, THEME } from "/src/render/palette.ts";
+
+      const CELL = 96;
+      const COLOURS = Object.keys(PALETTE);
+
+      /** A layout is pure geometry, so the lab builds one by hand. */
+      function layoutFor(cols, rows) {
+        return {
+          cols,
+          rows,
+          cell: CELL,
+          frame: CELL * 0.62,
+          gap: CELL * 0.18,
+          origin: { x: 0, y: 0 },
+          bounds: { x: 0, y: 0, width: cols * CELL, height: rows * CELL },
+        };
+      }
+
+      function figure(width, height, caption, paint) {
+        const canvas = document.createElement("canvas");
+        const ratio = 2;
+        canvas.width = width * ratio;
+        canvas.height = height * ratio;
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        const context = canvas.getContext("2d");
+        context.scale(ratio, ratio);
+        context.fillStyle = THEME.board;
+        context.fillRect(0, 0, width, height);
+        paint(context);
+
+        const item = document.createElement("figure");
+        const label = document.createElement("figcaption");
+        label.textContent = caption;
+        item.append(canvas, label);
+        return item;
+      }
+
+      function section(title, items) {
+        const heading = document.createElement("h2");
+        heading.textContent = title;
+        const grid = document.createElement("div");
+        grid.className = "grid";
+        grid.append(...items);
+        return [heading, grid];
+      }
+
+      function blockFigure(caption, block, side, style) {
+        const layout = layoutFor(3, 3);
+        const long = CELL * block.span;
+        const short = layout.frame;
+        const vertical = side === "left" || side === "right";
+        const width = (vertical ? short : long) + 24;
+        const height = (vertical ? long : short) + 24;
+
+        return figure(width, height, caption, (context) => {
+          drawBlock(
+            context,
+            layout,
+            { ...block, side },
+            {
+              x: 12,
+              y: 12,
+              width: width - 24,
+              height: height - 24,
+            },
+            style,
+          );
+        });
+      }
+
+      function arrowFigure(caption, arrow) {
+        const cols = Math.max(...arrow.path.map((cell) => cell.col)) + 1;
+        const rows = Math.max(...arrow.path.map((cell) => cell.row)) + 1;
+        const layout = layoutFor(cols, rows);
+        layout.origin = { x: 12, y: 12 };
+
+        return figure(cols * CELL + 24, rows * CELL + 24, caption, (context) => {
+          drawArrow(context, layout, arrow, { colourBlind: colourBlind() });
+        });
+      }
+
+      const colourBlind = () => document.getElementById("cb").checked;
+
+      function straight(colour, special) {
+        return {
+          id: `a-${colour}-${special ?? "plain"}`,
+          color: colour,
+          dir: "right",
+          ...(special ? { special } : {}),
+          path: [
+            { col: 0, row: 0 },
+            { col: 1, row: 0 },
+            { col: 2, row: 0 },
+          ],
+        };
+      }
+
+      function render() {
+        const style = { colourBlind: colourBlind() };
+        const out = document.getElementById("out");
+        out.replaceChildren();
+
+        out.append(
+          ...section(
+            "Blocks — one layer, every colour",
+            COLOURS.map((colour) =>
+              blockFigure(
+                PALETTE[colour].name,
+                { id: `b-${colour}`, start: 0, span: 1, layers: [colour] },
+                "top",
+                style,
+              ),
+            ),
+          ),
+          ...section("Blocks — stacks", [
+            blockFigure(
+              "2 layers",
+              { id: "b2", start: 0, span: 1, layers: ["v", "b"] },
+              "top",
+              style,
+            ),
+            blockFigure(
+              "3 layers",
+              { id: "b3", start: 0, span: 1, layers: ["v", "b", "g"] },
+              "top",
+              style,
+            ),
+            blockFigure(
+              "5 layers (count badge)",
+              { id: "b5", start: 0, span: 1, layers: ["v", "b", "g", "y", "p"] },
+              "top",
+              style,
+            ),
+            blockFigure(
+              "wide, span 2",
+              { id: "bw", start: 0, span: 2, layers: ["g", "y"] },
+              "top",
+              style,
+            ),
+          ]),
+          ...section("Blocks — states and sides", [
+            blockFigure(
+              "cracked",
+              { id: "bc", start: 0, span: 1, layers: ["b"] },
+              "top",
+              { ...style, cracked: true },
+            ),
+            blockFigure(
+              "highlighted",
+              { id: "bh", start: 0, span: 1, layers: ["p"] },
+              "top",
+              { ...style, highlighted: true },
+            ),
+            blockFigure("flash", { id: "bf", start: 0, span: 1, layers: ["y"] }, "top", {
+              ...style,
+              flash: 0.6,
+            }),
+            blockFigure(
+              "left side",
+              { id: "bl", start: 0, span: 1, layers: ["v", "b"] },
+              "left",
+              style,
+            ),
+          ]),
+          ...section(
+            "Arrows — every colour",
+            COLOURS.map((colour) => arrowFigure(PALETTE[colour].name, straight(colour))),
+          ),
+          ...section("Arrows — specials", [
+            arrowFigure("joker", straight("v", "joker")),
+            arrowFigure("ghost", straight("b", "ghost")),
+            arrowFigure("bomb", straight("g", "bomb")),
+          ]),
+          ...section("Arrows — shapes", [
+            arrowFigure("one cell", {
+              id: "a-one",
+              color: "b",
+              dir: "up",
+              path: [{ col: 0, row: 0 }],
+            }),
+            arrowFigure("bend", {
+              id: "a-bend",
+              color: "y",
+              dir: "right",
+              path: [
+                { col: 0, row: 1 },
+                { col: 0, row: 0 },
+                { col: 1, row: 0 },
+                { col: 2, row: 0 },
+              ],
+            }),
+            arrowFigure("switchback", {
+              id: "a-zig",
+              color: "p",
+              dir: "up",
+              path: [
+                { col: 0, row: 2 },
+                { col: 1, row: 2 },
+                { col: 1, row: 1 },
+                { col: 2, row: 1 },
+                { col: 2, row: 0 },
+              ],
+            }),
+          ]),
+        );
+      }
+
+      // ?cb=1 so a screenshot pass can take both modes without a click.
+      document.getElementById("cb").checked =
+        new URLSearchParams(location.search).get("cb") === "1";
+      document.getElementById("cb").addEventListener("change", render);
+      render();
+    </script>
+  </body>
+</html>

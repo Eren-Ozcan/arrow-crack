@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Arrow Crack — sound lab</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #12131a;
+        color: #f2f4f8;
+        font:
+          16px/1.5 system-ui,
+          sans-serif;
+      }
+      h1 {
+        font-size: 20px;
+        margin: 0 0 4px;
+      }
+      p.note {
+        color: #9aa0ae;
+        margin: 0 0 24px;
+        max-width: 60ch;
+      }
+      h2 {
+        font-size: 15px;
+        margin: 28px 0 8px;
+        color: #e69f00;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      button {
+        background: #1f2230;
+        color: #f2f4f8;
+        border: 1px solid #333849;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font: inherit;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #2a2e40;
+      }
+      button.live {
+        border-color: #e69f00;
+      }
+      small {
+        color: #9aa0ae;
+        display: block;
+        margin-top: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Sound lab</h1>
+    <p class="note">
+      Every cue is synthesised, so there is no file to open in a player. This page builds
+      them the same way the game does. The live row is the code in
+      <code>src/audio/synth.ts</code> right now; the arrow rows below it are the versions
+      that were tried and replaced, kept here so they can be compared by ear rather than
+      from memory.
+    </p>
+
+    <h2>Live cue set (the shipping code)</h2>
+    <div class="row" id="live"></div>
+
+    <h2>Live arrow, up the combo ladder</h2>
+    <div class="row" id="ladder"></div>
+
+    <h2>Shot scenarios (what the game actually plays)</h2>
+    <div class="row" id="shots"></div>
+    <small>
+      Each button plays the whole cue list the game schedules for that outcome, with its
+      real delays — sampled cues included. If one of these is silent, that is the bug.
+    </small>
+
+    <h2>Arrow, version by version</h2>
+    <div class="row" id="variants"></div>
+    <small
+      >1 and 2 are stacks: they play the travel sound and the impact together, as the game
+      did then.</small
+    >
+
+    <script type="module">
+      import { playCue } from "/src/audio/synth.ts";
+
+      const context = new AudioContext();
+      const out = context.destination;
+      const resume = () => context.state === "suspended" && context.resume();
+
+      const CUES = [
+        "peel",
+        "peelMiss",
+        "destroy",
+        "bounce",
+        "blocked",
+        "heartLost",
+        "select",
+        "comboStep",
+        "joker",
+        "ghost",
+        "bomb",
+        "hint",
+        "tick",
+        "win",
+        "star",
+        "perfect",
+      ];
+
+      const add = (parent, label, handler, live = false) => {
+        const button = document.createElement("button");
+        button.textContent = label;
+        if (live) button.classList.add("live");
+        button.addEventListener("click", () => {
+          resume();
+          handler();
+        });
+        document.querySelector(parent).append(button);
+      };
+
+      for (const cue of CUES) {
+        add(
+          "#live",
+          cue,
+          () => playCue(context, out, cue, { travel: 0.6, index: 1 }),
+          true,
+        );
+      }
+
+      // The real scripts, played through the real sample bank, so what is
+      // heard here is what the board plays.
+      const { cuesForShot } = await import("/src/audio/script.ts");
+      const { SampleBank } = await import("/src/audio/samples.ts");
+      const bank = new SampleBank(context);
+      bank.preload();
+
+      const playScripted = (cues) => {
+        for (const scheduled of cues) {
+          const fire = () => {
+            const sampled = bank.play(
+              scheduled.cue,
+              scheduled.options?.rate ?? 1,
+              0.85,
+              out,
+            );
+            if (!sampled) playCue(context, out, scheduled.cue, scheduled.options ?? {});
+          };
+          if (scheduled.delayMs <= 0) fire();
+          else setTimeout(fire, scheduled.delayMs);
+        }
+      };
+
+      const SHOTS = [
+        ["match (peeled)", { event: "peeled" }],
+        ["block destroyed", { event: "destroyed" }],
+        ["flew off — open lane", { event: "flewOff" }],
+        ["wrong colour (bounce)", { event: "bounced", heartLost: true }],
+        ["blocked tap", { event: "blocked", heartLost: true }],
+        ["joker", { event: "peeled", special: "joker" }],
+        ["ghost", { event: "peeled", special: "ghost" }],
+        ["bomb", { event: "peeled", special: "bomb" }],
+        ["chain at x5", { event: "peeled", multiplier: 5, comboStepped: true }],
+      ];
+
+      for (const [label, patch] of SHOTS) {
+        add("#shots", label, () =>
+          playScripted(
+            cuesForShot({
+              kind: "shot",
+              event: "peeled",
+              special: null,
+              travel: 0.6,
+              multiplier: 1,
+              heartLost: false,
+              comboStepped: false,
+              ...patch,
+            }),
+          ),
+        );
+      }
+
+      const LADDER = [0, 2, 4, 7, 9];
+      LADDER.forEach((semitones, tier) => {
+        add(
+          "#ladder",
+          `x${tier + 1}`,
+          () => playCue(context, out, "peel", { rate: 2 ** (semitones / 12) }),
+          true,
+        );
+      });
+
+      // --- the replaced versions, rebuilt exactly as they were -------------
+
+      let noiseBuffer = null;
+      const noise = () => {
+        if (!noiseBuffer) {
+          noiseBuffer = context.createBuffer(1, context.sampleRate, context.sampleRate);
+          const data = noiseBuffer.getChannelData(0);
+          for (let i = 0; i < data.length; i += 1) data[i] = Math.random() * 2 - 1;
+        }
+        return noiseBuffer;
+      };
+
+      const tone = (at, { type, from, to, peak, attack = 0.002, decay }) => {
+        const osc = context.createOscillator();
+        const gain = context.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(from, at);
+        if (to !== undefined) osc.frequency.exponentialRampToValueAtTime(to, at + decay);
+        gain.gain.setValueAtTime(0.0001, at);
+        gain.gain.exponentialRampToValueAtTime(peak, at + attack);
+        gain.gain.exponentialRampToValueAtTime(0.0001, at + attack + decay);
+        osc.connect(gain).connect(out);
+        osc.start(at);
+        osc.stop(at + attack + decay + 0.02);
+      };
+
+      const burst = (at, { filter, from, to, q = 1, peak, attack = 0.001, decay }) => {
+        const source = context.createBufferSource();
+        const biquad = context.createBiquadFilter();
+        const gain = context.createGain();
+        source.buffer = noise();
+        source.loop = true;
+        biquad.type = filter;
+        biquad.Q.value = q;
+        biquad.frequency.setValueAtTime(from, at);
+        if (to !== undefined)
+          biquad.frequency.exponentialRampToValueAtTime(to, at + decay);
+        gain.gain.setValueAtTime(0.0001, at);
+        gain.gain.exponentialRampToValueAtTime(peak, at + attack);
+        gain.gain.exponentialRampToValueAtTime(0.0001, at + attack + decay);
+        source.connect(biquad).connect(gain).connect(out);
+        source.start(at);
+        source.stop(at + attack + decay + 0.02);
+      };
+
+      // Version 1: wooden knock + slab clack, with the old rising whoosh.
+      const version1 = () => {
+        const at = context.currentTime;
+        burst(at, {
+          filter: "bandpass",
+          from: 950,
+          to: 3000,
+          q: 0.9,
+          peak: 0.14,
+          attack: 0.02,
+          decay: 0.17,
+        });
+        tone(at + 0.12, { type: "triangle", from: 320, to: 150, peak: 0.5, decay: 0.09 });
+        burst(at + 0.126, {
+          filter: "bandpass",
+          from: 2400,
+          to: 1100,
+          q: 1.4,
+          peak: 0.22,
+          decay: 0.055,
+        });
+      };
+
+      // Version 2: bow release, flight, thock, and the shaft ringing after.
+      const version2 = () => {
+        const at = context.currentTime;
+        burst(at, {
+          filter: "highpass",
+          from: 2600,
+          to: 1400,
+          q: 0.7,
+          peak: 0.26,
+          decay: 0.03,
+        });
+        tone(at, { type: "triangle", from: 900, to: 260, peak: 0.14, decay: 0.05 });
+        burst(at + 0.02, {
+          filter: "bandpass",
+          from: 2400,
+          to: 700,
+          q: 2.6,
+          peak: 0.16,
+          attack: 0.03,
+          decay: 0.25,
+        });
+        tone(at + 0.12, {
+          type: "triangle",
+          from: 260,
+          to: 118,
+          peak: 0.55,
+          decay: 0.055,
+        });
+        burst(at + 0.12, {
+          filter: "bandpass",
+          from: 3400,
+          to: 1500,
+          q: 1.1,
+          peak: 0.26,
+          decay: 0.035,
+        });
+        tone(at + 0.14, {
+          type: "sine",
+          from: 760,
+          to: 520,
+          peak: 0.12,
+          attack: 0.004,
+          decay: 0.19,
+        });
+      };
+
+      // Version 3: same, with the drum body taken out of the impact.
+      const version3 = () => {
+        const at = context.currentTime;
+        burst(at, {
+          filter: "highpass",
+          from: 3000,
+          to: 1600,
+          q: 0.7,
+          peak: 0.24,
+          decay: 0.028,
+        });
+        burst(at + 0.02, {
+          filter: "bandpass",
+          from: 2400,
+          to: 700,
+          q: 2.6,
+          peak: 0.16,
+          attack: 0.03,
+          decay: 0.25,
+        });
+        burst(at + 0.12, {
+          filter: "bandpass",
+          from: 3600,
+          to: 900,
+          q: 0.8,
+          peak: 0.42,
+          decay: 0.045,
+        });
+        tone(at + 0.135, {
+          type: "sine",
+          from: 820,
+          to: 540,
+          peak: 0.14,
+          attack: 0.004,
+          decay: 0.2,
+        });
+      };
+
+      add("#variants", "1 — knock + clack (drum)", version1);
+      add("#variants", "2 — thwip + flight + thock + shaft", version2);
+      add("#variants", "3 — no drum, flight still separate", version3);
+      add(
+        "#variants",
+        "4 — current: one crack",
+        () => playCue(context, out, "peel"),
+        true,
+      );
+    </script>
+  </body>
+</html>
