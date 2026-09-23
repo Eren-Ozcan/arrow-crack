@@ -103,9 +103,14 @@ someone.
 ### 2.2 Glyphs are colour-blind mode
 
 Each color owns a shape, and **colour-blind mode** draws that shape on every
-surface that carries the color: the arrow's tail, the block's top face, and
-each visible layer edge. With the mode on, matching is possible on shape
-alone.
+surface a match is made against: the arrow's tail knob and the block's top
+face. With the mode on, the match the player is about to make is readable on
+shape alone.
+
+The **layer bands under the face carry colour only**. A band is a tenth of a
+cell, which at the 32dp floor is under 4dp — a glyph there is a smudge, and
+the deeper layers are a look-ahead rather than the match being made now. What
+the next layer is becomes shape-readable the moment it surfaces.
 
 With it off the board is **flat**: colour, silhouette and nothing else. The
 arrow has no tail knob and no mark on it, the block face is bare, and the
@@ -115,11 +120,21 @@ to match by — which is what the section 10 stills showed at the shipped cell
 size — or loud enough to clutter a crowded tangle for the player who does not
 need it. A mark that is the signal beats a mark that hedges.
 
-So the shapes are printed in full ink at 0.22 of a cell, not embossed at 60%
+So the shapes are printed at 0.22 of a cell in full ink, not embossed at 60%
 alpha, and the mode is a row on the settings screen and a field in the save,
 off by default. The cost is that the mode has to be **found**: it is named
-plainly — "Colour-blind mode", not "high-contrast shapes" — and the settings
-screen is one tap from the level and from the board.
+plainly — "Colour-blind mode", not "high-contrast shapes" — the settings
+screen is one tap from the level and from the board, and after three
+wrong-colour taps the game names the setting once in a coach line
+(`DESIGN.md` 6).
+
+**The ink is picked per fill.** "Full ink" means the mark is the signal, not
+which pigment it is: blue is the darkest fill in the set, and dark ink on it
+measured 3.30 — the 10.1 grayscale still read blue and green as the same
+unmarked knob. A glyph is drawn in whichever of the board colour and the ink
+carries further against its own fill, which puts a paper-coloured mark on
+blue and leaves every other colour inked. `glyphInk()` in `render/palette.ts`
+is the one place that decides it.
 
 ### 2.3 Contrast rules
 
@@ -150,11 +165,14 @@ carries legibility, not the fill** (section 1), so the enforced rules are:
   rest — enough to read as a moulded rim at a 32dp cell, and deliberately
   short of the ink's own contrast, because a rim that reads as a line is a
   black outline by another name.
-- **Every glyph against its own fill: ≥ 3:1.** A glyph is only ever drawn in
-  colour-blind mode, where it is the signal rather than a hint under the
-  colour, so it is printed in full ink and there is no second, weaker floor
-  to keep. The embossed 0.60-alpha treatment this replaced sat at 2.20 on
-  blue and the grayscale still showed the mark sinking into the fill.
+- **Every glyph against its own fill: ≥ 4.5:1**, measured against the ink
+  `glyphInk()` chooses for that fill rather than against the dark ink. A
+  glyph is only ever drawn in colour-blind mode, where it is the signal
+  rather than a hint under the colour, so it is held to text contrast and
+  there is no second, weaker floor to keep. The embossed 0.60-alpha treatment
+  this replaced sat at 2.20 on blue; dark ink on blue sat at 3.30, which
+  passed the old 3:1 floor and still disappeared in the grayscale still. The
+  worst case now is blue at 4.53, in paper rather than ink.
 - Adjacent colours on the same block stack should differ in hue and, where
   the palette allows, in lightness. It cannot be a hard threshold: green
   against purple is 1.12, and both are on the board from level 50. **Grayscale
@@ -165,8 +183,9 @@ carries legibility, not the fill** (section 1), so the enforced rules are:
   work is not done. Without it, grayscale is expected to fail — colour is
   the only channel there by design.
 
-The first three rules are asserted in `tests/layout.test.ts`, so the palette
-cannot drift out of them unnoticed.
+The first three rules are asserted in `tests/layout.test.ts` and the glyph
+rule in `tests/art-validation.test.ts`, so the palette cannot drift out of
+them unnoticed.
 
 ---
 

@@ -2,7 +2,7 @@ import type { Arrow, Block, Cell } from "@/engine/types";
 import type { Layout, Point } from "./layout";
 import { cellCentre } from "./layout";
 import type { Glyph } from "./palette";
-import { mix, PALETTE, paletteEntry, THEME } from "./palette";
+import { glyphInk, mix, PALETTE, paletteEntry, THEME } from "./palette";
 
 /**
  * Everything on the board is drawn procedurally (ART.md 8) and seen straight
@@ -289,7 +289,7 @@ export function drawArrow(
       points[0]!,
       arrow.special === "joker" ? "all" : entry.glyph,
       layout,
-      ink,
+      glyphInk(fill),
     );
   }
 
@@ -657,7 +657,7 @@ export function drawBlock(
       { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 },
       entry.glyph,
       layout,
-      THEME.ink,
+      glyphInk(entry.fill),
       { scale: Math.max(0, free * 0.5) / layout.cell },
     );
   }

@@ -81,3 +81,18 @@ export function contrastRatio(first: string, second: string): number {
   const [light, dark] = a > b ? [a, b] : [b, a];
   return (light + 0.05) / (dark + 0.05);
 }
+
+/**
+ * The ink a glyph is printed in on a given fill (ART.md 2.2). Dark ink is the
+ * default — it matches the outline the whole board is drawn with — but on the
+ * darkest fill in the set, blue, a dark mark on a dark knob is no mark at
+ * all: the grayscale pass of ART.md 10.1 read blue and green as the same
+ * unmarked knob. So the ink is whichever of the two carries further, which
+ * keeps every glyph at or above the 4.5 the shape redundancy is supposed to
+ * be worth.
+ */
+export function glyphInk(fill: string): string {
+  return contrastRatio(THEME.board, fill) > contrastRatio(THEME.ink, fill)
+    ? THEME.board
+    : THEME.ink;
+}

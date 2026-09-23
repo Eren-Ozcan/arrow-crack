@@ -4,8 +4,8 @@ import { phaseAt, shakeOffset } from "./animation";
 import type { Camera } from "./camera";
 import { boardToScreen } from "./camera";
 import type { Layout, Point } from "./layout";
-import { blockRect, cellCentre, cellRect, laneExitPoint } from "./layout";
-import { paletteEntry, THEME } from "./palette";
+import { blockRect, cellCentre, cellRect } from "./layout";
+import { glyphInk, paletteEntry, THEME } from "./palette";
 import { burst, hashString, settleOffset } from "./particles";
 import {
   drawArrow,
@@ -574,7 +574,9 @@ function drawEdgeMarker(
   context.fill();
   context.stroke();
   if (input.colourBlindMode)
-    drawGlyph(context, marker, entry.glyph, layout, THEME.ink, { scale: 0.22 });
+    drawGlyph(context, marker, entry.glyph, layout, glyphInk(entry.fill), {
+      scale: 0.22,
+    });
   context.restore();
 }
 

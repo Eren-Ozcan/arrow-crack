@@ -8,7 +8,14 @@ import { renderBoard } from "@/render/board-renderer";
 import { fitCamera } from "@/render/camera";
 import { planAnimation } from "@/render/animation";
 import { blockRect, computeLayout, cellCentre } from "@/render/layout";
-import { contrastRatio, luminance, PALETTE, paletteEntry, THEME } from "@/render/palette";
+import {
+  contrastRatio,
+  glyphInk,
+  luminance,
+  PALETTE,
+  paletteEntry,
+  THEME,
+} from "@/render/palette";
 import {
   backingWidth,
   edgeColour,
@@ -230,10 +237,23 @@ describe("ART.md 10.1 — grayscale", () => {
 
   it("keeps a glyph readable against its own fill", () => {
     // A glyph is only drawn in colour-blind mode, where it is the signal
-    // rather than a hint under the colour: full ink, no embossed floor.
+    // rather than a hint under the colour: full ink, no embossed floor. Dark
+    // ink on blue was 3.30, which the grayscale pass read as an unmarked
+    // knob, so the ink is picked per fill and the floor is text contrast.
     for (const entry of Object.values(PALETTE)) {
-      expect(contrastRatio(THEME.ink, entry.fill), entry.name).toBeGreaterThanOrEqual(3);
+      expect(
+        contrastRatio(glyphInk(entry.fill), entry.fill),
+        entry.name,
+      ).toBeGreaterThanOrEqual(4.5);
     }
+  });
+
+  it("prints the glyph in paper on the fill too dark to take ink", () => {
+    // Only blue flips; the rule is stated as the comparison rather than as
+    // the colour, so a palette change cannot quietly reintroduce the blank
+    // knob that ART.md 10.1 caught.
+    expect(glyphInk(PALETTE.b!.fill)).toBe(THEME.board);
+    expect(glyphInk(PALETTE.g!.fill)).toBe(THEME.ink);
   });
 });
 
