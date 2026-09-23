@@ -1,5 +1,7 @@
 import type { Cue } from "./cues";
 import { HAPTIC_CUES, HAPTIC_MS } from "./cues";
+import type { AudioFocusBridge, FocusChange } from "./focus";
+import { FOCUS_DUCK_GAIN, focusResponse } from "./focus";
 import type { MixerSettings } from "./mixer";
 import { allows, VoicePool } from "./mixer";
 import { MusicLoop } from "./music";
@@ -22,6 +24,15 @@ import { playCue } from "./synth";
 export interface AudioSettings extends MixerSettings {
   music: boolean;
   haptics: boolean;
+}
+
+export interface AudioEngineOptions {
+  /**
+   * The native audio-focus plugin. Absent in the browser and in tests, where
+   * there is no focus to hold — the engine then behaves exactly as it did
+   * before, on the visibility signal alone.
+   */
+  focus?: AudioFocusBridge | null;
 }
 
 /** How loud a sampled cue is played, so a file sits where its voice did. */
@@ -50,9 +61,16 @@ export class AudioEngine {
   #musicWanted = false;
   /** Cues waiting on their delay, so leaving a level can drop them. */
   #timers = new Set<ReturnType<typeof setTimeout>>();
+  #focus: AudioFocusBridge | null;
+  /** True while another app is ducking us, so the loop plays quieter. */
+  #ducked = false;
+  /** True once focus has been asked for, so it is asked for once. */
+  #focusHeld = false;
 
-  constructor(settings: AudioSettings) {
+  constructor(settings: AudioSettings, options: AudioEngineOptions = {}) {
     this.#settings = settings;
+    this.#focus = options.focus ?? null;
+    this.#watchVisibility();
     this.#watchFocus();
   }
 
@@ -129,6 +147,10 @@ export class AudioEngine {
     this.#musicWanted = true;
     if (!this.#settings.music) return;
 
+    // Asked for at the first note rather than at start-up: focus held over a
+    // silent menu is focus taken from whatever the player was listening to.
+    void this.#requestFocus();
+
     const context = this.#ensureContext();
     if (!context || !this.#musicGain) return;
     this.#music ??= new MusicLoop(context, this.#musicGain);
@@ -138,6 +160,7 @@ export class AudioEngine {
   stopMusic(): void {
     this.#musicWanted = false;
     this.#music?.stop();
+    void this.#abandonFocus();
   }
 
   /** Leaving a level: nothing that was playing belongs to the next screen. */
@@ -191,17 +214,84 @@ export class AudioEngine {
     const now = context.currentTime;
     gain.gain.cancelScheduledValues(now);
     gain.gain.setValueAtTime(gain.gain.value, now);
-    gain.gain.linearRampToValueAtTime(DUCK_TO, now + 0.02);
-    gain.gain.linearRampToValueAtTime(1, now + DUCK_MS / 1000);
+    const resting = this.#ducked ? FOCUS_DUCK_GAIN : 1;
+    gain.gain.linearRampToValueAtTime(Math.min(DUCK_TO, resting), now + 0.02);
+    gain.gain.linearRampToValueAtTime(resting, now + DUCK_MS / 1000);
+  }
+
+  async #requestFocus(): Promise<void> {
+    if (!this.#focus || this.#focusHeld) return;
+    this.#focusHeld = true;
+    try {
+      await this.#focus.request();
+    } catch {
+      // No focus is a game that still makes noise, which is the same place
+      // the browser build lives; it is never a reason to fail a cue.
+      this.#focusHeld = false;
+    }
+  }
+
+  async #abandonFocus(): Promise<void> {
+    if (!this.#focus || !this.#focusHeld) return;
+    this.#focusHeld = false;
+    try {
+      await this.#focus.abandon();
+    } catch {
+      // Nothing to do about it and nothing the player can hear.
+    }
   }
 
   /**
-   * Android audio focus (`AUDIO.md` 4): another app taking the output pauses
-   * the music, and it comes back only if it was playing before. The WebView
-   * reports that as the page being hidden, which is also what a phone call
-   * and a backgrounded game look like.
+   * The native focus signal (`AUDIO.md` 4). What each change means is decided
+   * in `focus.ts`; this applies it.
    */
   #watchFocus(): void {
+    if (!this.#focus) return;
+    void this.#focus
+      .addListener("audioFocusChange", ({ change }) => this.#onFocusChange(change))
+      .catch(() => undefined);
+  }
+
+  #onFocusChange(change: FocusChange): void {
+    const response = focusResponse(change);
+
+    this.#ducked = response.duck;
+    this.#applyMusicGain();
+
+    if (response.music === "pause") {
+      this.stopAll();
+      this.#music?.stop();
+      void this.#context?.suspend();
+    } else if (response.music === "resume") {
+      void this.#context?.resume();
+      if (this.#musicWanted && this.#settings.music) this.#music?.start();
+    }
+
+    if (response.abandon) {
+      this.#focusHeld = false;
+      void this.#focus?.abandon().catch(() => undefined);
+    }
+  }
+
+  /** The resting level of the music bus: full, or down under another app. */
+  #applyMusicGain(): void {
+    const gain = this.#musicGain;
+    const context = this.#context;
+    if (!gain || !context) return;
+
+    const target = this.#ducked ? FOCUS_DUCK_GAIN : 1;
+    gain.gain.cancelScheduledValues(context.currentTime);
+    gain.gain.setValueAtTime(gain.gain.value, context.currentTime);
+    gain.gain.linearRampToValueAtTime(target, context.currentTime + 0.12);
+  }
+
+  /**
+   * The page being hidden: a backgrounded game, a call, the task switcher.
+   * It is not audio focus — a WebView is never told about another app taking
+   * the output while we are still on screen, which is what the plugin above
+   * is for — but it is the one signal the browser build also has.
+   */
+  #watchVisibility(): void {
     if (typeof document === "undefined") return;
 
     document.addEventListener("visibilitychange", () => {

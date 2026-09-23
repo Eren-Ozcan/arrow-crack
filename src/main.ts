@@ -305,7 +305,7 @@ function watchVisibility(): void {
 
 function mountHud(): Hud {
   const mounted = new Hud({
-    onRestart: () => session?.restart(),
+    onRestart: () => restart(),
     onToggleGrid: () => session?.toggleGrid(),
     onFit: () => session?.fit(),
     onBack: () => showHome(),

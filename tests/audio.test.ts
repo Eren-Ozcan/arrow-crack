@@ -9,6 +9,8 @@ import {
   sampleLadderRate,
   VoicePool,
 } from "@/audio/mixer";
+import { FOCUS_DUCK_GAIN, focusResponse } from "@/audio/focus";
+import type { FocusChange } from "@/audio/focus";
 import { cuesFor, cuesForShot, cuesForWin } from "@/audio/script";
 import type { Shot } from "@/audio/script";
 import { playCue } from "@/audio/synth";
@@ -326,5 +328,48 @@ describe("AUDIO.md 1 — the win panel", () => {
     const stings = cuesForWin(1, false).filter((scheduled) => scheduled.cue === "win");
     expect(stings).toHaveLength(1);
     expect(stings[0]!.delayMs).toBe(0);
+  });
+
+  it("gets out of the way of a call and comes back after it", () => {
+    // AUDIO.md 4. A transient loss is a call or a navigation prompt: stop,
+    // keep the focus, and expect it back.
+    expect(focusResponse("lostTransient")).toEqual({
+      music: "pause",
+      duck: false,
+      abandon: false,
+    });
+    expect(focusResponse("gained")).toEqual({
+      music: "resume",
+      duck: false,
+      abandon: false,
+    });
+  });
+
+  it("hands the output over for good when it is taken for good", () => {
+    // A permanent loss is another app owning the output now. Holding focus
+    // we are not using is the thing this whole path exists to stop.
+    expect(focusResponse("lost")).toEqual({
+      music: "pause",
+      duck: false,
+      abandon: true,
+    });
+  });
+
+  it("plays under a notification rather than cutting out", () => {
+    const ducked = focusResponse("ducked");
+    expect(ducked.music).toBe("keep");
+    expect(ducked.duck).toBe(true);
+    expect(ducked.abandon).toBe(false);
+    // Quiet enough to talk over, loud enough that the loop has not stopped.
+    expect(FOCUS_DUCK_GAIN).toBeGreaterThan(0);
+    expect(FOCUS_DUCK_GAIN).toBeLessThan(0.5);
+  });
+
+  it("answers every change Android can send", () => {
+    const changes: FocusChange[] = ["gained", "lost", "lostTransient", "ducked"];
+    for (const change of changes) {
+      const response = focusResponse(change);
+      expect(["resume", "pause", "keep"], change).toContain(response.music);
+    }
   });
 });

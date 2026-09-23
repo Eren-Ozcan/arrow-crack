@@ -175,7 +175,8 @@ Implements `AUDIO.md`.
 - The heart-lost cue is distinct and unmistakable, and plays just after the
   bounce or knock so two facts land as two sounds.
 - Music loop, separate music and effects toggles, Android audio focus
-  handling, haptics paired with the impact cues.
+  handling (`AudioFocusPlugin` in `android/`, answered by `audio/focus.ts`),
+  haptics paired with the impact cues.
 - Particles on shatter, screen shake on bounce, star reveal animation, all
   on the timings in `ART.md` section 7.
 - Reduced-motion setting and the high-contrast glyph setting.
