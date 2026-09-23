@@ -46,6 +46,34 @@ density.
 - Hints are a separate button; the blue droplets in the HUD are a hint
   currency, not the hearts.
 
+**The session shell**, read off their first-run screens:
+
+- **The splash is a quote card**, not a logo plate: the app icon on a flat
+  tinted background, one short calm line under it, signed with the game's
+  name. The tint and the line change between launches, and the line knows
+  whether you are new or returning. It is the de-stressor positioning
+  delivered before a single tap.
+- **The level screen is nearly empty chrome**: a small centred `Level N`, one
+  hairline rule under it, then a lot of air with the board sitting below the
+  middle of the screen.
+- **Their level 1 has no colour rule at all** — every arrow is drawn in one
+  dark ink, and the only lesson is "tap an arrow", taught by a speech bubble
+  with a tail pointing at the board plus an animated hand. Colour arrives
+  later, once tapping is understood.
+- **Winning is confetti over the board**, with no words on it.
+- **Three permission and consent screens stand between install and play**:
+  a welcome card with an Accept button gating on Terms and Privacy, the iOS
+  tracking prompt, and a notification prompt — all before the first tap.
+- **The in-level HUD is two rows.** Identity first: back arrow, the level
+  name with a difficulty word under it, a theme-palette button, a settings
+  hex. Resources second: the hint currency on the left, the hint button with
+  an **AD** badge on the right. Then a deep gap, then the board.
+- **The home screen sells the meta, not the puzzle**: league and daily
+  challenge cards at the top with a social-proof bubble ("can you beat
+  75,031 players today?"), a mascot avatar, a currency balance, a row of
+  level dots, and one large primary button at the bottom carrying the
+  difficulty word and the level number. The puzzle itself is not on it.
+
 **Positioning.** Their copy is relentlessly calm: _sakinleştirmek_,
 _meditasyon gibi_, _ASMR_, _stresi azaltır_, _zihinsel sıfırlama_, "the ten
 minutes before a meeting". They sell a **de-stressor**, not a challenge.
@@ -119,6 +147,21 @@ accounts.
 - **A grid-lines toggle** beside the hint button — a real legibility aid in a
   dense tangle, and free.
 - **A rewarded hint with a visible AD badge** on the button.
+- **A quote card for the splash**, replacing the Capacitor logo that ships
+  today (`ART.md` 9). Ours is our own emblem, one line from
+  `src/ui/strings.en.json`, and no invented attribution — the line is the
+  game talking, not a fake author.
+- **Quiet level chrome**: small title, one hairline, the board low on the
+  screen with real air above it. Costs nothing and makes the tangle the only
+  thing to look at.
+- **One lesson per screen in the teaching levels**, bubble-with-a-tail over
+  the board rather than a caption somewhere else.
+- **A two-row HUD**: identity (back, level, settings) above resources
+  (hearts or clock, and the hint). Ours already carries these; the split is
+  what makes a dense board readable under them.
+- **A primary button that names what it resumes** — the difficulty and the
+  level number on the button itself, so the home screen answers "what am I
+  about to play" without a tap.
 
 ## 4. What we deliberately do not take
 
@@ -139,6 +182,24 @@ accounts.
   retuned against real fail rates (`TELEMETRY.md` 3.2).
 - **Their ad load.** Section 2.2. This is the one we must actively refuse,
   repeatedly, for as long as the game earns.
+- **A tracking prompt.** We ask for no advertising identifier at all
+  (`TELEMETRY.md`), so there is no consent screen between install and the
+  first level.
+- **A colourless level 1.** Theirs can teach tapping first because colour is
+  decoration for them; ours is the rule, so a player who learns to tap
+  without it learns the wrong game. Level 1 stays three colours, and the
+  bubble teaches matching with them.
+- **Consent screens before the first level.** No welcome gate, no tracking
+  prompt, no notification prompt. The privacy policy is a row in settings
+  (`src/ui/settings.ts`), where a player can read it when they want to, and
+  the first thing after launch is a board.
+- **A theme picker.** Their palette is decoration, so re-skinning it is
+  free. Ours carries the rule and is calibrated once (`ART.md` 2). The
+  accessibility row turns the glyph redundancy up; it never repaints the
+  set.
+- **A mascot, a currency balance and social-proof copy on the home screen.**
+  Ours shows the level path, the stars earned, and the button that resumes
+  the run — the puzzle is the product.
 
 ---
 
