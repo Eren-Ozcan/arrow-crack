@@ -31,10 +31,17 @@ export interface Settings {
    */
   reducedMotion: boolean;
   /**
-   * Larger glyphs in full ink (ART.md 2.2). The glyphs are always on, so this
-   * turns the redundancy up rather than turning it on.
+   * Draws each colour's shape on top of the colour (ART.md 2.2): the arrow
+   * grows a tail knob carrying its glyph, and a block face carries its own.
+   * Off, the board is colour and silhouette alone.
    */
-  highContrastGlyphs: boolean;
+  colourBlindMode: boolean;
+  /**
+   * Collapses the cue set to the essentials — peel, heart lost, win — for a
+   * player who finds layered feedback overwhelming (AUDIO.md 5). It is not a
+   * mute: no sound is ever the only channel for anything.
+   */
+  reducedAudio: boolean;
   /** English only in v1 (STORE.md); the field exists so a locale is content. */
   language: string;
 }
@@ -58,7 +65,8 @@ export const DEFAULT_SETTINGS: Settings = {
   music: true,
   haptics: true,
   reducedMotion: false,
-  highContrastGlyphs: false,
+  reducedAudio: false,
+  colourBlindMode: false,
   language: "en",
 };
 
@@ -280,9 +288,10 @@ function parseSettings(value: unknown): Settings {
     // A save written before these existed simply has neither field, and an
     // absent boolean is its default — which is why they need no migration.
     reducedMotion: asBoolean(value["reducedMotion"], DEFAULT_SETTINGS.reducedMotion),
-    highContrastGlyphs: asBoolean(
-      value["highContrastGlyphs"],
-      DEFAULT_SETTINGS.highContrastGlyphs,
+    reducedAudio: asBoolean(value["reducedAudio"], DEFAULT_SETTINGS.reducedAudio),
+    colourBlindMode: asBoolean(
+      value["colourBlindMode"],
+      DEFAULT_SETTINGS.colourBlindMode,
     ),
     language:
       typeof value["language"] === "string"

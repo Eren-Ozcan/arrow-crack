@@ -147,7 +147,7 @@ describe("the local save", () => {
     );
 
     expect(save.settings.reducedMotion).toBe(false);
-    expect(save.settings.highContrastGlyphs).toBe(false);
+    expect(save.settings.colourBlindMode).toBe(false);
     expect(save.settings.music).toBe(false);
     expect(save.hints).toBe(2);
   });
