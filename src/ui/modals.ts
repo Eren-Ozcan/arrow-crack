@@ -110,6 +110,11 @@ export class Modals {
     this.root.hidden = true;
   }
 
+  /** True while a panel owns the screen; an ad never lands on top of one. */
+  get isOpen(): boolean {
+    return !this.root.hidden;
+  }
+
   close(): void {
     this.#stopPlayback();
     this.root.hidden = true;

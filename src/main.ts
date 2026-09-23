@@ -46,9 +46,60 @@ function reducedMotion(): boolean {
 const solver = new SolverClient();
 const modals = new Modals();
 const store = new SaveStore();
+
+/**
+ * Monetization and analytics (`ADS.md` 2.1, `TELEMETRY.md` 2.1). No driver is
+ * passed, so on the web and in a dev build every one of these is inert: the
+ * game runs the full flow with no ad, no store and no event, which is also
+ * what a player who refuses consent gets.
+ */
+const iap = new IapService({
+  onPurchase: (result) =>
+    analytics.log({
+      name: "purchase",
+      product: result.product,
+      price: result.price,
+      currency: result.currency,
+    }),
+});
+const ads = new AdService({
+  storage: adStorage(),
+  adsRemoved: () => iap.adsRemoved(),
+  uiBusy: () => modals.isOpen || waitingToStart,
+  onResult: (placement, result) =>
+    analytics.log({
+      name: "ad_shown",
+      format: placement === "level_complete" ? "interstitial" : "rewarded",
+      placement,
+      result,
+    }),
+});
+const analytics = new Analytics();
+/** Which level the two counters below are about. */
+let startedLevelId: number | null = null;
+/** `attempt_no` in the schema: which go at this level this one is. */
+let attemptNo = 0;
+
+function adStorage(): Storage | null {
+  try {
+    return globalThis.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Consent decides both, together (`TELEMETRY.md` 2.2). Nothing awaits this:
+ * the first level starts whether or not an ad SDK ever answers.
+ */
+async function bootServices(): Promise<void> {
+  const [consented] = await Promise.all([ads.prepare(), iap.prepare()]);
+  analytics.setConsent(consented);
+}
+void bootServices();
 setLanguage(store.save.settings.language);
 
-const audio = new AudioEngine(audioSettings());
+const audio = new AudioEngine(audioSettings(), { focus: audioFocusBridge() });
 
 function audioSettings(): {
   sound: boolean;
@@ -114,6 +165,18 @@ function applySettings(patch: Partial<Settings>): void {
 
 /** Leaves the board: the attempt is abandoned, nothing is charged for it. */
 function showHome(): void {
+  // Leaving mid-level is the quietest churn signal there is (TELEMETRY.md
+  // 2.3), so it is reported before the session is thrown away.
+  const view = session?.state;
+  if (session && view?.status === "playing") {
+    analytics.log({
+      name: "level_quit",
+      level_id: session.level.id,
+      shots_fired: lastView?.shotsFired ?? 0,
+      mistakes: view.mistakes,
+    });
+  }
+
   session?.destroy();
   session = null;
   waitingToStart = false;
@@ -155,6 +218,10 @@ function start(levelId: number, force = false): void {
   audio.startMusic();
   next.start();
 
+  // The caps and the mistake budget are per attempt (ADS.md 1.3,
+  // TELEMETRY.md 2.4); `attempt_no` counts the goes at this level.
+  beginAttempt(level.id);
+
   // A one-heart level and a timed level each announce themselves before they
   // start, never after (DESIGN.md 1.5, PROGRESSION.md 3).
   const timed = level.type === "timed" && level.timeLimitMs !== undefined;
@@ -178,6 +245,38 @@ function start(levelId: number, force = false): void {
         }
       : { kind: "oneHeart", levelId: level.id, onStart },
   );
+}
+
+/**
+ * A restart is a new attempt at the same level (`DESIGN.md` 1.5): free and
+ * instant, and therefore also a fresh set of ad caps and a fresh `mistake`
+ * budget. It is the only way the board is reset, so the counters are raised
+ * in one place rather than at each of the four buttons that reach it.
+ */
+function restart(): void {
+  if (!session) return;
+  session.restart();
+  beginAttempt(session.level.id);
+}
+
+function beginAttempt(levelId: number): void {
+  const level = levelById(levelId);
+  if (!level) return;
+
+  if (levelId !== startedLevelId) {
+    startedLevelId = levelId;
+    attemptNo = 0;
+  }
+  attemptNo += 1;
+  ads.startAttempt();
+  analytics.startAttempt();
+  analytics.log({
+    name: "level_start",
+    level_id: level.id,
+    level_type: level.type ?? "standard",
+    hearts: level.hearts,
+    attempt_no: attemptNo,
+  });
 }
 
 /**
@@ -273,9 +372,19 @@ function onChange(view: SessionView): void {
 
   if (view.status === "lost") {
     audio.stopAll();
+    analytics.log({
+      name: "level_fail",
+      level_id: view.levelId,
+      level_type: levelById(view.levelId)?.type ?? "standard",
+      mistakes: view.mistakes,
+      shots_fired: view.shotsFired,
+      duration_ms: Math.round(view.elapsedMs),
+      blocks_left: blocksLeft(),
+      layers_left: layersLeft(),
+    });
     // The rewarded ad lands in milestone 8; the grant itself is the engine's.
     const onContinue = (): void => session?.continueAfterAd();
-    const onRestart = (): void => session?.restart();
+    const onRestart = (): void => restart();
     const onHome = (): void => showHome();
 
     // On a timed level the budget that ran out was the clock, so the panel
@@ -289,9 +398,15 @@ function onChange(view: SessionView): void {
   }
 
   audio.stopAll();
+  analytics.log({
+    name: "level_stuck",
+    level_id: view.levelId,
+    shots_fired: view.shotsFired,
+    cause: "other",
+  });
   modals.show({
     kind: "stuck",
-    onRestart: () => session?.restart(),
+    onRestart: () => restart(),
     onHome: () => showHome(),
   });
 }
@@ -314,6 +429,18 @@ function onWin(view: SessionView): void {
   );
 
   audio.playSequence(cuesForWin(view.stars, view.mistakes === 0));
+  analytics.log({
+    name: "level_win",
+    level_id: view.levelId,
+    level_type: levelById(view.levelId)?.type ?? "standard",
+    mistakes: view.mistakes,
+    stars: view.stars,
+    score,
+    max_multiplier: view.maxMultiplier,
+    shots_fired: view.shotsFired,
+    duration_ms: Math.round(view.elapsedMs),
+    continues_used: ads.attempt.continuesUsed,
+  });
 
   const next = nextLevelId(view.levelId);
   modals.show({
@@ -328,10 +455,31 @@ function onWin(view: SessionView): void {
       personalBest: previousBest !== null && score > previousBest,
       remainingMs: view.remainingMs,
     }),
-    onNext: next === null ? null : () => start(next),
-    onRestart: () => session?.restart(),
-    onHome: () => showHome(),
+    onNext: next === null ? null : () => leaveWin(view.levelId, () => start(next)),
+    onRestart: () => restart(),
+    onHome: () => leaveWin(view.levelId, () => showHome()),
   });
+}
+
+/**
+ * The single exit from the win celebration (`ADS.md` 1.1). Every way out —
+ * Next, Home, and the Android back button once it is wired — comes through
+ * here, so there is no door the ad trigger does not sit behind. The panel is
+ * dismissed first: the stars and the score are fully shown before the ad,
+ * and the next screen appears once it closes.
+ */
+function leaveWin(levelId: number, go: () => void): void {
+  modals.close();
+  void ads.maybeShowInterstitial(levelId).finally(go);
+}
+
+/** What was still standing when the hearts ran out (`TELEMETRY.md` 2.3). */
+function blocksLeft(): number {
+  return session?.state.blocks.length ?? 0;
+}
+
+function layersLeft(): number {
+  return session?.state.blocks.reduce((sum, block) => sum + block.layers.length, 0) ?? 0;
 }
 
 /**

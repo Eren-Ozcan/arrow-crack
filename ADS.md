@@ -112,6 +112,34 @@ here from the start so the trigger is one single function with no back door.
 
 ## 2. Implementation
 
+### 2.0 What exists today
+
+The facade layer and every rule above it are written and tested; nothing
+native is wired yet, because the AdMob, RevenueCat and Firebase accounts in
+section 3 do not exist for this app.
+
+- `src/state/adState.ts` — the shared cooldown, its corrupt-stamp handling,
+  and the per-attempt caps, as pure functions (`tests/ads.test.ts`).
+- `src/services/ads.ts` — `AdService`, which talks to an `AdDriver` rather
+  than to a plugin. With no driver it answers `unavailable` to everything,
+  which is what the browser, the tests and a player who refused consent all
+  get, and the game flow is identical in every one of those cases.
+- `src/services/iap.ts` — `IapService` over an `IapDriver`, same shape.
+- `src/services/analytics.ts` — the `TELEMETRY.md` 2.3 schema as a typed
+  union, the consent gate and the 20-per-attempt `mistake` cap.
+- `src/main.ts` — consent boot, `level_start` / `level_win` / `level_fail` /
+  `level_stuck` / `level_quit` / `mistake` / `ad_shown` / `purchase`, and
+  `leaveWin()`, the single exit from the win celebration that the
+  interstitial sits behind (section 1.1).
+
+**What is left**, in order: the AdMob plugin driver and the console checklist
+in section 3; the RevenueCat driver and its products; the Firebase Analytics
+driver plus `google-services.json`; `@capacitor/app` so the **Android back
+button** reaches `leaveWin()` rather than the system default; and the
+remaining events — `hint_used`, `special_used`, `combo_break`,
+`continue_offered` / `continue_taken`, `skip_used` — which land with the
+rewarded buttons that raise them.
+
 ### 2.1 Module shape
 
 ```

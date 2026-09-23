@@ -87,6 +87,16 @@ stuck detection (`DESIGN.md` section 1.7); reusing it here costs nothing.
 
 ## 2. Analytics
 
+### 2.0 What exists today
+
+`src/services/analytics.ts` holds the 2.3 schema as a typed union, the
+consent gate of 2.2 and the per-attempt `mistake` cap of 2.4, over an
+`AnalyticsDriver`. No driver is passed yet, so nothing is sent anywhere; the
+Firebase driver and `google-services.json` are the next step (`ADS.md` 2.0).
+The events already raised from `main.ts` are `level_start`, `level_win`,
+`level_fail`, `level_stuck`, `level_quit`, `mistake`, `ad_shown` and
+`purchase`. The rest arrive with the UI that raises them.
+
 ### 2.1 Vendor
 
 Firebase Analytics, via `@capacitor-firebase/analytics`, behind

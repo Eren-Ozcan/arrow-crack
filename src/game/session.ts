@@ -66,6 +66,12 @@ export interface SessionView {
   busy: boolean;
   /** The string key of the coach mark to show right now, or null (DESIGN.md 2). */
   coach: StringKey | null;
+  /** Shots fired this attempt, for the analytics schema (TELEMETRY.md 2.3). */
+  shotsFired: number;
+  /** The highest multiplier this attempt reached, which a league would rank. */
+  maxMultiplier: number;
+  /** Milliseconds since the attempt began, on every level type. */
+  elapsedMs: number;
 }
 
 export interface SessionOptions {
@@ -180,6 +186,7 @@ export class GameSession {
   }
 
   start(): void {
+    this.#attemptStartedAt = performance.now();
     this.#canvas.addEventListener("pointerdown", this.#onPointerDown);
     this.#canvas.addEventListener("pointermove", this.#onPointerMove);
     this.#canvas.addEventListener("pointerup", this.#onPointerUp);
@@ -336,6 +343,9 @@ export class GameSession {
       fitted: isFitted(this.#camera),
       busy: this.#animations.length > 0,
       coach: this.#coach?.key ?? null,
+      shotsFired: this.#shotsFired,
+      maxMultiplier: this.#maxMultiplier,
+      elapsedMs: performance.now() - this.#attemptStartedAt,
     });
   }
 
