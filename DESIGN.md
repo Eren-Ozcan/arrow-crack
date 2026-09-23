@@ -355,7 +355,7 @@ Tutorial beats, one new idea at a time, no text walls:
 | ----- | ----------------------------------------------------------------- |
 | 1     | Tap an arrow to fire it                                           |
 | 2     | A blocked arrow cannot move — and tapping it anyway costs a heart |
-| 3     | Wrong color bounces and costs a heart                             |
+| 32    | Wrong color bounces and costs a heart                             |
 | 5     | Layered blocks: the inner bands show what is underneath           |
 | 8     | Hearts and stars: a clean solve is 3 stars                        |
 | 20    | The first one-heart level, announced before it starts             |
@@ -365,9 +365,19 @@ Tutorial beats, one new idea at a time, no text walls:
 | 50    | Hearts drop to three from here on                                 |
 | 55    | Ghost                                                             |
 
+**The colour mismatch is taught at 32, not at 3.** It cannot be taught
+earlier, because it cannot happen earlier: while every block is fed by a
+single lane, that lane's arrows stand in the order its layers peel, so the
+only wrong tap available is a blocked one. A mismatch first becomes possible
+where two lanes feed one stack — the wide block introduced at 31 — and level
+32 is the first board a player can actually bounce on. `tests/tutorial.test.ts`
+asserts both halves of that: every mistake beat is reachable on its own level,
+and the mismatch is out of reach on the single-lane levels.
+
 **Levels 1-3 forgive.** In the three levels that teach what costs a heart, the
-mistake is demonstrated rather than punished: the shake/bounce plays, a
-one-line coach mark explains it, and the heart is **not** taken. Teaching a
+mistake is demonstrated rather than punished: the shake plays, a one-line
+coach mark explains it, and the heart is **not** taken. What they teach is
+the blocked tap, since that is the only mistake those boards allow. Teaching a
 rule and charging for it in the same breath is how a tutorial loses a player.
 From level 4 on, every mistake is charged.
 

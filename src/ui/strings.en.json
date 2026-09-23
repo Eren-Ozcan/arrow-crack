@@ -71,7 +71,7 @@
 
   "coach.1.start": "Tap an arrow to fire it.",
   "coach.2.blocked": "Blocked by another arrow. Off the tutorial, that costs a heart.",
-  "coach.3.bounced": "Wrong colour, so it bounces back. Off the tutorial, that costs a heart.",
+  "coach.32.bounced": "Wrong colour, so it bounced back â€” and that cost a heart. Read the top layer before firing.",
   "coach.5.start": "Blocks are layered. The edges along the inside show what is underneath.",
   "coach.8.start": "Hearts pay for mistakes. Finish without one for three stars.",
   "coach.20.start": "One heart. Read the board before every tap.",
