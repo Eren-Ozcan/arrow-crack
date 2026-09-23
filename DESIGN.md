@@ -586,9 +586,15 @@ everything around it. A fixed logical resolution scaled to the viewport
 keeps the layout resolution-independent.
 
 Animation: the engine resolves a tap instantly; the renderer plays the
-resulting event as a short timeline (slide, impact, peel/shatter or bounce)
-and input is locked until it finishes. A tap during the animation queues at
-most one pending tap.
+resulting event as a short timeline (slide, impact, peel/shatter or bounce).
+**Input is never locked.** A tap that lands while another shot is still in
+the air is resolved at once and plays alongside it, so several bodies can be
+on their way at the same time — the rules are already sequential, because each
+tap resolves against the board the taps before it left behind. Locking the
+board and queueing a single pending tap was the earlier behaviour: it made
+the game feel like it was hesitating, and every tap past the first was
+dropped. The end-of-level panel is the one thing that waits, until the last
+shot has landed (`ART.md` 7).
 
 ---
 
@@ -609,8 +615,8 @@ most one pending tap.
   **`ADS.md`**. That file is bound by the studio-wide
   `C:\Projects\pictures\ADS_POLICY.md`; no ad trigger is added without
   reading it first.
-- **Settings**: sound, music, haptics, reduced motion, high-contrast shapes,
-  language, restore purchases, privacy policy link, delete data.
+- **Settings**: sound, music, haptics, reduced audio, reduced motion,
+  colour-blind mode, language, restore purchases, privacy policy link, delete data.
 - **Language**: **English only.** Strings still live in JSON behind a lookup,
   so adding a locale later is a content task rather than a refactor — but
   nothing is translated for v1 and no string is written assuming it will be.
@@ -619,11 +625,11 @@ most one pending tap.
   Levels ship in the bundle and can be retuned through a Firebase Remote
   Config override; the `mistake` event split (blocked tap vs. wrong color)
   is what validates or kills the blocked-tap rule.
-- **Accessibility**: every color carries a distinct glyph, **always on, not
-  a toggle** — the board is matchable on shape alone. The settings option
-  turns the glyphs up to high contrast rather than turning them on. Plus a
-  reduced-motion setting. Full art spec, palette and validation tests:
-  `ART.md`.
+- **Accessibility**: every color owns a distinct glyph, drawn on every
+  surface carrying that color when **colour-blind mode** is on — the board is
+  then matchable on shape alone. With the mode off the board is flat: color
+  and silhouette, no marks. Plus reduced-motion and reduced-audio settings.
+  Full art spec, palette and validation tests: `ART.md`.
 
 ---
 

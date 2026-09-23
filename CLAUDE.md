@@ -40,6 +40,7 @@ a document disagree, fix one of them in the same change — do not leave both.
 | `npm run levels:manifest` | Regenerate `src/levels/manifest`  |
 | `npm run levels:generate` | Propose levels 31-80 (`--write`)  |
 | `npm run levels:validate` | The level gate (`CI.md` 2.2)      |
+| `npm run art:shoot`       | ART.md 10 stills (needs `dev`)    |
 | `npm run build`           | Production web build              |
 | `npm run size`            | Bundle budget gate                |
 | `npm run cap:sync`        | Build, then sync into `android/`  |
@@ -48,6 +49,7 @@ a document disagree, fix one of them in the same change — do not leave both.
 ## Where things live
 
 `src/engine` rules, `src/solver` search, `src/render` canvas drawing,
+`src/audio` the synthesised cue set (`AUDIO.md` 6 — no sound files ship),
 `src/input` gesture arbitration, `src/game` the session that owns the clock
 and the score, `src/ui` DOM screens, `src/levels` level JSON and the loader,
 `src/state` the schema-versioned local save. The engine and the solver are
