@@ -1,6 +1,6 @@
 import type { Arrow, Block, Cell, GameState } from "@/engine/types";
-import type { AnimationPlan } from "./animation";
-import { easeOut, phaseAt, shakeOffset } from "./animation";
+import type { AnimationPlan, PhaseProgress } from "./animation";
+import { phaseAt, shakeOffset } from "./animation";
 import type { Camera } from "./camera";
 import { boardToScreen } from "./camera";
 import type { Layout, Point } from "./layout";
@@ -11,6 +11,7 @@ import {
   drawArrow,
   drawBlock,
   drawGlyph,
+  edgeColour,
   outlineWidth,
   pipeWidth,
   roundedRect,
@@ -31,6 +32,14 @@ export interface GuideView {
   splashBlockIds?: readonly string[];
 }
 
+/** One shot in flight: its plan, how far into it we are, and what it scored. */
+export interface ShotAnimation {
+  plan: AnimationPlan;
+  elapsed: number;
+  /** Points this shot earned, floated off the block it peeled. */
+  gained?: number;
+}
+
 export interface RenderInput {
   state: GameState;
   layout: Layout;
@@ -40,15 +49,18 @@ export interface RenderInput {
   guide?: GuideView | null;
   /** Blocker highlight after a blocked tap (ART.md 6.2). */
   pulse?: { arrowIds: readonly string[]; t: number } | null;
-  animation?: { plan: AnimationPlan; elapsed: number } | null;
-  /** Points the last shot earned, floated off the block that was peeled. */
-  gained?: number;
+  /**
+   * Every shot still playing. A tap is never held back for the one before it
+   * (DESIGN.md 5), so more than one body can be in the air, and each carries
+   * the points it earned rather than the board carrying the last shot's.
+   */
+  animations?: readonly ShotAnimation[] | null;
   /** Clock for the idle bob; omitted under reduced motion. */
   now?: number;
   /** Grid lines help trace a tangle; off by default. */
   showGrid: boolean;
-  /** Turns the glyph redundancy up rather than on (ART.md 2.2). */
-  highContrastGlyphs?: boolean;
+  /** Draws each colour's own shape on top of the colour (ART.md 2.2). */
+  colourBlindMode?: boolean;
   /**
    * The arrow that was tapped wrong. It is drawn red and stays red until
    * another arrow is tapped (ART.md 6).
@@ -96,15 +108,23 @@ const SETTLE_RATIO = 0.07;
  * Reduced motion drops the recoil phase outright, so this returns zero.
  */
 function screenShake(input: RenderInput): Point {
-  const { animation, layout } = input;
-  if (!animation || animation.plan.event !== "bounced") return { x: 0, y: 0 };
+  const { layout } = input;
+  let shake: Point = { x: 0, y: 0 };
 
-  const phase = phaseAt(animation.plan, animation.elapsed);
-  if (phase?.kind !== "recoil") return { x: 0, y: 0 };
+  // Two mismatches at once kick the board twice; the axes add rather than one
+  // of them winning, which is what two impacts actually feel like.
+  for (const animation of input.animations ?? []) {
+    if (animation.plan.event !== "bounced") continue;
 
-  const unit = directionUnit(animation.plan.arrow.dir);
-  const amount = shakeOffset(phase.t, layout.cell * SCREEN_SHAKE_RATIO);
-  return { x: unit.x * amount, y: unit.y * amount };
+    const phase = phaseAt(animation.plan, animation.elapsed);
+    if (phase?.kind !== "recoil") continue;
+
+    const unit = directionUnit(animation.plan.arrow.dir);
+    const amount = shakeOffset(phase.t, layout.cell * SCREEN_SHAKE_RATIO);
+    shake = { x: shake.x + unit.x * amount, y: shake.y + unit.y * amount };
+  }
+
+  return shake;
 }
 
 function drawBoardSurface(
@@ -176,18 +196,38 @@ function drawBoardSurface(
 }
 
 function drawBlocks(context: CanvasRenderingContext2D, input: RenderInput): void {
-  const { state, layout, animation, guide } = input;
-  const phase = animation ? phaseAt(animation.plan, animation.elapsed) : null;
-  const hit = animation?.plan.block;
+  const { state, layout, guide } = input;
+  const playing = livePhases(input);
 
-  for (const block of state.blocks) {
-    const isHit = phase?.kind === "impact" && block.id === hit?.id;
-    const flash = isHit ? 1 - phase.t : 0;
+  // The reducer resolves a shot at the tap, but the block it hit may not come
+  // apart until the head arrives: while a body is still sliding its target is
+  // drawn as it was, layers and all, and a block that shot destroyed is added
+  // back for the slide (ART.md 6). The oldest shot still on its way wins,
+  // because a block two shots are heading for has not met either of them yet.
+  const pending = new Map<string, Block>();
+  for (const { animation, phase } of playing) {
+    const block = animation.plan.block;
+    if (phase.kind !== "slide" || !block || pending.has(block.id)) continue;
+    pending.set(block.id, block);
+  }
+
+  const landed = playing.find(({ phase }) => phase.kind === "impact");
+  const hit = landed?.animation.plan.block;
+  const impact = landed?.phase;
+
+  const blocks = state.blocks.map((block) => pending.get(block.id) ?? block);
+  for (const [id, block] of pending) {
+    if (!state.blocks.some((candidate) => candidate.id === id)) blocks.push(block);
+  }
+
+  for (const block of blocks) {
+    const isHit = impact !== undefined && block.id === hit?.id;
+    const flash = isHit ? 1 - impact.t : 0;
     // The layer the slab was hiding drops in and springs back, which is what
     // makes a peel read as a stack losing its top rather than as a recolour.
     const settle =
-      isHit && animation?.plan.event === "peeled"
-        ? settleOffset(phase.t, layout.cell * SETTLE_RATIO)
+      isHit && landed?.animation.plan.event === "peeled"
+        ? settleOffset(impact.t, layout.cell * SETTLE_RATIO)
         : 0;
     const inward = innerDirection(block.side);
 
@@ -198,7 +238,7 @@ function drawBlocks(context: CanvasRenderingContext2D, input: RenderInput): void
       highlighted:
         guide?.targetBlockId === block.id ||
         (guide?.splashBlockIds?.includes(block.id) ?? false),
-      highContrastGlyph: input.highContrastGlyphs ?? false,
+      colourBlind: input.colourBlindMode ?? false,
     });
     context.restore();
   }
@@ -206,12 +246,28 @@ function drawBlocks(context: CanvasRenderingContext2D, input: RenderInput): void
   // The slab that came off is thrown, and a block destroyed this turn is
   // already gone from the state, so its whole shatter is thrown instead — the
   // frame gap it leaves behind is the point (ART.md 6).
-  if (hit && phase?.kind === "impact" && animation?.plan.event === "peeled") {
-    drawShards(context, layout, hit, phase.t, "peel");
+  for (const { animation, phase } of playing) {
+    const block = animation.plan.block;
+    if (!block) continue;
+    if (phase.kind === "impact" && animation.plan.event === "peeled") {
+      drawShards(context, layout, block, phase.t, "peel");
+    }
+    if (phase.kind === "shatter") {
+      drawShards(context, layout, block, phase.t, "shatter");
+    }
   }
-  if (hit && phase?.kind === "shatter") {
-    drawShards(context, layout, hit, phase.t, "shatter");
+}
+
+/** The shots still on screen this frame, oldest first, with where each is. */
+function livePhases(
+  input: RenderInput,
+): { animation: ShotAnimation; phase: PhaseProgress }[] {
+  const live: { animation: ShotAnimation; phase: PhaseProgress }[] = [];
+  for (const animation of input.animations ?? []) {
+    const phase = phaseAt(animation.plan, animation.elapsed);
+    if (phase) live.push({ animation, phase });
   }
+  return live;
 }
 
 /**
@@ -241,7 +297,7 @@ function drawShards(
 
   context.save();
   context.fillStyle = entry.fill;
-  context.strokeStyle = THEME.ink;
+  context.strokeStyle = edgeColour(entry.fill);
   context.lineWidth = Math.max(1, outlineWidth(layout) * 0.6);
 
   for (const shard of shards) {
@@ -273,8 +329,19 @@ function drawShards(
  * over the board (PROGRESSION.md 2.1).
  */
 function drawFloatingScore(context: CanvasRenderingContext2D, input: RenderInput): void {
-  const { animation, layout, gained } = input;
-  if (!animation || !gained) return;
+  for (const animation of input.animations ?? []) {
+    drawOneScore(context, input.layout, animation);
+  }
+}
+
+/** The number one shot earned, which belongs to that shot and not the board. */
+function drawOneScore(
+  context: CanvasRenderingContext2D,
+  layout: Layout,
+  animation: ShotAnimation,
+): void {
+  const gained = animation.gained ?? 0;
+  if (!gained) return;
 
   const block = animation.plan.block;
   if (!block) return;
@@ -320,12 +387,12 @@ function innerDirection(side: Block["side"]): Point {
 }
 
 function drawArrows(context: CanvasRenderingContext2D, input: RenderInput): void {
-  const { state, layout, animation, pulse } = input;
-  const phase = animation ? phaseAt(animation.plan, animation.elapsed) : null;
-  const animatedId = phase ? animation?.plan.arrow.id : undefined;
+  const { state, layout, pulse } = input;
+  const playing = livePhases(input);
+  const animated = new Set(playing.map(({ animation }) => animation.plan.arrow.id));
 
   for (const arrow of state.arrows) {
-    if (arrow.id === animatedId) continue;
+    if (animated.has(arrow.id)) continue;
 
     // Every arrow bobs: a blocked one is drawn exactly like any other, and
     // what it runs into is read off the board or off the hold guide.
@@ -337,21 +404,22 @@ function drawArrows(context: CanvasRenderingContext2D, input: RenderInput): void
     drawArrow(context, layout, arrow, {
       pulse: pulse?.arrowIds.includes(arrow.id) ? 1 - pulse.t : 0,
       offset: { x: 0, y: bob },
-      highContrastGlyph: input.highContrastGlyphs ?? false,
+      colourBlind: input.colourBlindMode ?? false,
       wrong: arrow.id === input.wrongArrowId,
     });
   }
 
   // Once the arrow has landed it is gone: the impact frame is the last one
   // that draws it, and the shatter belongs to the block.
-  if (phase && animation && phase.kind !== "shatter") {
+  for (const { animation, phase } of playing) {
+    if (phase.kind === "shatter") continue;
     drawAnimatedArrow(
       context,
       layout,
       animation,
       phase.kind,
       phase.t,
-      input.highContrastGlyphs ?? false,
+      input.colourBlindMode ?? false,
     );
   }
 }
@@ -364,15 +432,18 @@ function hashId(id: string): number {
 function drawAnimatedArrow(
   context: CanvasRenderingContext2D,
   layout: Layout,
-  animation: { plan: AnimationPlan; elapsed: number },
+  animation: ShotAnimation,
   kind: string,
   t: number,
-  highContrastGlyph: boolean,
+  colourBlind: boolean,
 ): void {
   const { plan } = animation;
   const arrow = plan.arrow;
-  // Far enough that the head reaches into the frame gap, not just the last cell.
-  const distance = plan.travel * layout.cell + layout.gap;
+  // Far enough that the head reaches into the frame gap, not just the last
+  // cell — except on a blocked tap, where what stopped the arrow is another
+  // arrow on the board and the head has to stop against it, not past it.
+  const distance =
+    plan.travel * layout.cell + (plan.event === "blocked" ? 0 : layout.gap);
   const unit = directionUnit(arrow.dir);
 
   let travelled = 0;
@@ -380,16 +451,21 @@ function drawAnimatedArrow(
   let alpha = 1;
 
   if (kind === "slide") {
-    travelled = easeOut(t) * distance;
+    // Linear, as ART.md 7 says. It used to run on `easeOut`, which is 65% of
+    // the way across at a third of the time: the arrow appeared to shoot and
+    // then crawl, and lengthening the phase only made the crawl longer. The
+    // perceived speed has to be the one the duration sets.
+    travelled = t * distance;
     alpha = plan.event === "flewOff" ? 1 - t * 0.9 : 1;
   } else if (kind === "impact") {
     travelled = distance;
     alpha = 1 - t;
   } else if (kind === "recoil") {
-    // Both mistakes shake hard and leave the board exactly as it was. A
-    // bounce slides back down its own track first, so the arrow is never seen
-    // to teleport home.
-    travelled = plan.event === "bounced" ? distance * (1 - t) : 0;
+    // Both mistakes shake hard and leave the board exactly as it was, and
+    // both slide back down their own track first, so the arrow is never seen
+    // to teleport home. What it hit — a block of the wrong colour, or another
+    // arrow — is where the recoil starts from.
+    travelled = distance * (1 - t);
     const shake = shakeOffset(t, layout.cell * 0.14);
     offset = { x: unit.y * shake, y: unit.x * shake };
   }
@@ -399,7 +475,7 @@ function drawAnimatedArrow(
   drawArrow(context, layout, arrow, {
     offset,
     alpha,
-    highContrastGlyph,
+    colourBlind,
     ...(travelled > 0 ? { points: trailPoints(layout, arrow, travelled) } : {}),
   });
 }
@@ -493,14 +569,12 @@ function drawEdgeMarker(
   context.beginPath();
   context.arc(marker.x, marker.y, margin * 0.8, 0, Math.PI * 2);
   context.fillStyle = entry.fill;
-  context.strokeStyle = THEME.ink;
+  context.strokeStyle = edgeColour(entry.fill);
   context.lineWidth = 2;
   context.fill();
   context.stroke();
-  drawGlyph(context, marker, entry.glyph, layout, THEME.ink, {
-    highContrast: input.highContrastGlyphs ?? false,
-    scale: 0.22,
-  });
+  if (input.colourBlindMode)
+    drawGlyph(context, marker, entry.glyph, layout, THEME.ink, { scale: 0.22 });
   context.restore();
 }
 

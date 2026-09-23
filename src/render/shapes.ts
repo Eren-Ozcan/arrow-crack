@@ -5,21 +5,28 @@ import type { Glyph } from "./palette";
 import { mix, PALETTE, paletteEntry, THEME } from "./palette";
 
 /**
- * Everything on the board is drawn procedurally (ART.md 8), flat and seen
- * straight on: an arrow is a coloured stroke over a heavier ink stroke, with
- * an open chevron head and the glyph on its tail; a block is a flat face with
- * the layers underneath shown as nested bands on the same plane. Nothing is
- * drawn with thickness, and nothing is offset to fake depth.
+ * Everything on the board is drawn procedurally (ART.md 8) and seen straight
+ * on: an arrow is a coloured stroke over a heavier stroke of its own dark,
+ * with an open chevron head and, in colour-blind mode, the glyph on its tail;
+ * a block is a face inside that same dark edge, with the layers underneath
+ * shown as nested bands. No black ink anywhere — every edge on the board is
+ * the colour's own dark tone (ART.md 1), which is what lets the board read as
+ * moulded candy rather than as a diagram.
  */
 
 /** Stroke width as a fraction of the cell, leaving a gutter between runs. */
 const PIPE_RATIO = 0.14;
 /**
- * The ink stroke the colour is drawn over. Two same-coloured arrows lying
+ * The darker stroke the colour is drawn over. Two same-coloured arrows lying
  * side by side must still read as two objects, and this is what solves it
  * (ART.md 3) — so it is a backing, not an outline around a fill.
  */
 const OUTLINE_RATIO = 0.05;
+/** How far towards black an edge sits from the colour it edges (ART.md 1). */
+const EDGE_DARKEN = 0.34;
+/** The two ends of the body's shading: light at the top, barely dark below. */
+const FACE_LIGHT = 0.3;
+const FACE_SHADE = 0.1;
 /**
  * The chevron's arm length. It has to stay comfortably longer than the
  * backing is wide, or the two arms merge into a blob instead of reading as
@@ -32,8 +39,27 @@ const HEAD_RATIO = 0.34;
  * into a spade, which is the shape of neither an arrow nor a direction.
  */
 const HEAD_INSET_RATIO = 0.3;
-/** The tail glyph rides on the stroke, so it cannot be wider than it. */
-const GLYPH_RATIO = 0.1;
+/**
+ * The joint patch: how far back along the body it starts, and how far towards
+ * the point it reaches. Back far enough to cover the pipe's own ink cap;
+ * forward only as far as the chevron still encloses the body, so the point
+ * itself keeps its ink and stays the sharpest thing on the arrow.
+ */
+const JOINT_BACK_RATIO = 0.06;
+const JOINT_REACH_RATIO = 0.19;
+/**
+ * The tail carries the colour glyph in colour-blind mode, and on the
+ * narrowest shipped board a cell is 32dp — a glyph that rides the pipe alone
+ * is under 4dp there, which the ART.md 10.1 and 10.2 stills show is no
+ * redundancy at all. So the tail cap is widened into a knob and the glyph is
+ * sized to the knob instead (ART.md 3). The knob is still a rounded end,
+ * never a second point, so the head remains the only thing on the arrow that
+ * says direction. With the mode off the knob is not drawn at all and the
+ * arrow ends on its own rounded cap.
+ */
+const TAIL_RATIO = 0.3;
+/** The tail glyph, as a fraction of the cell: it has to fit inside the knob. */
+const GLYPH_RATIO = 0.22;
 /** A Ghost is translucent, and its outline is the only dashed one on the board. */
 const GHOST_ALPHA = 0.5;
 /** Band length of a Joker's pipe, as a fraction of the cell (ART.md 3.1). */
@@ -42,8 +68,8 @@ const JOKER_BAND_RATIO = 0.5;
 export interface ArrowStyle {
   /** 0-1; the blocker highlight pulse (ART.md 6.2). */
   pulse?: number;
-  /** Turns the glyph redundancy up rather than on (ART.md 2.2). */
-  highContrastGlyph?: boolean;
+  /** Draws the shape redundancy: the tail knob and its glyph (ART.md 2.2). */
+  colourBlind?: boolean;
   /** Board-space offset, used for the idle bob and the mistake shake. */
   offset?: Point;
   /**
@@ -60,12 +86,48 @@ export interface ArrowStyle {
   wrong?: boolean;
 }
 
+/**
+ * The edge a colour is drawn over: its own dark, never black. One function
+ * owns it so an arrow, a block, a knob and a chevron cannot drift apart.
+ */
+export function edgeColour(fill: string): string {
+  return mix(fill, "#000000", EDGE_DARKEN);
+}
+
+/**
+ * The body shading: light along the top, a touch of dark at the bottom. It is
+ * a single vertical ramp over whatever is being drawn, so a bend and a
+ * straight run are lit the same way — one light, from above (ART.md 1).
+ */
+function faceGradient(
+  context: CanvasRenderingContext2D,
+  fill: string,
+  top: number,
+  bottom: number,
+): CanvasGradient {
+  const gradient = context.createLinearGradient(0, top, 0, bottom);
+  gradient.addColorStop(0, mix(fill, "#FFFFFF", FACE_LIGHT));
+  gradient.addColorStop(0.6, fill);
+  gradient.addColorStop(1, mix(fill, "#000000", FACE_SHADE));
+  return gradient;
+}
+
 export function pipeWidth(layout: Layout): number {
   return layout.cell * PIPE_RATIO;
 }
 
 export function outlineWidth(layout: Layout): number {
   return Math.max(1.5, layout.cell * OUTLINE_RATIO);
+}
+
+/** Width of the tail knob the glyph sits on, ink edge excluded. */
+export function tailWidth(layout: Layout): number {
+  return layout.cell * TAIL_RATIO;
+}
+
+/** Diameter of the tail glyph itself, at the default embossed size. */
+export function glyphWidth(layout: Layout): number {
+  return layout.cell * GLYPH_RATIO;
 }
 
 /** Width of the ink backing: the coloured stroke plus an ink edge each side. */
@@ -111,7 +173,7 @@ export function drawArrow(
   // arrow is tapped (ART.md 6). The tail glyph is left alone: it is what
   // still says which colour the arrow is while the red is on it.
   const fill = style.wrong ? THEME.wrong : entry.fill;
-  const ink = THEME.ink;
+  const ink = edgeColour(fill);
   const width = pipeWidth(layout);
   const outline = outlineWidth(layout);
   const offset = style.offset ?? { x: 0, y: 0 };
@@ -153,7 +215,7 @@ export function drawArrow(
 
   if (style.pulse) {
     context.save();
-    context.strokeStyle = THEME.ink;
+    context.strokeStyle = ink;
     context.globalAlpha = (style.alpha ?? 1) * 0.35 * style.pulse;
     context.lineWidth = width + outline * 5;
     tracePipe(context, points, width / 2);
@@ -173,6 +235,12 @@ export function drawArrow(
   context.setLineDash([]);
 
   if (arrow.special === "ghost") context.globalAlpha = (style.alpha ?? 1) * GHOST_ALPHA;
+  // The body is flat, and deliberately so. A face gradient works on a block
+  // because a block is one rectangle lit from above; an arrow is a polyline
+  // whose thickness runs vertically on one segment and horizontally on the
+  // next, so a single ramp lights the body and the chevron differently and
+  // prints a bright patch where they meet. Flat colour inside the edge reads
+  // as moulded at every bend, which is what the tangle needs (ART.md 3).
   context.strokeStyle = fill;
   context.lineWidth = width;
   tracePipe(context, points, width / 2);
@@ -186,16 +254,44 @@ export function drawArrow(
     drawBombHead(context, head, towards, layout, fill, ink, outline);
   else drawHead(context, head, towards, layout, fill, ink, outline);
 
-  drawGlyph(
-    context,
-    points[0]!,
-    arrow.special === "joker" ? "all" : entry.glyph,
-    layout,
-    ink,
-    {
-      highContrast: style.highContrastGlyph ?? false,
-    },
-  );
+  // The head is the body's own line turning a corner (ART.md 3), so nothing
+  // is drawn across the place they meet. Both shapes carry their own ink
+  // edge, and where they overlap those two edges printed a dark notch in the
+  // mouth of the chevron — the arrow read as a shaft bolted to a separate
+  // head. Laying the body's colour down once more over the joint, after the
+  // head, erases it and leaves one continuous silhouette. The Ghost keeps its
+  // notch: its whole outline is dashed on purpose, and a solid patch in the
+  // middle of it would be the one continuous piece of a broken line.
+  if (arrow.special !== "ghost" && arrow.special !== "bomb") {
+    context.save();
+    context.strokeStyle = fill;
+    context.lineWidth = width;
+    context.lineCap = "round";
+    context.beginPath();
+    context.moveTo(
+      pipeEnd.x - towards.x * layout.cell * JOINT_BACK_RATIO,
+      pipeEnd.y - towards.y * layout.cell * JOINT_BACK_RATIO,
+    );
+    context.lineTo(
+      head.x - towards.x * layout.cell * JOINT_REACH_RATIO,
+      head.y - towards.y * layout.cell * JOINT_REACH_RATIO,
+    );
+    context.stroke();
+    context.restore();
+  }
+
+  // Flat by default: the tail is the pipe's own rounded cap, and the shape
+  // redundancy is what colour-blind mode adds on top of it (ART.md 2.2).
+  if (style.colourBlind) {
+    drawTailKnob(context, points[0]!, layout, fill, ink, arrow.special === "ghost");
+    drawGlyph(
+      context,
+      points[0]!,
+      arrow.special === "joker" ? "all" : entry.glyph,
+      layout,
+      ink,
+    );
+  }
 
   context.restore();
 }
@@ -326,17 +422,39 @@ function drawHead(
 }
 
 export interface GlyphStyle {
-  /** Same shapes, larger and in full ink: the accessibility option turns the
-   * redundancy up, it does not turn it on (ART.md 2.2). */
-  highContrast?: boolean;
-  /** Fraction of a cell the glyph spans before the high-contrast bump. */
+  /** Fraction of a cell the glyph spans. */
   scale?: number;
 }
 
-/** Ink alpha of the default embossed glyph; ART.md 2.3 floors it at 1.8:1. */
-export const GLYPH_ALPHA = 0.45;
-/** How much larger a high-contrast glyph is drawn. */
-export const HIGH_CONTRAST_GLYPH_SCALE = 1.3;
+/**
+ * The widened tail cap the glyph sits on. Drawn after the pipe so the ink
+ * backing reads as one silhouette with it, and translucent for a Ghost like
+ * the rest of that arrow's body.
+ */
+function drawTailKnob(
+  context: CanvasRenderingContext2D,
+  centre: Point,
+  layout: Layout,
+  fill: string,
+  ink: string,
+  ghost: boolean,
+): void {
+  const radius = (layout.cell * TAIL_RATIO) / 2;
+  const outline = outlineWidth(layout);
+
+  context.save();
+  context.beginPath();
+  context.arc(centre.x, centre.y, radius + outline, 0, Math.PI * 2);
+  context.fillStyle = ink;
+  context.fill();
+
+  if (ghost) context.globalAlpha *= GHOST_ALPHA;
+  context.beginPath();
+  context.arc(centre.x, centre.y, radius, 0, Math.PI * 2);
+  context.fillStyle = faceGradient(context, fill, centre.y - radius, centre.y + radius);
+  context.fill();
+  context.restore();
+}
 
 export function drawGlyph(
   context: CanvasRenderingContext2D,
@@ -347,17 +465,12 @@ export function drawGlyph(
   ink: string,
   style: GlyphStyle = {},
 ): void {
-  const highContrast = style.highContrast ?? false;
-  const size =
-    layout.cell *
-    (style.scale ?? GLYPH_RATIO) *
-    (highContrast ? HIGH_CONTRAST_GLYPH_SCALE : 1);
+  const size = layout.cell * (style.scale ?? GLYPH_RATIO);
 
   context.save();
   context.translate(centre.x, centre.y);
-  // Embossed and low contrast by default: a player with normal colour vision
-  // reads colour first and never notices the redundancy (ART.md 2.2).
-  context.globalAlpha = highContrast ? 1 : GLYPH_ALPHA;
+  // A glyph is only ever drawn in colour-blind mode, so it is printed in full
+  // ink rather than embossed: it is the signal, not a hint under it.
   context.fillStyle = ink;
   context.strokeStyle = ink;
   context.lineWidth = Math.max(1, size * 0.22);
@@ -416,8 +529,8 @@ export interface BlockStyle {
   flash?: number;
   /** The hairline that shows a block has been hit but not yet broken. */
   cracked?: boolean;
-  /** Turns the glyph redundancy up rather than on (ART.md 2.2). */
-  highContrastGlyph?: boolean;
+  /** Draws the shape redundancy: the colour's glyph (ART.md 2.2). */
+  colourBlind?: boolean;
   /** Outline for the press-and-hold target (ART.md 3.2). */
   highlighted?: boolean;
   alpha?: number;
@@ -438,37 +551,49 @@ export function drawBlock(
 
   const entry = paletteEntry(top);
   const outline = outlineWidth(layout);
-  const radius = Math.min(rect.width, rect.height) * 0.22;
-  const vertical = block.side === "left" || block.side === "right";
+  // Nearly a pill on the short side of the frame: the roundness is what makes
+  // a block read as moulded rather than as a panel (ART.md 5).
+  const radius = Math.min(rect.width, rect.height) * 0.44;
   const band = Math.min(rect.width, rect.height) * 0.1;
+  const edge = Math.max(2, Math.min(rect.width, rect.height) * 0.1);
 
   context.save();
   context.globalAlpha = style.alpha ?? 1;
 
-  // The face owns the square; the layers underneath are nested bands hugging
-  // the inside of the outline, on the same plane. Nothing is offset, because
-  // nothing on this board is drawn with thickness (ART.md 5).
-  context.fillStyle = entry.fill;
-  context.strokeStyle = THEME.ink;
-  context.lineWidth = outline * 1.6;
+  // The edge first, as a solid shape rather than a stroke: the face is then
+  // inset into it, so the dark reads as the block's own moulded rim and not
+  // as a line drawn around it (ART.md 5).
+  context.fillStyle = edgeColour(entry.fill);
   roundedRect(context, rect.x, rect.y, rect.width, rect.height, radius);
   context.fill();
-  context.stroke();
+
+  context.fillStyle = faceGradient(context, entry.fill, rect.y, rect.y + rect.height);
+  roundedRect(
+    context,
+    rect.x + edge,
+    rect.y + edge,
+    rect.width - edge * 2,
+    rect.height - edge * 2,
+    Math.max(1, radius - edge * 0.5),
+  );
+  context.fill();
 
   const hidden = block.layers.length - 1;
   const bands = Math.min(hidden, MAX_VISIBLE_BANDS);
+  let drawn = 0;
   for (let index = 1; index <= bands; index += 1) {
     const layer = block.layers[index];
     if (!layer) continue;
 
     // Outermost band is the layer that comes next, so the order the player
     // will meet them reads from the outside in.
-    const inset = outline * 0.8 + band * (index - 0.5);
+    const inset = edge + band * (index - 0.5);
     const width = rect.width - inset * 2;
     const height = rect.height - inset * 2;
     if (width <= band || height <= band) break;
 
-    context.strokeStyle = paletteEntry(layer).fill;
+    const layerFill = paletteEntry(layer).fill;
+    context.strokeStyle = layerFill;
     context.lineWidth = band;
     roundedRect(
       context,
@@ -480,7 +605,7 @@ export function drawBlock(
     );
     context.stroke();
 
-    context.strokeStyle = THEME.ink;
+    context.strokeStyle = edgeColour(layerFill);
     context.lineWidth = Math.max(1, outline * 0.5);
     roundedRect(
       context,
@@ -491,6 +616,7 @@ export function drawBlock(
       Math.max(1, radius - inset - band / 2),
     );
     context.stroke();
+    drawn += 1;
   }
 
   if (style.flash) {
@@ -503,11 +629,11 @@ export function drawBlock(
   }
 
   if (style.cracked) {
-    drawCrack(context, layout, rect);
+    drawCrack(context, layout, rect, edgeColour(entry.fill));
   }
 
   if (style.highlighted) {
-    context.strokeStyle = THEME.ink;
+    context.strokeStyle = edgeColour(entry.fill);
     context.lineWidth = outline * 2.4;
     roundedRect(
       context,
@@ -520,14 +646,21 @@ export function drawBlock(
     context.stroke();
   }
 
-  drawGlyph(
-    context,
-    { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 },
-    entry.glyph,
-    layout,
-    THEME.ink,
-    { highContrast: style.highContrastGlyph ?? false, scale: vertical ? 0.26 : 0.3 },
-  );
+  // The glyph is sized to the face that is left once the layer bands have
+  // taken their inset, not to the cell: a block on the short side of the
+  // frame is a third the depth of one on the long side, and a mark sized to
+  // the cell there filled the whole face and read as a hole in the block.
+  if (style.colourBlind) {
+    const free = Math.min(rect.width, rect.height) - (edge + band * drawn) * 2;
+    drawGlyph(
+      context,
+      { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 },
+      entry.glyph,
+      layout,
+      THEME.ink,
+      { scale: Math.max(0, free * 0.5) / layout.cell },
+    );
+  }
 
   // A deeper stack shows a count badge instead of an unreadable sandwich.
   if (hidden > MAX_VISIBLE_BANDS) {
@@ -545,11 +678,12 @@ function drawCrack(
   context: CanvasRenderingContext2D,
   layout: Layout,
   rect: { x: number; y: number; width: number; height: number },
+  colour: string,
 ): void {
   const { x, y, width, height } = rect;
 
   context.save();
-  context.strokeStyle = THEME.ink;
+  context.strokeStyle = colour;
   context.lineWidth = Math.max(1, outlineWidth(layout) * 0.5);
   context.lineCap = "round";
   context.lineJoin = "round";

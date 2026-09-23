@@ -5,8 +5,14 @@ import type { Arrow, Block, FireEvent } from "@/engine/types";
  * are gameplay numbers, not decoration: a long body may never stall the turn.
  */
 export const TIMING = {
-  slidePerCellMs: 40,
-  slideCapMs: 500,
+  // One speed, everywhere: the slide is this many milliseconds per cell the
+  // head crosses, and nothing else changes it. There is no cap and the body's
+  // own length is not counted — both of those made an arrow's speed depend on
+  // where it stood and how long it was, and a board where two arrows cross
+  // the same gap at different speeds reads as the game hesitating. The
+  // longest lane on any shipped board is 8 cells, so the worst shot is 800 ms
+  // and the turn is still protected (ART.md 7).
+  slidePerCellMs: 100,
   impactMs: 180,
   recoilMs: 220,
   shatterMs: 320,
@@ -47,9 +53,7 @@ export function planAnimation(input: PlanInput): AnimationPlan {
   const { event, arrow, travel } = input;
   const reduced = input.reducedMotion ?? false;
 
-  const slideMs = reduced
-    ? 0
-    : Math.min(TIMING.slideCapMs, (travel + arrow.path.length) * TIMING.slidePerCellMs);
+  const slideMs = reduced ? 0 : travel * TIMING.slidePerCellMs;
 
   const phases: Phase[] = [];
   const push = (kind: PhaseKind, durationMs: number): void => {
@@ -58,7 +62,12 @@ export function planAnimation(input: PlanInput): AnimationPlan {
 
   switch (event) {
     case "blocked":
-      // Nothing leaves the board; the arrow shakes in place.
+      // The arrow does move: it runs up to whatever is in its way, is stopped
+      // by it and comes back. A shake in place said a life was spent without
+      // ever showing what spent it, and the blocker pulse was left to carry
+      // the whole explanation on its own (ART.md 6.2). `travel` is the cells
+      // it can actually cross, so the head stops on the obstruction.
+      push("slide", slideMs);
       push("recoil", reduced ? 0 : TIMING.recoilMs);
       break;
     case "bounced":
@@ -106,10 +115,6 @@ export function phaseAt(plan: AnimationPlan, elapsed: number): PhaseProgress | n
     start += phase.durationMs;
   }
   return null;
-}
-
-export function easeOut(t: number): number {
-  return 1 - (1 - t) ** 3;
 }
 
 /** A hard shake, used for both mistakes (ART.md 6). */
