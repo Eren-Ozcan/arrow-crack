@@ -18,7 +18,7 @@ import {
   panBy,
   MAX_SCALE,
 } from "@/render/camera";
-import { contrastRatio, desaturate, PALETTE, THEME } from "@/render/palette";
+import { contrastRatio, PALETTE, THEME } from "@/render/palette";
 
 const viewport = { width: 360, height: 720 };
 const layout = computeLayout({ cols: 6, rows: 6 }, viewport);
@@ -186,12 +186,5 @@ describe("palette", () => {
   it("gives every colour its own glyph", () => {
     const glyphs = Object.values(PALETTE).map((entry) => entry.glyph);
     expect(new Set(glyphs).size).toBe(glyphs.length);
-  });
-
-  it("drains a colour towards the board for the inert state", () => {
-    const drained = desaturate(PALETTE.v!.fill, 0.75);
-    expect(contrastRatio(drained, THEME.board)).toBeLessThan(
-      contrastRatio(PALETTE.v!.fill, THEME.board),
-    );
   });
 });

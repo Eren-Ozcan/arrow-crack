@@ -7,7 +7,13 @@ import { renderBoard } from "@/render/board-renderer";
 import { fitCamera } from "@/render/camera";
 import { computeLayout, cellCentre } from "@/render/layout";
 import { contrastRatio, luminance, PALETTE, THEME } from "@/render/palette";
-import { drawGlyph, GLYPH_ALPHA, outlineWidth, pipeWidth } from "@/render/shapes";
+import {
+  backingWidth,
+  drawGlyph,
+  GLYPH_ALPHA,
+  outlineWidth,
+  pipeWidth,
+} from "@/render/shapes";
 import type { Glyph } from "@/render/palette";
 
 /**
@@ -130,7 +136,7 @@ function glyphDraws(calls: Call[]): number {
 
 describe("ART.md 10.1 — grayscale", () => {
   // Desaturated, the palette is not separable by lightness and was never
-  // meant to be: vermillion against green is 1.13. The glyphs carry it, which
+  // meant to be: green against purple is 1.12. The glyphs carry it, which
   // is why they are always on and never a toggle (ART.md 2.3).
   it("does not rely on lightness to tell two colours apart", () => {
     const entries = Object.values(PALETTE);
@@ -412,12 +418,33 @@ describe("ART.md 10.6 — sunlight", () => {
     expect(luminance(THEME.board)).toBeGreaterThan(luminance(THEME.ink));
   });
 
-  it("never lets the outline thin out below a hairline", () => {
+  it("never lets the ink backing thin out below a hairline", () => {
     for (const width of [200, 360, 1024]) {
       const layout = computeLayout(BOARD, { width, height: width * 2 });
       expect(outlineWidth(layout)).toBeGreaterThanOrEqual(1.5);
-      expect(outlineWidth(layout)).toBeGreaterThanOrEqual(layout.cell * 0.1 - 1e-9);
+      // The ink edge each side of the coloured stroke (ART.md 3): it is what
+      // separates two same-coloured arrows, so it may never round away.
+      expect(outlineWidth(layout)).toBeGreaterThanOrEqual(layout.cell * 0.05 - 1e-9);
+      expect(backingWidth(layout)).toBeGreaterThan(pipeWidth(layout));
     }
+  });
+});
+
+describe("ART.md 2.1 — red means damage, and only damage", () => {
+  it("keeps the damage red out of the arrow palette", () => {
+    for (const entry of Object.values(PALETTE)) {
+      expect(entry.fill).not.toBe(THEME.wrong);
+    }
+  });
+
+  it("spends one red on both signals it carries", () => {
+    // Hearts and a wrong tap are the same message, so they are the same red:
+    // red on this board only ever means "this cost you".
+    expect(THEME.heart).toBe(THEME.wrong);
+  });
+
+  it("holds the damage red clear of the ink it is drawn over", () => {
+    expect(contrastRatio(THEME.wrong, THEME.ink)).toBeGreaterThanOrEqual(3);
   });
 });
 
