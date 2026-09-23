@@ -24,6 +24,11 @@ const PIPE_RATIO = 0.14;
 const OUTLINE_RATIO = 0.05;
 /** How far towards black an edge sits from the colour it edges (ART.md 1). */
 const EDGE_DARKEN = 0.34;
+/**
+ * How far back towards white the rim of a guide's target block is lifted:
+ * enough to pick the block out, not enough to read as a second colour.
+ */
+const HIGHLIGHT_LIFT = 0.42;
 /** The two ends of the body's shading: light at the top, barely dark below. */
 const FACE_LIGHT = 0.3;
 const FACE_SHADE = 0.1;
@@ -531,7 +536,7 @@ export interface BlockStyle {
   cracked?: boolean;
   /** Draws the shape redundancy: the colour's glyph (ART.md 2.2). */
   colourBlind?: boolean;
-  /** Outline for the press-and-hold target (ART.md 3.2). */
+  /** Lifts the rim of the press-and-hold target (ART.md 3.2). */
   highlighted?: boolean;
   alpha?: number;
 }
@@ -562,8 +567,12 @@ export function drawBlock(
 
   // The edge first, as a solid shape rather than a stroke: the face is then
   // inset into it, so the dark reads as the block's own moulded rim and not
-  // as a line drawn around it (ART.md 5).
-  context.fillStyle = edgeColour(entry.fill);
+  // as a line drawn around it (ART.md 5). A guide's target block lifts that
+  // rim instead of gaining an outline: the block keeps its silhouette, and
+  // the ray stays the only line on the board (ART.md 3.2).
+  context.fillStyle = style.highlighted
+    ? mix(edgeColour(entry.fill), "#FFFFFF", HIGHLIGHT_LIFT)
+    : edgeColour(entry.fill);
   roundedRect(context, rect.x, rect.y, rect.width, rect.height, radius);
   context.fill();
 
@@ -630,20 +639,6 @@ export function drawBlock(
 
   if (style.cracked) {
     drawCrack(context, layout, rect, edgeColour(entry.fill));
-  }
-
-  if (style.highlighted) {
-    context.strokeStyle = edgeColour(entry.fill);
-    context.lineWidth = outline * 2.4;
-    roundedRect(
-      context,
-      rect.x - outline,
-      rect.y - outline,
-      rect.width + outline * 2,
-      rect.height + outline * 2,
-      radius,
-    );
-    context.stroke();
   }
 
   // The glyph is sized to the face that is left once the layer bands have
