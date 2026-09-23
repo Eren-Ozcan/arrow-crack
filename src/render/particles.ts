@@ -25,7 +25,7 @@ export interface BurstInput {
   origin: Point;
   /** How far the outermost shard travels by the end. */
   spread: number;
-  /** Shard side at the start of the burst. */
+  /** Mean shard side at the start of the burst; each shard varies around it. */
   size: number;
   /** Downward drift, so the shards fall rather than float away. */
   gravity?: number;
@@ -57,6 +57,9 @@ export function burst(input: BurstInput): Shard[] {
     const angle =
       ((index + 0.5) / count) * Math.PI * 2 + (noise(seed, index) - 0.5) * 0.9;
     const speed = 0.55 + noise(seed, index + 101) * 0.45;
+    // Mixed sizes: shards that are all one size read as a pattern rather than
+    // as something that broke (ART.md 6).
+    const scale = 0.55 + noise(seed, index + 307) * 0.9;
     const travel = spread * speed * easeOutCubic(t);
     const drop = gravity * t * t;
 
@@ -66,7 +69,7 @@ export function burst(input: BurstInput): Shard[] {
         y: origin.y + Math.sin(angle) * travel + drop,
       },
       rotation: (noise(seed, index + 211) - 0.5) * Math.PI * 3 * t,
-      size: size * (1 - 0.55 * t),
+      size: size * scale * (1 - 0.35 * t),
       // Held solid at first so the break is seen, then gone quickly.
       alpha: 1 - t * t,
     });
