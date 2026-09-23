@@ -276,7 +276,7 @@ Only the straight ray ahead of the head decides whether a shot is legal
 tangle:
 
 - **A hold leaves its line behind.** Press and hold an arrow and its ray is
-  drawn from the head to the frame, its target block outlined — and it
+  drawn from the head to the frame, the rim of its target block lifted — and it
   **stays** when the finger lifts. Holding that arrow again takes its line
   away; holding the empty board clears every line at once. Off by default, so
   a board is first met on its own terms, and cleared by a restart along with
@@ -286,13 +286,15 @@ tangle:
   do I fire first, and does firing that one free this one. Two rays up
   together answer it; a guide that could only ever show one would make the
   player hold each in turn and hold the comparison in their head.
-- **A clear ray is a hairline that runs off the screen**, in the arrow's own
-  colour, straight through the frame and out of the viewport, with the target
-  block lifting under it. Where a clear shot ends up is not on the board, so
-  the line that says so does not stop at the board's edge: a ray leaving the
-  screen reads as "this one is out of here" without being followed. Thin on
-  purpose — it is a direction, not a piece, and the less ink it spends the
-  less it argues with the tangle it crosses.
+- **A clear ray is a hairline that stops on the block it is aimed at**, in
+  the arrow's own colour, with that block's rim lifting under it. The ray
+  answers "what does this one hit", so it ends on the face that answers it —
+  an earlier rule ran it through the frame and off the screen, which crossed
+  the one thing the player was reading. Thin on purpose — it is a direction,
+  not a piece, and the less ink it spends the less it argues with the tangle
+  it crosses. With no target block on the ray — a Ghost through a hole in the
+  frame — it runs off the screen instead, because a line stopping in mid-air
+  reads as a blocked one.
 - **A blocked ray is short, heavier and dashed**, in the disabled ink, and
   ends against the thing that stopped it rather than at the last clear cell —
   with the obstruction in the very next cell there is no clear cell to draw
@@ -313,9 +315,11 @@ the answer stays on the board until the player takes it down.
 
 For a **Ghost** the guide draws straight through every obstruction to the
 frame, which is how the player learns what it does without a text box. For a
-**Joker** the target block is outlined in the Joker's own banding rather than
-a colour, and for a **Bomb** the two neighbouring blocks are outlined too, so
-the area effect is visible before the tap, not after.
+**Joker** the target block's rim is lifted in the Joker's own banding rather
+than in a colour, and for a **Bomb** the two neighbouring blocks lift too, so
+the area effect is visible before the tap, not after. No block ever gains a
+line it did not have: the rim it already owns is what brightens, so the guide
+adds exactly one line to the board — its own ray.
 
 ---
 
