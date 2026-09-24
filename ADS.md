@@ -127,18 +127,25 @@ section 3 do not exist for this app.
 - `src/services/iap.ts` — `IapService` over an `IapDriver`, same shape.
 - `src/services/analytics.ts` — the `TELEMETRY.md` 2.3 schema as a typed
   union, the consent gate and the 20-per-attempt `mistake` cap.
-- `src/main.ts` — consent boot, `level_start` / `level_win` / `level_fail` /
-  `level_stuck` / `level_quit` / `mistake` / `ad_shown` / `purchase`, and
-  `leaveWin()`, the single exit from the win celebration that the
-  interstitial sits behind (section 1.1).
+- `src/main.ts` — consent boot, the whole event schema of
+  `TELEMETRY.md` 2.3, and `leaveWin()`, the single exit from the win
+  celebration that the interstitial sits behind (section 1.1).
+- The three rewarded placements, each behind the rule that makes it fair:
+  continue (+1 heart, or +30 s on a timed level, board kept), the hint
+  button (search first, pay second — no ad for a move the solver could not
+  find), and skip after three fails on the same level. Every show clears the
+  screen and stops the clock around itself, and a dismissal grants nothing
+  and is not an error.
+- `src/platform/back.ts` — the **Android back button**, answered in one
+  function so the win celebration leaves through `leaveWin()` and past the
+  interstitial, exactly like the buttons.
 
 **What is left**, in order: the AdMob plugin driver and the console checklist
-in section 3; the RevenueCat driver and its products; the Firebase Analytics
-driver plus `google-services.json`; `@capacitor/app` so the **Android back
-button** reaches `leaveWin()` rather than the system default; and the
-remaining events — `hint_used`, `special_used`, `combo_break`,
-`continue_offered` / `continue_taken`, `skip_used` — which land with the
-rewarded buttons that raise them.
+in section 3; the RevenueCat driver and its products, including the hint pack
+the hint button will offer (`PROGRESSION.md` 4.3) and the `iap` source of
+`hint_used` that comes with it; and the Firebase Analytics driver plus
+`google-services.json`. Each of those needs an account that does not exist
+yet, so the remaining work begins with section 3 and not in the code.
 
 ### 2.1 Module shape
 

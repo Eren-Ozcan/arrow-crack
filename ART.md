@@ -471,6 +471,20 @@ _why_, instead of concluding the game is arbitrary. This costs nothing, is
 not gated behind an ad, and is what turns the harshest rule into a teachable
 one.
 
+### 6.3 Hint highlight
+
+The hint (`PROGRESSION.md` 4) uses the same pulse on the arrow the solver
+names, with one difference: it **beats**, four short fades over 1.6 s rather
+than one 420 ms decay. The blocker pulse answers a tap the player just made
+and their eye is already on it; a hint answers a question they asked seconds
+ago and may point anywhere on a board they are still reading, so a single
+decay can be over before they look at the right half of it. Under reduced
+motion it is the single decay, which still points at the arrow.
+
+Nothing else marks the arrow — no arc, no label, no dimming of the rest. The
+hint says _this one next_; what happens when it is fired is still read off
+the board.
+
 ---
 
 ## 7. Motion
@@ -486,6 +500,7 @@ Fast, because the player taps in sequences.
 | Star reveal                             | 3 × 200 ms, staggered                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | Commentary line on the win panel        | 250 ms fade in, after the score count-up                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | Score count-up                          | 600 ms, easing out                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Hint pulse                              | 4 × 400 ms beats (section 6.3)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | Confetti burst                          | 900 ms                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 
 Input is not locked during playback: a tap that lands while another shot is

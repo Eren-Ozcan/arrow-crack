@@ -189,11 +189,12 @@ Implements `AUDIO.md`.
 Implements `ADS.md` and `TELEMETRY.md` sections 1-3 in full; those files are
 the spec for this milestone.
 
-**Started.** The facade layer, the frequency rules and the event schema are
-in and tested, and they no-op without a driver — see `ADS.md` 2.0 for what
-exists and what is left. Everything still open needs an account that does not
-exist yet (AdMob, RevenueCat, Firebase) or a native plugin, so the remaining
-work begins with the console checklist in `ADS.md` 3.
+**Started.** The facade layer, the frequency rules, the full event schema,
+the three rewarded placements and the Android back button are in and tested,
+and they no-op without a driver — see `ADS.md` 2.0 for what exists and what
+is left. Everything still open needs an account that does not exist yet
+(AdMob, RevenueCat, Firebase), so the remaining work begins with the console
+checklist in `ADS.md` 3 rather than in the code.
 
 - `services/ads.ts`, `services/iap.ts`, `services/analytics.ts` facades,
   no-op in dev.
