@@ -13,6 +13,7 @@ import {
   owesColourNudge,
   parseSave,
   recordColourMistake,
+  recordSkippedLevel,
   recordWin,
   serialiseSave,
   spendHint,
@@ -234,5 +235,20 @@ describe("the local save", () => {
     const older = JSON.parse(serialiseSave(createSave())) as Record<string, unknown>;
     delete older["nudges"];
     expect(parseSave(JSON.stringify(older)).nudges).toEqual(createSave().nudges);
+  });
+});
+
+describe("a skipped level", () => {
+  it("unlocks the next one with no stars and no score", () => {
+    const save = recordSkippedLevel(createSave(), 7);
+    expect(levelRecord(save, 7)).toEqual({ stars: 0, bestScore: 0, bestTimeMs: null });
+    expect(totalStars(save)).toBe(0);
+    expect(save.hints).toBe(0);
+    expect(isUnlocked(save, 8, [7, 8])).toBe(true);
+  });
+
+  it("never overwrites a level that was actually played", () => {
+    const won = recordWin(createSave(), { levelId: 7, stars: 3, score: 4200 });
+    expect(recordSkippedLevel(won, 7)).toEqual(won);
   });
 });

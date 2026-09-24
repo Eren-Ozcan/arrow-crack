@@ -181,6 +181,22 @@ function bestTime(previous: number | null, next: number | null): number | null {
   return Math.max(previous, next);
 }
 
+/**
+ * A level the player skipped with a rewarded ad (`ADS.md` 1.4). It unlocks
+ * the next level and nothing else: zero stars, no score, no hint, and no
+ * best time — the level was not played, so there is no performance to
+ * record. A later real clear overwrites all of it through `recordWin()`.
+ */
+export function recordSkippedLevel(save: SaveData, levelId: number): SaveData {
+  const key = String(levelId);
+  if (save.levels[key] !== undefined) return save;
+
+  return {
+    ...save,
+    levels: { ...save.levels, [key]: { stars: 0, bestScore: 0, bestTimeMs: null } },
+  };
+}
+
 export function addHints(save: SaveData, amount: number): SaveData {
   return { ...save, hints: Math.max(0, save.hints + amount) };
 }
