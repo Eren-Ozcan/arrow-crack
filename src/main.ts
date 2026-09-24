@@ -5,6 +5,7 @@ import { cuesFor, cuesForWin } from "./audio/script";
 import { GameSession } from "./game/session";
 import type { SessionView } from "./game/session";
 import { LEVELS, levelById, nextLevelId } from "./levels";
+import { watchBackButton } from "./platform/back";
 import { AdService } from "./services/ads";
 import type { AdResult, RewardedPlacement } from "./services/ads";
 import { Analytics } from "./services/analytics";
@@ -449,9 +450,7 @@ function onChange(view: SessionView): void {
 function failPanel(view: SessionView): LostPanel | OutOfTimePanel {
   const rows = {
     onContinue: ads.offersContinue() ? (): void => void takeContinue(view) : null,
-    onSkip: ads.offersSkip(failsOnLevel)
-      ? (): void => void takeSkip(view.levelId)
-      : null,
+    onSkip: ads.offersSkip(failsOnLevel) ? (): void => void takeSkip(view.levelId) : null,
     onRestart: (): void => restart(),
     onHome: (): void => showHome(),
   };
@@ -651,6 +650,36 @@ function leaveWin(levelId: number, go: () => void): void {
   void ads.maybeShowInterstitial(levelId).finally(go);
 }
 
+/**
+ * Android back, answered here so it reaches the same functions the buttons
+ * do (`ADS.md` 1.1). In order: the settings screen closes, the win
+ * celebration leaves through `leaveWin()` and therefore past the
+ * interstitial, any other panel and any live board abandon the attempt for
+ * the home screen, and a press on the home screen itself is not consumed —
+ * that one is allowed to leave the game.
+ */
+function onAndroidBack(): boolean {
+  if (settings.isOpen) {
+    settings.hide();
+    return true;
+  }
+
+  if (modals.openPanel === "win" && lastView) {
+    leaveWin(lastView.levelId, () => showHome());
+    return true;
+  }
+
+  // A pre-level warning, a fail panel, the stuck panel, the resume panel and
+  // a board mid-level all mean the same thing here: this attempt is over, and
+  // `showHome()` is what reports the quit.
+  if (modals.isOpen || session !== null) {
+    showHome();
+    return true;
+  }
+
+  return false;
+}
+
 /** What was still standing when the hearts ran out (`TELEMETRY.md` 2.3). */
 function blocksLeft(): number {
   return session?.state.blocks.length ?? 0;
@@ -673,6 +702,7 @@ function devJump(): number | null {
 }
 
 watchVisibility();
+watchBackButton(onAndroidBack);
 app.append(home.root, settings.root);
 
 const jump = devJump();

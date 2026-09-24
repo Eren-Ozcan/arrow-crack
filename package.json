@@ -39,6 +39,7 @@
     "vitest": "^3.0.0"
   },
   "dependencies": {
+    "@capacitor/app": "^7.1.2",
     "@capacitor/core": "^7.0.0"
   }
 }
