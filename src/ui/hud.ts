@@ -16,6 +16,23 @@ export interface HudHandlers {
   onBack: () => void;
   onToggleGrid: () => void;
   onFit: () => void;
+  /** Spends a hint, or plays the ad that buys one (PROGRESSION.md 4). */
+  onHint: () => void;
+}
+
+/**
+ * What the hint button is about to do, decided by the app and not here. The
+ * button says which of the two it is before it is touched: a rewarded ad
+ * nobody expected is the fastest way to become the thing this game is
+ * positioned against (`ADS.md` 1.4).
+ */
+export interface HintState {
+  /** Hints in the balance; a tap spends one when there are any. */
+  hints: number;
+  /** True when a tap would instead play a rewarded ad for one. */
+  ad: boolean;
+  /** True while an ad or a search is in flight: the button waits it out. */
+  busy: boolean;
 }
 
 export class Hud {
@@ -28,6 +45,7 @@ export class Hud {
   #score: HTMLElement;
   #grid: HTMLButtonElement;
   #fit: HTMLButtonElement;
+  #hint: HTMLButtonElement;
 
   constructor(handlers: HudHandlers) {
     this.root = element("div", "hud");
@@ -42,6 +60,8 @@ export class Hud {
     const restart = button(t("hud.restart"), handlers.onRestart);
     this.#grid = button(t("hud.grid"), handlers.onToggleGrid);
     this.#fit = button(t("hud.fit"), handlers.onFit);
+    this.#hint = button(t("hud.hint", { hints: 0 }), handlers.onHint);
+    this.#hint.hidden = true;
 
     const left = element("div", "hud-group");
     left.append(this.#level, this.#hearts, this.#clock);
@@ -50,7 +70,7 @@ export class Hud {
     right.append(this.#badge, this.#score);
 
     const controls = element("div", "hud-controls");
-    controls.append(back, this.#grid, this.#fit, restart);
+    controls.append(back, this.#hint, this.#grid, this.#fit, restart);
 
     this.root.append(left, right, controls);
   }
@@ -82,6 +102,21 @@ export class Hud {
 
     this.#grid.classList.toggle("is-on", view.showGrid);
     this.#fit.hidden = view.fitted;
+  }
+
+  /**
+   * A button with nothing behind it is worse than no button: when the balance
+   * is empty and the attempt has spent its ad cap, the hint is not drawn at
+   * all rather than drawn and refused (`ADS.md` 1.3).
+   */
+  setHint(state: HintState): void {
+    const spends = state.hints > 0;
+    this.#hint.hidden = !spends && !state.ad;
+    this.#hint.disabled = state.busy;
+    this.#hint.classList.toggle("is-ad", !spends);
+    this.#hint.textContent = spends
+      ? t("hud.hint", { hints: state.hints })
+      : t("hud.hintAd");
   }
 }
 

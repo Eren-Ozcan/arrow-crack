@@ -162,6 +162,16 @@ body {
   display: none;
 }
 
+.button:disabled {
+  opacity: 0.5;
+}
+
+/* The hint button that would play an ad, so the badge reads as a badge. */
+.button.is-ad {
+  background: rgba(242, 244, 248, 0.2);
+  letter-spacing: 0.04em;
+}
+
 .modal-layer {
   position: absolute;
   inset: 0;

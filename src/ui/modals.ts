@@ -23,8 +23,15 @@ export interface WinPanel {
 
 export interface LostPanel {
   kind: "lost";
-  /** Watch to continue with +1 heart, board untouched. */
-  onContinue: () => void;
+  /**
+   * Watch to continue with +1 heart, board untouched. Null once the attempt
+   * has spent its two continues, or wherever no rewarded ad can be shown: a
+   * button that is drawn and then refuses is worse than no button
+   * (`ADS.md` 1.3).
+   */
+  onContinue: (() => void) | null;
+  /** Watch to skip the level for zero stars; null until it has been earned. */
+  onSkip: (() => void) | null;
   onRestart: () => void;
   onHome: () => void;
 }
@@ -32,7 +39,8 @@ export interface LostPanel {
 /** Out of time, on a timed level: the clock is the only budget there. */
 export interface OutOfTimePanel {
   kind: "outOfTime";
-  onContinue: () => void;
+  onContinue: (() => void) | null;
+  onSkip: (() => void) | null;
   onRestart: () => void;
   onHome: () => void;
 }
@@ -156,7 +164,8 @@ export class Modals {
         title.textContent = t("lost.title");
 
         card.append(title);
-        card.append(button(t("lost.continue"), panel.onContinue));
+        if (panel.onContinue) card.append(button(t("lost.continue"), panel.onContinue));
+        if (panel.onSkip) card.append(button(t("lost.skip"), panel.onSkip));
         card.append(button(t("lost.restart"), panel.onRestart));
         card.append(button(t("win.home"), panel.onHome));
         break;
@@ -180,7 +189,10 @@ export class Modals {
         title.textContent = t("outOfTime.title");
 
         card.append(title);
-        card.append(button(t("outOfTime.continue"), panel.onContinue));
+        if (panel.onContinue) {
+          card.append(button(t("outOfTime.continue"), panel.onContinue));
+        }
+        if (panel.onSkip) card.append(button(t("lost.skip"), panel.onSkip));
         card.append(button(t("lost.restart"), panel.onRestart));
         card.append(button(t("win.home"), panel.onHome));
         break;
