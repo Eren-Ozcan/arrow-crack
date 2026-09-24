@@ -112,6 +112,7 @@ export class Modals {
 
   #timers: ReturnType<typeof setTimeout>[] = [];
   #frame: number | null = null;
+  #kind: Panel["kind"] | null = null;
 
   constructor() {
     this.root = element("div", "modal-layer");
@@ -123,8 +124,18 @@ export class Modals {
     return !this.root.hidden;
   }
 
+  /**
+   * Which panel is up, or null. Android back needs this: leaving the win
+   * celebration is the interstitial trigger and every other panel is not
+   * (`ADS.md` 1.1).
+   */
+  get openPanel(): Panel["kind"] | null {
+    return this.isOpen ? this.#kind : null;
+  }
+
   close(): void {
     this.#stopPlayback();
+    this.#kind = null;
     this.root.hidden = true;
     this.root.replaceChildren();
   }
@@ -147,6 +158,7 @@ export class Modals {
 
   show(panel: Panel): void {
     this.#stopPlayback();
+    this.#kind = panel.kind;
     const card = element("div", "modal");
     /** Playback that may only start once the card is on screen. */
     let play: (() => void) | null = null;

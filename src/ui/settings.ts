@@ -69,6 +69,11 @@ export class SettingsScreen {
     this.root.hidden = true;
   }
 
+  /** True while the screen owns the display; Android back closes it first. */
+  get isOpen(): boolean {
+    return !this.root.hidden;
+  }
+
   render(settings: Settings, hints: number): void {
     this.#settings = settings;
     this.#hintBalance = hints;
