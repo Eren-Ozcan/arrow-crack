@@ -120,6 +120,14 @@ const PULSE_MS = 420;
 const HINT_PULSE_MS = 1_600;
 
 /**
+ * The hint beats rather than fading once. One slow decay on a board the
+ * player is still scanning can be over before they look at the right half of
+ * it; four short beats keep saying it. Reduced motion gets the single decay
+ * instead, which still points at the arrow (ART.md 7).
+ */
+const HINT_BEAT_MS = 400;
+
+/**
  * Wires the engine to the canvas: input arbitration, the animation queue and
  * the input lock that goes with it, the camera, and the score. The engine
  * itself stays pure — this is the only place that knows about time.
@@ -168,7 +176,13 @@ export class GameSession {
    * I fire first — is about more than one arrow.
    */
   #stickyGuides: GuideView[] = [];
-  #pulse: { arrowIds: string[]; startedAt: number; durationMs: number } | null = null;
+  #pulse: {
+    arrowIds: string[];
+    startedAt: number;
+    durationMs: number;
+    /** How long one fade takes; shorter than the whole pulse means it beats. */
+    beatMs: number;
+  } | null = null;
   /** The arrow the combo reward upgraded, so a fired special knows its source. */
   #earnedJokerId: string | null = null;
   /**
@@ -294,6 +308,7 @@ export class GameSession {
       arrowIds: [arrowId],
       startedAt: performance.now(),
       durationMs: HINT_PULSE_MS,
+      beatMs: this.#reducedMotion ? HINT_PULSE_MS : HINT_BEAT_MS,
     };
     this.#publish();
     return true;
@@ -481,7 +496,7 @@ export class GameSession {
       pulse: this.#pulse
         ? {
             arrowIds: this.#pulse.arrowIds,
-            t: (now - this.#pulse.startedAt) / this.#pulse.durationMs,
+            t: ((now - this.#pulse.startedAt) % this.#pulse.beatMs) / this.#pulse.beatMs,
           }
         : null,
       animations: this.#animations.map((animation) => ({
@@ -664,7 +679,12 @@ export class GameSession {
 
     if (event === "blocked") {
       // The life is spent either way, but the player learns why.
-      this.#pulse = { arrowIds: blockers, startedAt: now, durationMs: PULSE_MS };
+      this.#pulse = {
+        arrowIds: blockers,
+        startedAt: now,
+        durationMs: PULSE_MS,
+        beatMs: PULSE_MS,
+      };
     }
 
     // A blocked arrow travels as far as it can and no further: up to the
@@ -713,7 +733,12 @@ export class GameSession {
     this.#state = grantEarnedJoker(this.#state, target);
     this.#earnedJokerId = target;
     // The board just changed on its own, so it says which piece changed.
-    this.#pulse = { arrowIds: [target], startedAt: now, durationMs: PULSE_MS };
+    this.#pulse = {
+      arrowIds: [target],
+      startedAt: now,
+      durationMs: PULSE_MS,
+      beatMs: PULSE_MS,
+    };
   }
 
   /** A shot has landed. The board is only settled once they all have. */
