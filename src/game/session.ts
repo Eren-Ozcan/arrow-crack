@@ -2,7 +2,7 @@ import { fire, grantContinue, markOutOfTime, markStuck } from "@/engine/fire";
 import { cellKey, createState } from "@/engine/level";
 import { blockersOf, clearRay, isBlocked } from "@/engine/rays";
 import { starsFor } from "@/engine/stars";
-import type { Arrow, GameState, LevelDef } from "@/engine/types";
+import type { Arrow, GameState, LevelDef, Special } from "@/engine/types";
 import {
   createGestureState,
   pointerCancel,
@@ -96,9 +96,28 @@ export interface SessionOptions {
    * attempt (DESIGN.md 6).
    */
   onMistake?: (event: "blocked" | "bounced") => void;
+  /**
+   * Runs the hint search off the main thread; omitted in tests. It answers
+   * with the arrow to fire next, or null when the search found nothing
+   * inside its budget — which is not an error, and costs the player nothing
+   * (`ADS.md` 1.4).
+   */
+  findHint?: (state: GameState) => Promise<string | null>;
+  /** A chain a mistake ended, worth this much when it did (PROGRESSION.md 1). */
+  onComboBreak?: (multiplierAtBreak: number) => void;
+  /** A special arrow was fired, and where the board got it from. */
+  onSpecialUsed?: (kind: Special, source: "designed" | "combo") => void;
 }
 
 const PULSE_MS = 420;
+
+/**
+ * A hint is held much longer than a blocker pulse. The blocker answers a tap
+ * the player just made and they are already looking at it; a hint answers a
+ * question they asked seconds ago, and it may be anywhere on a board they
+ * are still reading.
+ */
+const HINT_PULSE_MS = 1_600;
 
 /**
  * Wires the engine to the canvas: input arbitration, the animation queue and
@@ -116,6 +135,9 @@ export class GameSession {
   #reducedMotion: boolean;
   #colourBlindMode: boolean;
   #checkStuck: ((state: GameState) => Promise<boolean>) | undefined;
+  #findHint: ((state: GameState) => Promise<string | null>) | undefined;
+  #onComboBreak: ((multiplierAtBreak: number) => void) | undefined;
+  #onSpecialUsed: ((kind: Special, source: "designed" | "combo") => void) | undefined;
 
   #state: GameState;
   #score: ScoreState = createScore();
@@ -146,7 +168,9 @@ export class GameSession {
    * I fire first — is about more than one arrow.
    */
   #stickyGuides: GuideView[] = [];
-  #pulse: { arrowIds: string[]; startedAt: number } | null = null;
+  #pulse: { arrowIds: string[]; startedAt: number; durationMs: number } | null = null;
+  /** The arrow the combo reward upgraded, so a fired special knows its source. */
+  #earnedJokerId: string | null = null;
   /**
    * The arrow that was tapped wrong. It stays red until the next arrow is
    * tapped, so the mistake is still on the board when the player looks back
@@ -174,6 +198,9 @@ export class GameSession {
     this.#reducedMotion = options.reducedMotion ?? false;
     this.#colourBlindMode = options.colourBlindMode ?? false;
     this.#checkStuck = options.checkStuck;
+    this.#findHint = options.findHint;
+    this.#onComboBreak = options.onComboBreak;
+    this.#onSpecialUsed = options.onSpecialUsed;
 
     const context = options.canvas.getContext("2d");
     if (!context) throw new Error("2d context unavailable");
@@ -223,6 +250,7 @@ export class GameSession {
     this.#guide = null;
     this.#pulse = null;
     this.#wrongArrowId = null;
+    this.#earnedJokerId = null;
     this.#camera = fitCamera();
     this.#onResize();
     this.#publish();
@@ -234,6 +262,41 @@ export class GameSession {
     this.#setState(grantContinue(this.#state));
     if (this.#clock) this.#clock = grantTime(this.#clock);
     this.#publish();
+  }
+
+  /**
+   * The search half of the hint (`PROGRESSION.md` 4): the first move of an
+   * optimal solution from the board as it stands. It shows nothing, because
+   * the answer has to exist *before* the player is charged for it — no ad is
+   * played for a hint the solver could not find (`ADS.md` 1.4).
+   *
+   * Answers null for every reason there is no move to sell: no solver, a
+   * finished level, or a search that ran out of budget.
+   */
+  async findHint(): Promise<string | null> {
+    if (!this.#findHint || this.#state.status !== "playing") return null;
+    return this.#findHint(this.#state);
+  }
+
+  /**
+   * The reward half: the arrow is pulsed and nothing else happens to it. A
+   * hint costs no heart, does not break the combo and does not touch the
+   * stars — a valve that also punished would go unused.
+   *
+   * False means the board moved on while the hint was being paid for, so
+   * the move no longer exists and nothing was delivered.
+   */
+  revealHint(arrowId: string): boolean {
+    if (this.#state.status !== "playing") return false;
+    if (!this.#state.arrows.some((arrow) => arrow.id === arrowId)) return false;
+
+    this.#pulse = {
+      arrowIds: [arrowId],
+      startedAt: performance.now(),
+      durationMs: HINT_PULSE_MS,
+    };
+    this.#publish();
+    return true;
   }
 
   /**
@@ -374,7 +437,9 @@ export class GameSession {
       );
       this.#afterAnimation();
     }
-    if (this.#pulse && now - this.#pulse.startedAt >= PULSE_MS) this.#pulse = null;
+    if (this.#pulse && now - this.#pulse.startedAt >= this.#pulse.durationMs) {
+      this.#pulse = null;
+    }
 
     this.#tickClock(now);
     this.#draw(now);
@@ -416,7 +481,7 @@ export class GameSession {
       pulse: this.#pulse
         ? {
             arrowIds: this.#pulse.arrowIds,
-            t: (now - this.#pulse.startedAt) / PULSE_MS,
+            t: (now - this.#pulse.startedAt) / this.#pulse.durationMs,
           }
         : null,
       animations: this.#animations.map((animation) => ({
@@ -561,6 +626,7 @@ export class GameSession {
     this.#wrongArrowId = event === "blocked" || event === "bounced" ? arrowId : null;
 
     const heartsBefore = this.#state.heartsLeft;
+    const multiplierBefore = this.#score.multiplier;
     const shot = registerShot(this.#score, { event, peels, destroyed }, now);
     // A tap answers the opening line, and may raise one of its own.
     this.#coach = null;
@@ -569,7 +635,19 @@ export class GameSession {
     // line of its own (`note()`) must lose to the tutorial rather than be
     // silently wiped by it a line later — on level 32 both want the same
     // bounce, and the beat is the one teaching the rule.
-    if (event === "blocked" || event === "bounced") this.#onMistake?.(event);
+    if (event === "blocked" || event === "bounced") {
+      this.#onMistake?.(event);
+      // Only a chain worth something is a break worth reporting: every
+      // mistake resets the multiplier, and most of them reset it to 1
+      // (TELEMETRY.md 2.3).
+      if (multiplierBefore > 1) this.#onComboBreak?.(multiplierBefore);
+    }
+    if (arrow.special) {
+      this.#onSpecialUsed?.(
+        arrow.special,
+        arrow.id === this.#earnedJokerId ? "combo" : "designed",
+      );
+    }
     this.#score = shot.state;
     this.#shotsFired += 1;
     this.#maxMultiplier = Math.max(this.#maxMultiplier, shot.state.multiplier);
@@ -586,7 +664,7 @@ export class GameSession {
 
     if (event === "blocked") {
       // The life is spent either way, but the player learns why.
-      this.#pulse = { arrowIds: blockers, startedAt: now };
+      this.#pulse = { arrowIds: blockers, startedAt: now, durationMs: PULSE_MS };
     }
 
     // A blocked arrow travels as far as it can and no further: up to the
@@ -633,8 +711,9 @@ export class GameSession {
     if (!target) return;
 
     this.#state = grantEarnedJoker(this.#state, target);
+    this.#earnedJokerId = target;
     // The board just changed on its own, so it says which piece changed.
-    this.#pulse = { arrowIds: [target], startedAt: now };
+    this.#pulse = { arrowIds: [target], startedAt: now, durationMs: PULSE_MS };
   }
 
   /** A shot has landed. The board is only settled once they all have. */
