@@ -6,17 +6,22 @@ import { GameSession } from "./game/session";
 import type { SessionView } from "./game/session";
 import { LEVELS, levelById, nextLevelId } from "./levels";
 import { AdService } from "./services/ads";
+import type { AdResult, RewardedPlacement } from "./services/ads";
 import { Analytics } from "./services/analytics";
 import { IapService } from "./services/iap";
+import { BUDGETS } from "./solver";
 import { SolverClient } from "./solver/client";
 import {
   SaveStore,
+  addHints,
   isUnlocked,
   levelRecord,
   markColourNudgeShown,
   owesColourNudge,
   recordColourMistake,
+  recordSkippedLevel,
   recordWin,
+  spendHint,
   updateSettings,
 } from "./state/save";
 import type { Settings } from "./state/save";
@@ -24,6 +29,7 @@ import { Coach } from "./ui/coach";
 import { HomeScreen } from "./ui/home";
 import { Hud } from "./ui/hud";
 import { commentaryFor, Modals } from "./ui/modals";
+import type { LostPanel, OutOfTimePanel } from "./ui/modals";
 import { SettingsScreen } from "./ui/settings";
 import { setLanguage } from "./ui/strings";
 
@@ -79,6 +85,14 @@ const analytics = new Analytics();
 let startedLevelId: number | null = null;
 /** `attempt_no` in the schema: which go at this level this one is. */
 let attemptNo = 0;
+/**
+ * Consecutive fails on the level now open, which is what earns the skip
+ * offer (`ADS.md` 1.4). It counts fails, not attempts: a restart taken
+ * before the hearts ran out was not the level beating the player.
+ */
+let failsOnLevel = 0;
+/** True while a hint is being searched for or paid for; the button waits. */
+let hintBusy = false;
 
 function adStorage(): Storage | null {
   try {
@@ -205,9 +219,18 @@ function start(levelId: number, force = false): void {
     reducedMotion: reducedMotion(),
     colourBlindMode: store.save.settings.colourBlindMode,
     checkStuck: (state) => solver.isSolvable(state),
+    findHint: (state) => solver.nextMove(state, BUDGETS.hint),
     onChange: (view) => onChange(view),
     onSound: (event) => audio.playSequence(cuesFor(event)),
     onMistake: (event) => onMistake(event),
+    onComboBreak: (multiplier) =>
+      analytics.log({
+        name: "combo_break",
+        level_id: level.id,
+        multiplier_at_break: multiplier,
+      }),
+    onSpecialUsed: (kind, source) =>
+      analytics.log({ name: "special_used", level_id: level.id, kind, source }),
   });
 
   modals.reducedMotion = reducedMotion();
@@ -266,6 +289,7 @@ function beginAttempt(levelId: number): void {
   if (levelId !== startedLevelId) {
     startedLevelId = levelId;
     attemptNo = 0;
+    failsOnLevel = 0;
   }
   attemptNo += 1;
   ads.startAttempt();
@@ -309,6 +333,7 @@ function mountHud(): Hud {
     onToggleGrid: () => session?.toggleGrid(),
     onFit: () => session?.fit(),
     onBack: () => showHome(),
+    onHint: () => void useHint(),
   });
 
   coach = new Coach(() => session?.dismissCoach());
@@ -350,6 +375,7 @@ let lastView: SessionView | null = null;
 function onChange(view: SessionView): void {
   lastView = view;
   hud?.update(view);
+  refreshHint();
   coach?.update(view.coach);
   tickClockSound(view.remainingMs);
 
@@ -382,18 +408,20 @@ function onChange(view: SessionView): void {
       blocks_left: blocksLeft(),
       layers_left: layersLeft(),
     });
-    // The rewarded ad lands in milestone 8; the grant itself is the engine's.
-    const onContinue = (): void => session?.continueAfterAd();
-    const onRestart = (): void => restart();
-    const onHome = (): void => showHome();
-
-    // On a timed level the budget that ran out was the clock, so the panel
-    // says so and offers seconds rather than a heart (PROGRESSION.md 3).
-    modals.show(
-      view.remainingMs === null
-        ? { kind: "lost", onContinue, onRestart, onHome }
-        : { kind: "outOfTime", onContinue, onRestart, onHome },
-    );
+    // Counted here rather than per attempt: a restart taken with hearts still
+    // in hand was not the level beating the player, and the skip offer is
+    // about a level that did (`ADS.md` 1.4).
+    failsOnLevel += 1;
+    if (ads.offersContinue()) {
+      // The offer is reported as it is made, so `continue_taken` has a
+      // denominator (`TELEMETRY.md` 2.3).
+      analytics.log({
+        name: "continue_offered",
+        level_id: view.levelId,
+        continue_no: ads.attempt.continuesUsed + 1,
+      });
+    }
+    modals.show(failPanel(view));
     return;
   }
 
@@ -408,6 +436,153 @@ function onChange(view: SessionView): void {
     kind: "stuck",
     onRestart: () => restart(),
     onHome: () => showHome(),
+  });
+}
+
+/**
+ * The out-of-hearts screen (`ADS.md` 1.4). Each rewarded row is drawn only
+ * when it can actually be honoured: past two continues, or with no ad to
+ * show, the row is absent rather than present and refusing. On a timed level
+ * the budget that ran out was the clock, so the panel says so and offers
+ * seconds rather than a heart (`PROGRESSION.md` 3).
+ */
+function failPanel(view: SessionView): LostPanel | OutOfTimePanel {
+  const rows = {
+    onContinue: ads.offersContinue() ? (): void => void takeContinue(view) : null,
+    onSkip: ads.offersSkip(failsOnLevel)
+      ? (): void => void takeSkip(view.levelId)
+      : null,
+    onRestart: (): void => restart(),
+    onHome: (): void => showHome(),
+  };
+
+  return view.remainingMs === null
+    ? { kind: "lost", ...rows }
+    : { kind: "outOfTime", ...rows };
+}
+
+/**
+ * Every rewarded show, with the screen cleared for it and the clock stopped
+ * around it: an ad is not the player deciding (`PROGRESSION.md` 3.1), and it
+ * never lands on top of a panel (`ADS.md` 1.2).
+ */
+async function playRewarded(placement: RewardedPlacement): Promise<AdResult> {
+  modals.close();
+  session?.suspend();
+  try {
+    return await ads.showRewarded(placement);
+  } finally {
+    session?.resumeFromSuspend();
+  }
+}
+
+/**
+ * Continue: +1 heart, or +30 seconds on a timed level, with the board kept
+ * exactly as it stands — that is the whole value of the ad, since a restart
+ * is always free (`ADS.md` 1.4).
+ */
+async function takeContinue(view: SessionView): Promise<void> {
+  const active = session;
+  const placement: RewardedPlacement =
+    view.remainingMs === null ? "continue" : "timed_continue";
+  const continueNo = ads.attempt.continuesUsed + 1;
+
+  const result = await playRewarded(placement);
+  if (session !== active) return;
+  if (result !== "rewarded") {
+    // A dismissal grants nothing and is not an error: the same screen comes
+    // back, one row shorter only if the cap moved (`ADS.md` 1.3).
+    modals.show(failPanel(view));
+    return;
+  }
+
+  analytics.log({
+    name: "continue_taken",
+    level_id: view.levelId,
+    continue_no: continueNo,
+  });
+  session?.continueAfterAd();
+}
+
+/**
+ * Skip: zero stars and the next level unlocked. The release valve that keeps
+ * a hard level from ending the session (`ADS.md` 1.4).
+ */
+async function takeSkip(levelId: number): Promise<void> {
+  const active = session;
+  const failsBefore = failsOnLevel;
+
+  const result = await playRewarded("skip_level");
+  if (session !== active) return;
+  if (result !== "rewarded") {
+    if (lastView) modals.show(failPanel(lastView));
+    return;
+  }
+
+  analytics.log({ name: "skip_used", level_id: levelId, fails_before: failsBefore });
+  store.update((save) => recordSkippedLevel(save, levelId));
+
+  const next = nextLevelId(levelId);
+  if (next === null) showHome();
+  else start(next);
+}
+
+/**
+ * The hint (`PROGRESSION.md` 4). The move is searched for **first**: if the
+ * solver cannot produce one inside its budget, nothing is spent and no ad is
+ * played, because an ad is never charged for a reward that cannot be
+ * delivered (`ADS.md` 1.4). A balance is spent before an ad is offered, and
+ * the button said which of the two this was going to be before it was
+ * touched.
+ */
+async function useHint(): Promise<void> {
+  const active = session;
+  if (!active || hintBusy) return;
+
+  hintBusy = true;
+  refreshHint();
+  try {
+    const move = await active.findHint();
+    if (move === null || session !== active) return;
+
+    if (store.save.hints > 0) {
+      if (!active.revealHint(move)) return;
+      store.update((save) => spendHint(save));
+      logHint(active.level.id, "balance");
+      return;
+    }
+
+    if (!ads.offersHintAd()) return;
+    const result = await playRewarded("hint");
+    if (result !== "rewarded" || session !== active) return;
+
+    // The hint is banked before it is spent, so a board that moved during the
+    // ad leaves the player with the hint rather than with nothing.
+    store.update((save) => addHints(save, 1));
+    if (!active.revealHint(move)) return;
+    store.update((save) => spendHint(save));
+    logHint(active.level.id, "ad");
+  } finally {
+    hintBusy = false;
+    refreshHint();
+  }
+}
+
+function logHint(levelId: number, source: "balance" | "ad"): void {
+  analytics.log({
+    name: "hint_used",
+    level_id: levelId,
+    shots_fired: lastView?.shotsFired ?? 0,
+    source,
+  });
+}
+
+/** The button states which of the two things a tap will do (`ADS.md` 1.4). */
+function refreshHint(): void {
+  hud?.setHint({
+    hints: store.save.hints,
+    ad: ads.offersHintAd(),
+    busy: hintBusy || ads.busy,
   });
 }
 
@@ -441,6 +616,9 @@ function onWin(view: SessionView): void {
     duration_ms: Math.round(view.elapsedMs),
     continues_used: ads.attempt.continuesUsed,
   });
+
+  // The level stopped beating the player, so the skip offer starts over.
+  failsOnLevel = 0;
 
   const next = nextLevelId(view.levelId);
   modals.show({
