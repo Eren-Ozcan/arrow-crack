@@ -133,12 +133,12 @@ never inventing a number applies here too).
 
 **Exact (levels 1-4):**
 
-| Level | Arrows | Max turns | Max length (grid units) | Shape             |
-| ----- | ------ | --------- | ------------------------ | ------------------ |
-| 1     | 3-4 \* | 1         | ~2                        | isolated, no touch |
-| 2     | 5      | 2         | ~3                        | nested square      |
-| 3     | 5      | 2         | ~3                        | nested square (mirrored layout) |
-| 4     | ~11    | 2-3       | ~4                        | rectangle w/ nested spiral cutout |
+| Level | Arrows | Max turns | Max length (grid units) | Shape                             |
+| ----- | ------ | --------- | ----------------------- | --------------------------------- |
+| 1     | 3-4 \* | 1         | ~2                      | isolated, no touch                |
+| 2     | 5      | 2         | ~3                      | nested square                     |
+| 3     | 5      | 2         | ~3                      | nested square (mirrored layout)   |
+| 4     | ~11    | 2-3       | ~4                      | rectangle w/ nested spiral cutout |
 
 \* The two passes over the level 1 screenshot disagreed (3 vs 4). Recount
 from the screenshot before quoting a number.
@@ -148,17 +148,17 @@ changes hard at level 5.
 
 **Estimated by zone density (levels 5-15, ±15-20% — not exact counts):**
 
-| Level | Shape                        | Arrow count (est.) | Max turns seen |
-| ----- | ----------------------------- | ------------------- | --------------- |
-| 5     | glasses silhouette (2 lenses) | ~80-85               | 4-5              |
-| 6     | rectangle                     | ~110-130              | 4-5              |
-| 8     | tall rectangle                | ~180-210              | 5-6              |
-| 9     | rectangle                     | ~130-150              | 4-5              |
-| 10    | burst/crown silhouette        | ~150-180              | 5                |
-| 11    | rectangle                     | ~150-170              | 5                |
-| 13    | tall rectangle (densest rect) | ~220-260              | 5-6              |
-| 14    | rectangle                     | ~180-220              | 5-6              |
-| 15    | flower/butterfly silhouette   | ~220-260              | 5-6              |
+| Level | Shape                         | Arrow count (est.) | Max turns seen |
+| ----- | ----------------------------- | ------------------ | -------------- |
+| 5     | glasses silhouette (2 lenses) | ~80-85             | 4-5            |
+| 6     | rectangle                     | ~110-130           | 4-5            |
+| 8     | tall rectangle                | ~180-210           | 5-6            |
+| 9     | rectangle                     | ~130-150           | 4-5            |
+| 10    | burst/crown silhouette        | ~150-180           | 5              |
+| 11    | rectangle                     | ~150-170           | 5              |
+| 13    | tall rectangle (densest rect) | ~220-260           | 5-6            |
+| 14    | rectangle                     | ~180-220           | 5-6            |
+| 15    | flower/butterfly silhouette   | ~220-260           | 5-6            |
 
 Pattern: from level 5 on, pieces interlock into one continuous woven mesh
 (no more open-space isolation), arrow count roughly triples between the
@@ -282,9 +282,12 @@ accounts.
   no lockout.
 - **Leagues, daily challenges, social-proof copy.** Non-goals
   (`ROADMAP.md`).
-- **Four-digit level counts.** Generation at volume with difficulty as a
-  size dial. Ours is 80 curated, solver-verified levels with a taught curve,
-  retuned against real fail rates (`TELEMETRY.md` 3.2).
+- **Difficulty as a size dial.** We ship 2000 levels too, but not their
+  way: every one is solver-verified and placed in a difficulty band, the
+  board stops growing at eight columns, and the curve saturates by level 900
+  and then waves rather than inflating (`DESIGN.md` 2). What keeps climbing
+  is the tangle and the colour pressure, not the grid. Bands are retuned
+  against real fail rates (`TELEMETRY.md` 3.2).
 - **Their ad load.** Section 2.2. This is the one we must actively refuse,
   repeatedly, for as long as the game earns.
 - **A tracking prompt.** We ship Android first, so there is no iOS tracking

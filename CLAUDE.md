@@ -38,7 +38,7 @@ a document disagree, fix one of them in the same change — do not leave both.
 | `npm run lint`            | ESLint                            |
 | `npm test`                | Vitest, single run                |
 | `npm run levels:manifest` | Regenerate `src/levels/manifest`  |
-| `npm run levels:generate` | Propose levels 31-80 (`--write`)  |
+| `npm run levels:generate` | Seed levels 11-2000 (`--write`)   |
 | `npm run levels:validate` | The level gate (`CI.md` 2.2)      |
 | `npm run art:shoot`       | ART.md 10 stills (needs `dev`)    |
 | `npm run build`           | Production web build              |
@@ -52,8 +52,15 @@ a document disagree, fix one of them in the same change — do not leave both.
 `src/audio` the synthesised cue set (`AUDIO.md` 6 — no sound files ship),
 `src/input` gesture arbitration, `src/game` the session that owns the clock
 and the score, `src/ui` DOM screens, `src/levels` level JSON and the loader,
-`src/state` the schema-versioned local save. The engine and the solver are
+`src/state` the schema-versioned local save, `src/generator` the level
+generator and the per-level spec. The engine, the solver and the generator are
 pure; everything that knows about time lives in `src/game/session.ts`.
+
+Levels 11-2000 (except the shaped beats 20, 40, 60, 80) are not JSON: each is
+a `[id, seed, par]` row in `src/levels/generated.json`, rebuilt on the device
+by the generator. Changing `src/generator/` or `specFor` moves shipped boards,
+and `npm run levels:validate` fails on the fingerprint until the change is
+re-recorded with `-- --update-costs`.
 
 No screen holds a string: every user-visible line is a key in
 `src/ui/strings.en.json`, read through `t()` (DESIGN.md 6). That includes the

@@ -1,6 +1,6 @@
 # Arrow Crack — Roadmap
 
-Target: a full vertical slice — playable core, 80 levels, level path, saved
+Target: a full vertical slice — playable core, 2000 levels, level path, saved
 progress, ads/IAP, settings — shippable to the Play Store internal track.
 
 See `DESIGN.md` for the rules and the data model.
@@ -148,7 +148,15 @@ procedurally from the palette table.
 - The combo-earned Joker at the x5 cap (`PROGRESSION.md` 1.4), once per
   attempt, never stacking past two specials on the board.
 
-**Done when:** 80 levels ship, the difficulty curve is monotonic under the
+**Scope change, 2026-09-25: 2000 levels.** The generator now covers 11-2000
+(everything but the tutorial and the four shaped beats), ships each level as
+a seed rather than a board, and gained colour holds so the frame's colours
+carry difficulty (`DESIGN.md` 2, 4). The wide block moved from level 31 to
+the tutorial at 3. Playing every level once before it ships no longer scales;
+it applies to the tutorial and the shaped beats, and the generated range is
+sampled instead.
+
+**Done when:** 2000 levels ship, the difficulty curve is monotonic under the
 difficulty model, and CI validates all of them.
 
 ## Milestone 6 — Meta
@@ -162,7 +170,7 @@ difficulty model, and CI validates all of them.
 - English-only UI, strings in JSON behind a lookup — no hardcoded text, no
   translation work in v1 (`STORE.md`).
 
-**Done when:** the app is usable from cold start to level 80 with no dev
+**Done when:** the app is usable from cold start to level 2000 with no dev
 shortcuts.
 
 ## Milestone 7 — Audio and polish

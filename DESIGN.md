@@ -270,8 +270,9 @@ in section 1.2) and mask-aware generation (not cheap). So:
 
 - the engine and the validator support masks from the start,
 - the MVP ships a small set of **hand-authored** shaped levels as milestone
-  beats — roughly one every 20 levels, and ideally one is also a one-heart
-  level, so the picture and the challenge land together,
+  beats at 20, 40, 60 and 80, each also a one-heart level so the picture and
+  the challenge land together, and none past 80 until mask-aware generation
+  exists,
 - mask-aware generation, and a shaped level as a repeatable content type,
   comes after launch.
 
@@ -339,15 +340,32 @@ spectacle. It is the first candidate if a fourth is ever wanted.
 
 ## 2. Level content progression
 
-| Levels | Content                                                                            | Hearts |
-| ------ | ---------------------------------------------------------------------------------- | ------ |
-| 1-10   | Few arrows, short bodies, single-lane blocks, 1 layer. Tutorial beats.             | 4      |
-| 11-30  | 2-3 layer blocks, longer and more tangled bodies. Holding and ordering introduced. | 4      |
-| 31-49  | Wide blocks. The real puzzle starts.                                               | 4      |
-| 50-80  | Crowded boards, 4-5 layers, multiple wide blocks.                                  | 3      |
+| Levels   | Content                                                                                     | Hearts |
+| -------- | ------------------------------------------------------------------------------------------- | ------ |
+| 1-10     | Hand-authored tutorial. Few arrows, short bodies; the wide block is taught at 3.            | 4      |
+| 11-30    | Generated from here on. 6x6, three colours, 2-layer stacks, the odd wide block.             | 4      |
+| 31-49    | Four colours, wide blocks common, decoys, colour holds. The real puzzle starts.             | 4      |
+| 50-300   | Five colours, 7x7 then 8x8, 3-4 layers, longer bent bodies. Most of the climb.              | 3      |
+| 300-2000 | The full game: 8 columns, up to 10 rows, 4-7 cell bodies, ~80% fill. A plateau with a wave. | 3      |
 
-One-heart levels (section 1.5) are sprinkled through both halves from level
-20 on and are not a band of their own.
+One-heart levels (section 1.5) sit on every tenth level from 20 on and are
+not a band of their own.
+
+**The curve is a trend plus a wave** (`src/generator/spec.ts`). The trend
+saturates, `1 - e^(-(id - 11) / 300)`, so about two thirds of the climb is
+done by level 300 and nearly all of it by 900. Two thousand levels of
+ever-growing boards would hit the 8-column ceiling long before the end, and a
+player at 1500 should meet the full game, not a bigger one. On top rides a
+ten-level wave: the first levels of each ten are a breather, the ninth is the
+peak, the tenth is the one-heart punctuation. Board size, body length, bends,
+fill, layer depth, wide-block rate and colour holds all read the same effort
+figure, and so does the difficulty band (section 4.3).
+
+**Where difficulty does not come from.** Not board size past eight columns
+(the 48dp floor), and not more colours: five is the separability ceiling
+(`ART.md` 2). Colour pressure comes from stacks instead: a wide block whose
+lower layer's arrow is already in reach is a tap that looks right and
+bounces.
 
 Tutorial beats, one new idea at a time, no text walls:
 
@@ -355,31 +373,34 @@ Tutorial beats, one new idea at a time, no text walls:
 | ----- | ----------------------------------------------------------------- |
 | 1     | Tap an arrow to fire it                                           |
 | 2     | A blocked arrow cannot move — and tapping it anyway costs a heart |
-| 32    | Wrong color bounces and costs a heart                             |
+| 3     | Wide blocks: two lanes, one stack — and a wrong colour bounces    |
 | 5     | Layered blocks: the inner bands show what is underneath           |
 | 8     | Hearts and stars: a clean solve is 3 stars                        |
 | 20    | The first one-heart level, announced before it starts             |
-| 31    | Wide blocks: several lanes, one stack                             |
 | 35    | The first special arrow — Joker                                   |
 | 42    | Bomb                                                              |
 | 50    | Hearts drop to three from here on                                 |
 | 55    | Ghost                                                             |
 
-**The colour mismatch is taught at 32, not at 3.** It cannot be taught
-earlier, because it cannot happen earlier: while every block is fed by a
-single lane, that lane's arrows stand in the order its layers peel, so the
-only wrong tap available is a blocked one. A mismatch first becomes possible
-where two lanes feed one stack — the wide block introduced at 31 — and level
-32 is the first board a player can actually bounce on. `tests/tutorial.test.ts`
-asserts both halves of that: every mistake beat is reachable on its own level,
-and the mismatch is out of reach on the single-lane levels.
+**The wide block and the colour mismatch are taught together, at 3.** A
+mismatch cannot happen while every block is fed by a single lane: that lane's
+arrows stand in the order its layers peel, so the only wrong tap available is
+a blocked one. It first becomes possible where two lanes feed one stack. So
+level 3 opens on exactly that: one two-lane block with two layers, an arrow
+in each lane, the lower layer's arrow already in reach, and a line naming it
+("One block, two lanes: either lane can peel it"). A player who taps the
+wrong one sees the bounce and its line while the tutorial still forgives.
+The first plan left both for level 31, which meant thirty levels on a frame
+that never showed its central idea. `tests/tutorial.test.ts` asserts both
+halves: every mistake beat is reachable on its own level, and the mismatch is
+out of reach on the single-lane tutorial boards.
 
 **Levels 1-3 forgive.** In the three levels that teach what costs a heart, the
 mistake is demonstrated rather than punished: the shake plays, a one-line
-coach mark explains it, and the heart is **not** taken. What they teach is
-the blocked tap, since that is the only mistake those boards allow. Teaching a
-rule and charging for it in the same breath is how a tutorial loses a player.
-From level 4 on, every mistake is charged.
+coach mark explains it, and the heart is **not** taken. Level 2 teaches the
+blocked tap, level 3 the bounce. Teaching a rule and charging for it in the
+same breath is how a tutorial loses a player. From level 4 on, every mistake
+is charged.
 
 ---
 
@@ -456,9 +477,20 @@ tests and in the UI.
 
 ## 4. Level generation and validation
 
-Decision: **hybrid**. Levels 1-30 are hand-authored JSON (a controlled
-teaching curve); 31 and up are generated and solver-verified. The solver
-validates every level, hand-made ones included.
+Decision: **hybrid**. Levels 1-10 are hand-authored JSON (a controlled
+teaching curve), as are the four shaped beats at 20, 40, 60 and 80; the other
+1986 of the 2000 are generated and solver-verified. The solver validates
+every level, hand-made ones included.
+
+**A generated level ships as a seed, not a board.** `src/levels/generated.json`
+holds one `[id, seed, par]` row per level, and the app rebuilds the board with
+the same generator and the same `specFor(id)` the CLI used (`src/generator/`,
+pure and deterministic like the engine). Two thousand boards as JSON would be
+megabytes of bundle; as rows they are a few kilobytes. The price is that the
+generator and the spec are now shipped data: changing either moves boards
+under players. So the gate records a fingerprint of every rebuilt level
+(`tests/fixtures/level-prints.json`) and fails when one changes;
+`--update-costs` re-records it, on purpose.
 
 ### 4.1 Solver
 
@@ -488,7 +520,7 @@ validates every level, hand-made ones included.
 - Output: `solvable`, `par`, `solutionCount` (capped) and a witness solution
   path stored next to the level for regression tests.
 
-### 4.2 Generator (levels 31+)
+### 4.2 Generator (levels 11+)
 
 Generate **backwards** from a solved board, so solvability comes for free:
 
@@ -505,10 +537,20 @@ Generate **backwards** from a solved board, so solvability comes for free:
    until late, is the deliberate version of the same thing.
 4. Merge adjacent same-side blocks into wide blocks at a difficulty-driven
    rate.
-5. Run the forward solver to get the true `par` (the reverse construction
+5. **Colour holds.** With some probability (`holdRate`), an arrow aimed at a
+   wide block has its exit ray walled off from every body placed after it.
+   It can fire from the first move, but its layer is not on top yet: a tap
+   that looks right and bounces. Measured along the solutions of generated
+   boards, without holds about 40% of the taps on offer are blocked rays and
+   only 5-7% are colour mismatches: the frame's colours were close to
+   decoration. At a hold rate of 0.5 that moves to about 30% blocked and
+   9-12% mismatched. Deeper stacks on fewer, wider blocks push it further,
+   at the cost of many more seeds failing to place. `contrast` makes a pushed layer differ from the one under it,
+   so both lanes of a wide block cannot be right at once.
+6. Run the forward solver to get the true `par` (the reverse construction
    only gives an upper bound) and to reject boards that are trivially short
    or have too many distinct solutions.
-6. Score the candidate against the **difficulty model** below and keep only
+7. Score the candidate against the **difficulty model** below and keep only
    candidates inside the target band for that level index.
 
 ### 4.3 Difficulty model
@@ -548,23 +590,27 @@ built on that:
   in the score, not the score.
 
 Each level index gets a target band per axis; the bands live in
-`tools/difficulty.ts` and the gate enforces them for every level from 31 on.
+`tools/difficulty.ts`, follow the same effort curve as the generator's knobs
+(section 2), and the gate enforces them for every generated level (11 on).
 `par` is an input to the model, not an output the player ever sees.
 
 One exception, and it is deliberate: a **one-heart level may sit below** the
 band for its index and never above it. Those levels are the game's
 punctuation and are built readable and a little shorter (section 1.5), so
 holding them to a neighbouring board's score would turn a pause into a
-spike. For the same reason they are left out of the monotonic-curve check
-the gate runs over the bundle.
+spike. For the same reason they are left out of the rising-curve check the
+gate runs over the bundle. That check judges the rolling ten-level mean, which
+cancels the wave, and allows it to slip by 0.02: past a few hundred levels the
+trend is a plateau, and a plateau measured board by board is noise around a
+line.
 
 **The bands are guesses until real players hit them.** The analytics fail
 rate per level (`DESIGN.md` section 6) is the feedback signal that
 recalibrates them; see the open item on post-launch retuning in
 `ROADMAP.md`.
 
-Generation runs offline as a Node script; the shipped app only reads the
-resulting JSON.
+Seeds are searched offline by a Node script (`npm run levels:generate`);
+the shipped app only rebuilds the recorded ones.
 
 ---
 
@@ -652,9 +698,9 @@ shot has landed (`ART.md` 7).
   not count — that is a mistake about the board, not about colour, and the
   `mistake` split in `TELEMETRY.md` 2.3 already keeps the two apart. Opening
   the switch, either way, counts as the answer and retires the line. The
-  evidence cannot appear before level 32 (section 2), so up to there the
+  evidence cannot appear before level 3 (section 2), so up to there the
   settings row is the only route in — which is an argument for keeping that
-  row plainly named, not for asking everyone at first launch. Level 32 is
+  row plainly named, not for asking everyone at first launch. Level 3 is
   also where the mismatch beat lives, and two lines never share the board:
   the beat wins, the nudge is not spent, and it is offered again at the next
   wrong-colour tap.

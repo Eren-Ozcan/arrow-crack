@@ -96,7 +96,7 @@ and no red is. That is a known, accepted cost of the wrong-tap state in
 section 6: with colour-blind mode on, a player with that type reads the
 mistake off the tail glyph, which the red never repaints.
 
-Levels 1-30 use three colors, 31-49 four, 50+ five. Five is the hard
+Levels 1-30 use three colors, 31-49 four, 50-2000 five. Five is the hard
 ceiling: a sixth color cannot be added without breaking separability for
 someone.
 

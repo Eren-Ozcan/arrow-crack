@@ -68,7 +68,9 @@ tested. It is not extended to the renderer or the UI.
 
 ### 2.2 Level validation — the gate that matters
 
-`tools/validate-levels.ts`, run over every level JSON in the bundle. The
+`tools/validate-levels.ts`, run over every level the app ships: the
+hand-authored JSON, and every row of `src/levels/generated.json` rebuilt from
+its seed exactly as the device rebuilds it (`DESIGN.md` 4). The
 tooling is TypeScript run through `tsx`, so the gate imports the shipped
 engine and solver directly — one implementation, three callers (CI, the
 generator, the device's override check) — with no build step in between.
@@ -76,10 +78,11 @@ generator, the device's override check) — with no build step in between.
 The checks below are the full set, and all of them run today. The per-level
 checks live in `tools/validate.ts`; the ones that need the whole bundle at
 once — the id sequence, the manifest, the spacing between the two special
-level types, the shape of the difficulty curve and the solver-cost baseline —
-live in the CLI. The baseline itself is `tests/fixtures/level-costs.json`,
-rewritten by `npm run levels:validate -- --update-costs` when a solver change
-is meant to move it.
+level types, the shape of the difficulty curve, the solver-cost baseline and
+the generated-board fingerprints — live in the CLI. The baselines are
+`tests/fixtures/level-costs.json` and `tests/fixtures/level-prints.json`,
+rewritten by `npm run levels:validate -- --update-costs` when a solver,
+generator or spec change is meant to move them.
 
 | Check                 | Fails the build when                                                                                                                                                    |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -94,7 +97,8 @@ is meant to move it.
 | Level type            | A timed level has no `timeLimitMs`, a non-timed level has one, or a timed level's par is too long for its clock (`PROGRESSION.md` 3)                                    |
 | Special-level spacing | A timed level sits adjacent to a one-heart level                                                                                                                        |
 | Difficulty band       | A generated level's metrics (`DESIGN.md` 4.3) fall outside the band for its index; a one-heart level may sit below its band, never above it                             |
-| Difficulty curve      | The rolling ten-level mean of the difficulty score falls, counting the levels that are not one-heart                                                                    |
+| Difficulty curve      | The rolling ten-level mean of the difficulty score falls by more than 0.02, counting the levels that are not one-heart                                                  |
+| Board fingerprint     | A level rebuilt from its seed differs from the recorded fingerprint: a generator or `specFor` change moved a shipped board                                              |
 | Solver cost           | The worst-case node count regressed against the recorded fixture baseline                                                                                               |
 | Tutorial levels       | A level outside 1-3 forgives a mistake, or one of those three does not (`DESIGN.md` 2)                                                                                  |
 | Ids and order         | Duplicate level ids, gaps in the sequence, a manifest that disagrees with the files on disk (`npm run levels:manifest -- --check`)                                      |
