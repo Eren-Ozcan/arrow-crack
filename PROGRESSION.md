@@ -207,13 +207,14 @@ hearts.
   is the mode where that is the point.
 - Stars still come from mistakes, unchanged. A timed level is a different
   pressure, not a different scoring system.
-- Frequency: every 15 levels from level 38, and never adjacent to a
+- Frequency: every 20 levels from level 45, and never adjacent to a
   one-heart level. The two special types are both spikes; back to back they
   read as a difficulty wall rather than as variety. The schedule is
-  arithmetic rather than a list (`src/generator/spec.ts`): timed levels are
-  38 + 15k, which always end in 3 or 8, and one-heart levels are every tenth
-  from 20, which end in 0, so across all 2000 levels the two can never touch.
-  The gate still fails the build if they do.
+  arithmetic rather than a list (`src/generator/spec.ts`): timed levels end
+  in 5, one-heart levels end in 0, and the hard levels end in 3 or 7
+  (`DESIGN.md` 2), so a clock never sits next to a single heart and never
+  lands on a board built to be hard. The gate still fails the build if a
+  timed level touches a one-heart one.
 - The engine enforces the single currency rather than trusting the level
   data: on a timed level a mistake counts for stars and costs five seconds,
   and `fire()` takes no heart (`DESIGN.md` 1.5). `hearts` in the level file
@@ -249,8 +250,8 @@ whole product is positioned against (`REFERENCE.md` 2.2).
 | Type      | Budget                     | Failure          | Notes                                                   |
 | --------- | -------------------------- | ---------------- | ------------------------------------------------------- |
 | Normal    | 4 hearts (3 from level 50) | Out of hearts    | The default                                             |
-| One-heart | 1 heart                    | First mistake    | Precision beat, every 10 levels from 20                 |
-| Timed     | A clock, −5 s per mistake  | Clock at zero    | Speed beat, every 15 levels from 38                     |
+| One-heart | 1 heart                    | First mistake    | Very hard peak, every level ending in 0 from 20         |
+| Timed     | A clock, −5 s per mistake  | Clock at zero    | Speed beat, every 20 levels from 45                     |
 | Shaped    | As its base type           | As its base type | A mask (`DESIGN.md` 1.10); can combine with either beat |
 
 ---

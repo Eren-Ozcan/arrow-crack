@@ -139,12 +139,15 @@ available (`ART.md` 3.2), and a pan may never be mistaken for a tap
 #### One-heart levels
 
 A handful of levels grant a single heart regardless of their index. They are
-the game's punctuation — a clean-solve challenge, not a difficulty spike.
+the game's peaks: every tenth level from 20 on, and the hardest board of its
+ten (section 2).
 
-- Roughly every tenth level from level 20 on, plus any level the designer
-  flags. They are **not** simply the hardest boards: a one-heart level is
-  built to be readable and a little shorter, because the demand is precision,
-  not endurance.
+- Every level ending in 0 from level 20 on. The first plan made them gentle
+  punctuation, readable and a little shorter; after playing the incumbent's
+  early levels the decision went the other way (2026-09-25): a level ending
+  in 0 is **very hard** and the player learns to expect it. Restarting is
+  always free, which is what keeps a single heart on the hardest board fair.
+  The four hand-authored shaped beats (20, 40, 60, 80) keep their own boards.
 - Flagged visibly on the level path **and** on a confirmation before the
   level starts. A single heart must never be a surprise discovered by losing
   it.
@@ -340,26 +343,40 @@ spectacle. It is the first candidate if a fourth is ever wanted.
 
 ## 2. Level content progression
 
-| Levels   | Content                                                                                     | Hearts |
-| -------- | ------------------------------------------------------------------------------------------- | ------ |
-| 1-10     | Hand-authored tutorial. Few arrows, short bodies; the wide block is taught at 3.            | 4      |
-| 11-30    | Generated from here on. 6x6, three colours, 2-layer stacks, the odd wide block.             | 4      |
-| 31-49    | Four colours, wide blocks common, decoys, colour holds. The real puzzle starts.             | 4      |
-| 50-300   | Five colours, 7x7 then 8x8, 3-4 layers, longer bent bodies. Most of the climb.              | 3      |
-| 300-2000 | The full game: 8 columns, up to 10 rows, 4-7 cell bodies, ~80% fill. A plateau with a wave. | 3      |
+| Levels   | Content                                                                                            | Hearts |
+| -------- | -------------------------------------------------------------------------------------------------- | ------ |
+| 1-10     | Hand-authored tutorial. Few arrows, short bodies; the wide block is taught at 3.                   | 4      |
+| 11-30    | Generated from here on. 6x6 (7x7 on hard levels), three colours, 2-layer stacks, some wide blocks. | 4      |
+| 31-49    | Four colours, wide blocks common, decoys, colour holds. The real puzzle starts.                    | 4      |
+| 50-300   | Five colours, 7x7 then 8x8, 3-4 layers, longer bent bodies. Most of the climb.                     | 3      |
+| 300-2000 | The full game: 8 columns, up to 10 rows, 4-7 cell bodies, ~80% fill. A plateau with steps.         | 3      |
 
 One-heart levels (section 1.5) sit on every tenth level from 20 on and are
-not a band of their own.
+the very hard step of the rhythm below, not a band of their own. Level 11, the
+first generated one, already holds as many arrows as the tutorial's last
+board: the teaching is over at 10, and the count climbs from there.
 
-**The curve is a trend plus a wave** (`src/generator/spec.ts`). The trend
-saturates, `1 - e^(-(id - 11) / 300)`, so about two thirds of the climb is
-done by level 300 and nearly all of it by 900. Two thousand levels of
-ever-growing boards would hit the 8-column ceiling long before the end, and a
-player at 1500 should meet the full game, not a bigger one. On top rides a
-ten-level wave: the first levels of each ten are a breather, the ninth is the
-peak, the tenth is the one-heart punctuation. Board size, body length, bends,
-fill, layer depth, wide-block rate and colour holds all read the same effort
-figure, and so does the difficulty band (section 4.3).
+**The curve is a trend plus steps by last digit** (`src/generator/spec.ts`).
+The trend saturates, `1 - e^(-(id - 11) / 300)`, so about two thirds of the
+climb is done by level 300 and nearly all of it by 900. Two thousand levels
+of ever-growing boards would hit the 8-column ceiling long before the end, and
+a player at 1500 should meet the full game, not a bigger one. The trend tops
+out below the maximum so the steps above it still have room at the end.
+
+The steps are a rhythm a player can read off the level number:
+
+| Last digit | Tier      | Step  |
+| ---------- | --------- | ----- |
+| 0          | Very hard | +0.35 |
+| 3, 7       | Hard      | +0.20 |
+| 1          | Breather  | −0.10 |
+| others     | Normal    | 0     |
+
+Board size, body length, bends, fill, layer depth, wide-block rate and
+colour holds all read the same effort figure, and so does the difficulty band
+(section 4.3), which aims a very hard level at the upper tail of what the
+generator produces: not a different kind of board, the hardest of several
+hundred seeds.
 
 **Where difficulty does not come from.** Not board size past eight columns
 (the 48dp floor), and not more colours: five is the separability ceiling
@@ -594,15 +611,12 @@ Each level index gets a target band per axis; the bands live in
 (section 2), and the gate enforces them for every generated level (11 on).
 `par` is an input to the model, not an output the player ever sees.
 
-One exception, and it is deliberate: a **one-heart level may sit below** the
-band for its index and never above it. Those levels are the game's
-punctuation and are built readable and a little shorter (section 1.5), so
-holding them to a neighbouring board's score would turn a pause into a
-spike. For the same reason they are left out of the rising-curve check the
-gate runs over the bundle. That check judges the rolling ten-level mean, which
-cancels the wave, and allows it to slip by 0.02: past a few hundred levels the
-trend is a plateau, and a plateau measured board by board is noise around a
-line.
+One-heart levels get no exception: they are the very hard step, and their
+band says so. The rising-curve check the gate runs over the bundle judges the
+rolling ten-level mean, which holds exactly one level of each digit and so
+cancels the steps, and allows it to slip by 0.02: past a few hundred levels
+the trend is a plateau, and a plateau measured board by board is noise
+around a line. The hand-authored shaped beats are left out of both.
 
 **The bands are guesses until real players hit them.** The analytics fail
 rate per level (`DESIGN.md` section 6) is the feedback signal that

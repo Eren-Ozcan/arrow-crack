@@ -96,8 +96,8 @@ generator or spec change is meant to move them.
 | Mask                  | An arrow occupies a cell outside the mask, or a block sits on a lane no arrow inside the mask can reach — an unhittable block is an unsolvable level (`DESIGN.md` 1.10) |
 | Level type            | A timed level has no `timeLimitMs`, a non-timed level has one, or a timed level's par is too long for its clock (`PROGRESSION.md` 3)                                    |
 | Special-level spacing | A timed level sits adjacent to a one-heart level                                                                                                                        |
-| Difficulty band       | A generated level's metrics (`DESIGN.md` 4.3) fall outside the band for its index; a one-heart level may sit below its band, never above it                             |
-| Difficulty curve      | The rolling ten-level mean of the difficulty score falls by more than 0.02, counting the levels that are not one-heart                                                  |
+| Difficulty band       | A generated level's metrics (`DESIGN.md` 4.3) fall outside the band for its index and tier                                                                              |
+| Difficulty curve      | The rolling ten-level mean of the difficulty score over the generated levels falls by more than 0.02                                                                    |
 | Board fingerprint     | A level rebuilt from its seed differs from the recorded fingerprint: a generator or `specFor` change moved a shipped board                                              |
 | Solver cost           | The worst-case node count regressed against the recorded fixture baseline                                                                                               |
 | Tutorial levels       | A level outside 1-3 forgives a mistake, or one of those three does not (`DESIGN.md` 2)                                                                                  |
