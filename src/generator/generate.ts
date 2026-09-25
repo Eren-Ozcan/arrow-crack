@@ -87,6 +87,11 @@ export interface GenerateOptions {
    * layer under it, so two lanes feeding one block cannot both be right.
    */
   contrast?: number;
+  /**
+   * A silhouette (DESIGN.md 1.10): arrows are placed only on these cells.
+   * Everything else stays empty, so exit rays still cross it freely.
+   */
+  mask?: Cell[];
 }
 
 /** Deterministic PRNG: one seed is one board, on every machine. */
@@ -164,6 +169,27 @@ function buildUnits(options: GenerateOptions, random: () => number): Unit[] {
   return units;
 }
 
+const outsideCache = new WeakMap<Cell[], Set<string>>();
+
+/** The cells a silhouette leaves out, or null for a full rectangle. */
+function outsideOf(options: GenerateOptions): Set<string> | null {
+  const mask = options.mask;
+  if (!mask) return null;
+  const cached = outsideCache.get(mask);
+  if (cached) return cached;
+
+  const inside = new Set(mask.map(cellKey));
+  const outside = new Set<string>();
+  for (let row = 0; row < options.rows; row += 1) {
+    for (let col = 0; col < options.cols; col += 1) {
+      const key = cellKey({ col, row });
+      if (!inside.has(key)) outside.add(key);
+    }
+  }
+  outsideCache.set(mask, outside);
+  return outside;
+}
+
 /** Tries per arrow before the board is abandoned. */
 const PLACEMENT_ATTEMPTS = 60;
 /** Arrows the grid may fall short by before the seed is discarded. */
@@ -222,8 +248,12 @@ function growBody(
       (candidate) => candidate !== heading && candidate !== OPPOSITE[heading],
     );
 
+    const outside = outsideOf(options);
     const free = (cell: Cell): boolean =>
-      inBounds(cell) && !occupied.has(cellKey(cell)) && !used.has(cellKey(cell));
+      inBounds(cell) &&
+      !occupied.has(cellKey(cell)) &&
+      !used.has(cellKey(cell)) &&
+      !outside?.has(cellKey(cell));
 
     // The cell right behind the head is fixed: the final segment of the path
     // has to run in the head's direction, or the engine rejects the arrow.
@@ -281,6 +311,7 @@ function headCandidates(
   const dir = FACING[side];
   const inward = OPPOSITE[dir];
   const cells: Cell[] = [];
+  const outside = outsideOf(options);
 
   let cell = edgeCell(side, lane, options.cols, options.rows);
   while (
@@ -290,7 +321,9 @@ function headCandidates(
     cell.row < options.rows
   ) {
     if (occupied.has(cellKey(cell))) break;
-    cells.push(cell);
+    // Outside a silhouette a ray runs through empty space: no head sits there,
+    // but nothing stops the run to the frame either.
+    if (!outside?.has(cellKey(cell))) cells.push(cell);
     cell = step(cell, inward);
   }
 
