@@ -12,7 +12,7 @@ export interface Fixture {
 /** One arrow, one block: the first teaching beat. */
 export const singleShot: Fixture = {
   level: {
-    id: 11,
+    id: 5,
     cols: 3,
     rows: 3,
     palette: ["v"],
@@ -37,7 +37,7 @@ export const singleShot: Fixture = {
 /** Two layers on one block, and an arrow that is blocked until the other leaves. */
 export const ordered: Fixture = {
   level: {
-    id: 12,
+    id: 6,
     cols: 3,
     rows: 3,
     palette: ["v", "b"],
@@ -63,7 +63,7 @@ export const ordered: Fixture = {
 /** A wide block, a bent body, and an arrow with no block on its lane. */
 export const wideAndBent: Fixture = {
   level: {
-    id: 13,
+    id: 7,
     cols: 4,
     rows: 4,
     palette: ["g", "v"],

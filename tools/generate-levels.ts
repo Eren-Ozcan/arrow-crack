@@ -1,102 +1,48 @@
 #!/usr/bin/env tsx
 /**
- * The generator CLI (DESIGN.md 4.2, ROADMAP milestone 5).
+ * The generator CLI (DESIGN.md 4.2).
  *
- *   npx tsx tools/generate-levels.ts                 report, writes nothing
- *   npx tsx tools/generate-levels.ts --write         write the level files
- *   npx tsx tools/generate-levels.ts --only 35,42    a few ids only
+ *   npx tsx tools/generate-levels.ts                   report, writes nothing
+ *   npx tsx tools/generate-levels.ts --write           rewrite the seed table
+ *   npx tsx tools/generate-levels.ts --only 35,42      a few ids only
+ *   npx tsx tools/generate-levels.ts --from 81 --to 400
+ *   npx tsx tools/generate-levels.ts --only 53 --seeds 900   a wider search
  *
  * For each level index it walks seeds until one candidate passes the shipped
  * gate (`tools/validate.ts`) *and* lands inside its difficulty band
  * (`tools/difficulty.ts`). A board that fails either is discarded, not tuned:
  * the seed is cheap and a hand-nudged board is a board nothing verified.
  *
- * The shaped levels (40, 60, 80) are hand-authored — mask-aware generation is
- * a post-launch lever (DESIGN.md 1.10) — so this script leaves them alone.
+ * What it writes is not a board but a row — the seed and the certified par —
+ * into `src/levels/generated.json`; the app rebuilds the board from it. The
+ * hand-authored levels (the tutorial and the shaped beats) are left alone.
  */
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createState } from "../src/engine/level";
-import type { Special } from "../src/engine/types";
+import { generate } from "../src/generator/generate";
+import {
+  clockFor,
+  FIRST_GENERATED_LEVEL,
+  HAND_AUTHORED_LEVELS,
+  isTimed,
+  LAST_LEVEL,
+  specFor,
+} from "../src/generator/spec";
 import { parseLevel } from "../src/levels/parse";
 import type { RawLevel } from "../src/levels/parse";
 import { solve } from "../src/solver";
 import { checkBand, measure, targetScore } from "./difficulty";
-import { generate } from "./generate";
-import type { GenerateOptions } from "./generate";
-import { LEVELS_DIR } from "./levels";
 import { validate } from "./validate";
+
+export const TABLE = join(process.cwd(), "src", "levels", "generated.json");
 
 const SOLVER_BUDGET = { maxNodes: 5_000_000, timeBudgetMs: 30_000 };
 const MAX_SEEDS = 120;
+/** Every seed a level owns: its ids run from `id * 1000 + 1`. */
+const FULL_BLOCK = 999;
 /** Free moves a timed board has to offer, on average, to earn its clock. */
 const TIMED_MIN_FAN_OUT = 3.5;
-
-/** Hand-authored shaped levels; the generator does not touch them. */
-export const SHAPED_LEVELS = [40, 60, 80];
-/** A single heart, roughly every tenth level from 20 (DESIGN.md 1.5). */
-export const ONE_HEART_LEVELS = [40, 50, 60, 70, 80];
-/**
- * Roughly every fifteenth level from 25 (PROGRESSION.md 3), and never next to
- * a one-heart level: both are spikes, and back to back they read as a wall.
- */
-export const TIMED_LEVELS = [38, 53, 68];
-/**
- * Specials are introduced one at a time, in this order, and never before 35
- * (DESIGN.md 1.11). Each one comes back once more, a band later.
- */
-export const SPECIAL_LEVELS: Record<number, Special> = {
-  35: "joker",
-  42: "bomb",
-  48: "joker",
-  55: "ghost",
-  63: "bomb",
-  74: "ghost",
-};
-
-/** A timed level gets a clock with room to read the board, not just to tap. */
-export function clockFor(par: number): number {
-  return Math.max(45_000, Math.ceil((par * 5_000) / 5_000) * 5_000);
-}
-
-function lerp(from: number, to: number, t: number): number {
-  return from + (to - from) * t;
-}
-
-/**
- * The knobs per level index. The board grows, the palette widens once, and
- * the tangle knobs climb — but the axis that actually carries the curve is
- * the trap ratio the difficulty model measures afterwards.
- */
-export function specFor(id: number): Omit<GenerateOptions, "seed"> {
-  const t = Math.min(1, Math.max(0, (id - 31) / (80 - 31)));
-  const size = id < 42 ? 6 : id < 66 ? 7 : 8;
-  const palette = id < 50 ? ["v", "b", "g", "y"] : ["v", "b", "g", "y", "p"];
-  // A timed level wants a short par and a forgiving board: time pressure over
-  // a level that demands deep lookahead is a coin flip, not a challenge
-  // (PROGRESSION.md 3). So it gets a smaller board than its index otherwise
-  // would, and the search below holds it to a wide fan-out.
-  const timed = TIMED_LEVELS.includes(id);
-
-  return {
-    id,
-    cols: size,
-    rows: size,
-    palette,
-    hearts: ONE_HEART_LEVELS.includes(id) ? 1 : id >= 50 ? 3 : 4,
-    arrows: Math.round(lerp(9, 15, t)) - (timed ? 3 : 0),
-    decoys: id < 36 ? 0 : id < 56 ? 1 : 2,
-    maxLayers: id < 45 ? 2 : id < 65 ? 3 : 4,
-    blocks: Math.round(lerp(6, 12, t)),
-    wideRate: lerp(0.2, 0.45, t),
-    bendRate: lerp(0.25, 0.45, t),
-    pinRate: timed ? 0.2 : lerp(0.3, 0.85, t),
-    minBody: 2,
-    maxBody: Math.round(lerp(3, 4, t)),
-    ...(timed ? { type: "timed" as const } : {}),
-    ...(SPECIAL_LEVELS[id] ? { special: SPECIAL_LEVELS[id] } : {}),
-  };
-}
 
 export interface Candidate {
   level: RawLevel;
@@ -125,6 +71,12 @@ export function findLevel(id: number, maxSeeds = MAX_SEEDS): Candidate | null {
     const seed = base + offset;
     const raw = generate({ ...spec, seed });
     if (!raw) continue;
+    // The generator may fall a few arrows short of its count when the grid
+    // runs out of room. The band alone would then prefer those thin boards
+    // for the gentle levels, since fewer arrows is the cheapest way to a low
+    // score, so a board is held to its count less one: the curve has to come
+    // from what the arrows ask, not from how many of them there are.
+    if (raw.arrows.length < spec.arrows + spec.decoys - 1) continue;
 
     let parsed;
     try {
@@ -166,69 +118,89 @@ export function findLevel(id: number, maxSeeds = MAX_SEEDS): Candidate | null {
   return best;
 }
 
-/** The key order a level file is written in, so a diff stays readable. */
-function serialize(level: RawLevel): string {
-  const ordered: Record<string, unknown> = {
-    id: level.id,
-    cols: level.cols,
-    rows: level.rows,
-    palette: level.palette,
-    hearts: level.hearts,
-  };
-  if (level.type) ordered.type = level.type;
-  if (level.timeLimitMs !== undefined) ordered.timeLimitMs = level.timeLimitMs;
-  ordered.par = level.par;
-  ordered.arrows = level.arrows;
-  ordered.blocks = level.blocks;
-  if (level.maskRows) ordered.maskRows = level.maskRows;
+type Row = [id: number, seed: number, par: number];
 
-  return `${JSON.stringify(ordered, null, 2)}\n`;
+export async function readTable(): Promise<Map<number, Row>> {
+  try {
+    const table = JSON.parse(await readFile(TABLE, "utf8")) as { levels: Row[] };
+    return new Map(table.levels.map((row) => [row[0], row]));
+  } catch {
+    return new Map();
+  }
+}
+
+/** One row per line: a diff of the table reads as a list of changed levels. */
+export function renderTable(rows: Row[]): string {
+  const sorted = [...rows].sort((a, b) => a[0] - b[0]);
+  const lines = sorted.map((row) => `    ${JSON.stringify(row)}`).join(",\n");
+  return `{\n  "levels": [\n${lines}\n  ]\n}\n`;
+}
+
+function numberArg(args: string[], name: string): number | null {
+  const index = args.indexOf(name);
+  if (index === -1) return null;
+  const value = Number(args[index + 1]);
+  return Number.isFinite(value) ? value : null;
 }
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const write = args.includes("--write");
-  const onlyArg = args.find((arg) => arg.startsWith("--only"));
-  const only = onlyArg
-    ? new Set(
-        (onlyArg.split("=")[1] ?? args[args.indexOf(onlyArg) + 1] ?? "")
-          .split(",")
-          .map((value) => Number(value.trim()))
-          .filter((value) => Number.isFinite(value)),
-      )
-    : null;
+  const onlyIndex = args.indexOf("--only");
+  const only =
+    onlyIndex === -1
+      ? null
+      : new Set(
+          (args[onlyIndex + 1] ?? "")
+            .split(",")
+            .map((value) => Number(value.trim()))
+            .filter((value) => Number.isFinite(value)),
+        );
+  const from = numberArg(args, "--from") ?? FIRST_GENERATED_LEVEL;
+  const to = numberArg(args, "--to") ?? LAST_LEVEL;
+  // A level's seeds live in its own block of a thousand, so the search can
+  // widen up to there without overlapping its neighbour's.
+  const seeds = Math.min(FULL_BLOCK, numberArg(args, "--seeds") ?? MAX_SEEDS);
 
+  const table = await readTable();
   let missing = 0;
+  let written = 0;
 
-  for (let id = 31; id <= 80; id += 1) {
+  for (let id = from; id <= to; id += 1) {
     if (only && !only.has(id)) continue;
-    if (SHAPED_LEVELS.includes(id)) {
-      console.log(`${id}: hand-authored shaped level, skipped`);
-      continue;
-    }
+    if (HAND_AUTHORED_LEVELS.includes(id)) continue;
 
     const started = performance.now();
-    const found = findLevel(id);
+    // A clock only goes on a forgiving board, and few seeds are forgiving
+    // enough, so a timed level always gets the whole block. Any other level
+    // that comes up empty widens to the whole block too, so a rerun of the
+    // same spec always lands on the same seeds.
+    const found = isTimed(id)
+      ? findLevel(id, FULL_BLOCK)
+      : (findLevel(id, seeds) ?? findLevel(id, FULL_BLOCK));
     const elapsed = ((performance.now() - started) / 1000).toFixed(1);
 
     if (!found) {
       missing += 1;
-      console.error(`${id}: no candidate inside the band after ${MAX_SEEDS} seeds`);
+      console.error(`${id}: no candidate inside the band after ${FULL_BLOCK} seeds`);
       continue;
     }
 
-    if (write) {
-      const file = join(LEVELS_DIR, `${String(id).padStart(3, "0")}.json`);
-      await writeFile(file, serialize(found.level), "utf8");
-    }
-
+    table.set(id, [id, found.seed, found.level.par]);
+    written += 1;
     console.log(
       `${id}: seed ${found.seed}, ${found.level.arrows.length} arrows, ` +
         `par ${found.level.par}, score ${found.score.toFixed(2)}, ` +
         `traps ${found.trapRatio.toFixed(2)}, fan-out ${found.fanOut.toFixed(1)}, ${elapsed}s`,
     );
+
+    // Long runs write as they go, so an interrupted run keeps its work.
+    if (write && written % 50 === 0) {
+      await writeFile(TABLE, renderTable([...table.values()]), "utf8");
+    }
   }
 
+  if (write) await writeFile(TABLE, renderTable([...table.values()]), "utf8");
   if (missing > 0) process.exit(1);
 }
 

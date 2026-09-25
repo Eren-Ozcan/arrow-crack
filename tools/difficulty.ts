@@ -13,7 +13,14 @@ import { fire } from "../src/engine/fire";
 import { blockForArrow, createState } from "../src/engine/level";
 import { blockersOf, isBlocked } from "../src/engine/rays";
 import type { Arrow, Block, GameState, LevelDef } from "../src/engine/types";
+import {
+  effortAt,
+  FIRST_GENERATED_LEVEL,
+  HAND_AUTHORED_LEVELS,
+} from "../src/generator/spec";
 import { solve } from "../src/solver";
+
+export { FIRST_GENERATED_LEVEL };
 
 /**
  * The widest fan-out the model still distinguishes. Counting distinct optimal
@@ -299,18 +306,16 @@ export interface Band {
   fanOut: { max: number };
 }
 
-/** The first generated level; everything below it is hand-authored (DESIGN.md 4). */
-export const FIRST_GENERATED_LEVEL = 31;
-export const LAST_LEVEL = 80;
-
 function lerp(from: number, to: number, t: number): number {
   return from + (to - from) * t;
 }
 
 /**
- * The target band for a level index. The curve runs from "a board where a
- * quarter of the taps on offer cost a heart" at 31 to "a board where most of
- * them do, with a forced order behind it" at 80.
+ * The target band for a level index. It follows the same effort curve the
+ * generator's knobs do (`src/generator/spec.ts`): a saturating climb from
+ * "a board where a quarter of the taps on offer cost a heart" at 11 to "a
+ * board where most of them do, with a forced order behind it" by level 700 or
+ * so, with the ten-level wave riding on top.
  *
  * The centres are calibrated against what the generator actually produces —
  * a band the generator cannot reach would only mean hand-tuned levels, which
@@ -319,8 +324,8 @@ function lerp(from: number, to: number, t: number): number {
  * against players, and it is not yet (DESIGN.md 4.3).
  */
 export function bandFor(id: number, hearts = 4): Band {
-  const t = clamp01((id - FIRST_GENERATED_LEVEL) / (LAST_LEVEL - FIRST_GENERATED_LEVEL));
-  const centre = lerp(0.28, 0.46, t);
+  const t = effortAt(id);
+  const centre = lerp(0.24, 0.48, t);
 
   // A one-heart level is the game's punctuation, not a difficulty spike: it is
   // built to be readable and a little shorter, because the demand there is
@@ -349,7 +354,11 @@ export function targetScore(id: number, hearts = 4): number {
 
 /** Band violations for a generated level, empty when it sits inside its band. */
 export function checkBand(level: LevelDef, metrics: DifficultyMetrics): string[] {
-  if (level.id < FIRST_GENERATED_LEVEL) return [];
+  // The bands describe what the generator is asked for. The tutorial and the
+  // shaped beats are authored, and judged by being played instead.
+  if (level.id < FIRST_GENERATED_LEVEL || HAND_AUTHORED_LEVELS.includes(level.id)) {
+    return [];
+  }
 
   const band = bandFor(level.id, level.hearts);
   const problems: string[] = [];
