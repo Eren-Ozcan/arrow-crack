@@ -21,7 +21,8 @@
     "android:dev": "npm run cap:sync && cap run android",
     "test:coverage": "vitest run --coverage",
     "levels:solve": "tsx tools/solve.ts",
-    "art:shoot": "tsx tools/shoot.ts"
+    "art:shoot": "tsx tools/shoot.ts",
+    "levels:shaped": "tsx tools/generate-shaped.ts"
   },
   "devDependencies": {
     "@capacitor/android": "^7.0.0",

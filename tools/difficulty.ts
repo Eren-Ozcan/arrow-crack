@@ -13,11 +13,7 @@ import { fire } from "../src/engine/fire";
 import { blockForArrow, createState } from "../src/engine/level";
 import { blockersOf, isBlocked } from "../src/engine/rays";
 import type { Arrow, Block, GameState, LevelDef } from "../src/engine/types";
-import {
-  effortAt,
-  FIRST_GENERATED_LEVEL,
-  HAND_AUTHORED_LEVELS,
-} from "../src/generator/spec";
+import { effortAt, FIRST_GENERATED_LEVEL } from "../src/generator/spec";
 import { solve } from "../src/solver";
 
 export { FIRST_GENERATED_LEVEL };
@@ -343,13 +339,15 @@ export function targetScore(id: number): number {
   return (band.score.min + band.score.max) / 2;
 }
 
-/** Band violations for a generated level, empty when it sits inside its band. */
+/**
+ * Band violations for a level from 11 on, empty when it sits inside its band.
+ * The shaped beats are held to it too: their silhouettes are drawn by hand,
+ * but the boards inside come from the generator and end in 0, so they are
+ * very hard like every other level ending in 0. Only the tutorial is judged
+ * by being played instead.
+ */
 export function checkBand(level: LevelDef, metrics: DifficultyMetrics): string[] {
-  // The bands describe what the generator is asked for. The tutorial and the
-  // shaped beats are authored, and judged by being played instead.
-  if (level.id < FIRST_GENERATED_LEVEL || HAND_AUTHORED_LEVELS.includes(level.id)) {
-    return [];
-  }
+  if (level.id < FIRST_GENERATED_LEVEL) return [];
 
   const band = bandFor(level.id);
   const problems: string[] = [];

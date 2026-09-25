@@ -47,7 +47,7 @@ describe("the tutorial beats", () => {
     // The fact the beat placement rests on, asserted where it is cheap: a
     // mismatch needs a stack more than one lane feeds (DESIGN.md 2), which is
     // why the wide block and the bounce are taught together at level 3.
-    for (const id of [1, 2, 4, 5, 20]) {
+    for (const id of [1, 2, 4, 5]) {
       expect(reachable(createState(levelById(id)!), "bounced", 4), `level ${id}`).toBe(
         false,
       );
