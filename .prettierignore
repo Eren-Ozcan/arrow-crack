@@ -2,3 +2,5 @@ dist
 android
 node_modules
 docs/reference
+# One level per line, written by `npm run levels:generate` (DESIGN.md 4).
+src/levels/generated.json

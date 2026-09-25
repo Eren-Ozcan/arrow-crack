@@ -72,9 +72,10 @@ export function checkSpacing(levels: LevelDef[]): string[] {
 /**
  * The curve has to climb. Level to level it may not, so the check is on the
  * rolling mean over a ten-level window — the scale at which a player
- * experiences the ramp at all. One-heart levels are left out of it entirely:
- * they are the game's punctuation and are built gentler on purpose
- * (DESIGN.md 1.5), so counting them would read a deliberate pause as a dip.
+ * experiences the ramp at all. A window holds one level of each last digit
+ * (bar where a shaped beat drops out), so the tier steps (DESIGN.md 2) cancel
+ * out of it. The hand-authored shaped beats are left out: they are judged by
+ * play, not by the band.
  */
 export function checkCurve(scores: Map<number, number>): string[] {
   const ids = [...scores.keys()].sort((a, b) => a - b);

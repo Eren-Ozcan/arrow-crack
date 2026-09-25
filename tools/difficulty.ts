@@ -315,7 +315,7 @@ function lerp(from: number, to: number, t: number): number {
  * generator's knobs do (`src/generator/spec.ts`): a saturating climb from
  * "a board where a quarter of the taps on offer cost a heart" at 11 to "a
  * board where most of them do, with a forced order behind it" by level 700 or
- * so, with the ten-level wave riding on top.
+ * so, with the last-digit tiers stepping on top of it (DESIGN.md 2).
  *
  * The centres are calibrated against what the generator actually produces —
  * a band the generator cannot reach would only mean hand-tuned levels, which
