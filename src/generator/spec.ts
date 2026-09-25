@@ -26,11 +26,12 @@ export function isOneHeart(id: number): boolean {
 }
 
 /**
- * Every fifteenth level from 38 (PROGRESSION.md 3). 38 + 15k ends in 3 or 8,
- * so a timed level can never sit next to a one-heart level.
+ * Every twentieth level from 45 (PROGRESSION.md 3). A timed level always ends
+ * in 5, so it never sits next to a one-heart level (ending in 0) and never
+ * lands on a hard level (ending in 3 or 7): a clock wants a forgiving board.
  */
 export function isTimed(id: number): boolean {
-  return id >= 38 && (id - 38) % 15 === 0;
+  return id >= 45 && id % 20 === 5;
 }
 
 /**
@@ -75,22 +76,46 @@ function lerp(from: number, to: number, t: number): number {
 }
 
 /**
- * How hard a level is asked to be, 0..1. A saturating trend — most of the
- * climb is over by level 700, and a player at 1500 meets the full game rather
- * than an ever-growing one — with a ten-level wave on top: the start of each
- * ten is a breather, the ninth is the peak, and the tenth is the one-heart
- * punctuation, built gentler on purpose.
+ * How hard a level is asked to be, 0..1: a saturating trend, and a step by the
+ * level's last digit on top of it.
+ *
+ * The trend is the long climb — most of it is over by level 700, and a player
+ * at 1500 meets the full game rather than an ever-growing one. It tops out at
+ * `TREND_CEILING`, below 1, so the hard steps still have room above it at the
+ * end of the curve.
+ *
+ * The step is the rhythm a player learns to read: every level ending in 0 is
+ * very hard (and a one-heart level), every level ending in 3 or 7 is hard,
+ * and the level after a very hard one is a breather.
  */
-const WAVE = [-0.5, -0.35, -0.2, -0.05, 0.1, 0.2, 0.3, 0.45, 0.6, 0];
+export type Tier = "breather" | "normal" | "hard" | "very-hard";
+
+export function tierOf(id: number): Tier {
+  const digit = id % 10;
+  if (digit === 0) return "very-hard";
+  if (digit === 3 || digit === 7) return "hard";
+  if (digit === 1) return "breather";
+  return "normal";
+}
+
+const TIER_STEP: Record<Tier, number> = {
+  breather: -0.1,
+  normal: 0,
+  hard: 0.2,
+  "very-hard": 0.35,
+};
 const TREND_SCALE = 300;
-const WAVE_AMPLITUDE = 0.1;
+/** Where a normal level starts, at 11: the tutorial is over, the game is on. */
+const TREND_FLOOR = 0.1;
+const TREND_CEILING = 0.65;
 
 export function trendAt(id: number): number {
-  return 1 - Math.exp(-Math.max(0, id - FIRST_GENERATED_LEVEL) / TREND_SCALE);
+  const climb = 1 - Math.exp(-Math.max(0, id - FIRST_GENERATED_LEVEL) / TREND_SCALE);
+  return TREND_FLOOR + (TREND_CEILING - TREND_FLOOR) * climb;
 }
 
 export function effortAt(id: number): number {
-  return clamp01(trendAt(id) + WAVE_AMPLITUDE * WAVE[(id - 1) % WAVE.length]!);
+  return clamp01(trendAt(id) + TIER_STEP[tierOf(id)]);
 }
 
 const PALETTE = ["v", "b", "g", "y", "p"];
@@ -113,9 +138,11 @@ export function specFor(id: number): Omit<GenerateOptions, "seed"> {
   // a phone has height to spare and no width.
   const rows = cols + (effort > 0.6 ? id % 3 : 0);
 
+  // Short bodies early keep the count up: the level after the tutorial should
+  // already hold as many arrows as the tutorial's last board, not fewer.
   const minBody = effort < 0.4 ? 2 : 3;
-  const maxBody = Math.round(lerp(4, 7, effort));
-  const fill = lerp(0.5, 0.8, effort);
+  const maxBody = Math.round(lerp(3, 7, effort));
+  const fill = lerp(0.62, 0.82, effort);
   const arrows = Math.max(
     6,
     Math.round((fill * cols * rows) / ((minBody + maxBody) / 2)) - (timed ? 3 : 0),

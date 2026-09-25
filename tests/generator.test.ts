@@ -69,7 +69,7 @@ describe("the generator", () => {
   });
 
   it("marks the timed levels and nothing else", () => {
-    for (const id of [36, 38, 53, 68, 83, 1988]) {
+    for (const id of [36, 45, 53, 65, 85, 1985]) {
       const raw = generate({ ...specFor(id), seed: 5 });
       if (!raw) continue;
       expect(raw.type, `level ${id}`).toBe(isTimed(id) ? "timed" : undefined);

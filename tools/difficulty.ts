@@ -323,21 +323,12 @@ function lerp(from: number, to: number, t: number): number {
  * generous: a tighter band would be pretending the model is calibrated
  * against players, and it is not yet (DESIGN.md 4.3).
  */
-export function bandFor(id: number, hearts = 4): Band {
+export function bandFor(id: number): Band {
   const t = effortAt(id);
-  const centre = lerp(0.24, 0.48, t);
-
-  // A one-heart level is the game's punctuation, not a difficulty spike: it is
-  // built to be readable and a little shorter, because the demand there is
-  // precision (DESIGN.md 1.5). So it may sit below its neighbours' band — and
-  // may never sit above it.
-  if (hearts === 1) {
-    return {
-      score: { min: centre - 0.2, max: centre },
-      trapRatio: { min: lerp(0.15, 0.3, t) / 2 },
-      fanOut: { max: MAX_FAN_OUT },
-    };
-  }
+  // The top of the range sits in the upper tail of what the generator
+  // produces: a very hard level is not a different kind of board, it is the
+  // hardest one in a few hundred seeds.
+  const centre = lerp(0.22, 0.54, t);
 
   return {
     score: { min: centre - 0.08, max: centre + 0.08 },
@@ -347,8 +338,8 @@ export function bandFor(id: number, hearts = 4): Band {
 }
 
 /** The score the generator aims a candidate at for this level index. */
-export function targetScore(id: number, hearts = 4): number {
-  const band = bandFor(id, hearts);
+export function targetScore(id: number): number {
+  const band = bandFor(id);
   return (band.score.min + band.score.max) / 2;
 }
 
@@ -360,7 +351,7 @@ export function checkBand(level: LevelDef, metrics: DifficultyMetrics): string[]
     return [];
   }
 
-  const band = bandFor(level.id, level.hearts);
+  const band = bandFor(level.id);
   const problems: string[] = [];
   const round = (value: number): string => value.toFixed(2);
 

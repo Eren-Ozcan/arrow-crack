@@ -15,6 +15,7 @@ import { join } from "node:path";
 import { createState } from "../src/engine/level";
 import type { LevelDef } from "../src/engine/types";
 import { solve } from "../src/solver";
+import { HAND_AUTHORED_LEVELS } from "../src/generator/spec";
 import { FIRST_GENERATED_LEVEL, measure } from "./difficulty";
 import { render } from "./generate-manifest";
 import { loadAll, loadLevels } from "./levels";
@@ -163,7 +164,7 @@ async function main(): Promise<void> {
       }
     }
 
-    if (level.id >= FIRST_GENERATED_LEVEL && level.hearts !== 1) {
+    if (level.id >= FIRST_GENERATED_LEVEL && !HAND_AUTHORED_LEVELS.includes(level.id)) {
       const metrics = measure(level);
       if (metrics) scores.set(level.id, metrics.score);
     }

@@ -41,6 +41,12 @@ const SOLVER_BUDGET = { maxNodes: 5_000_000, timeBudgetMs: 30_000 };
 const MAX_SEEDS = 120;
 /** Every seed a level owns: its ids run from `id * 1000 + 1`. */
 const FULL_BLOCK = 999;
+/**
+ * The tallest boards (8x10, near full) sometimes cannot place their whole
+ * count in any seed. As a last resort such a level may run as short as the
+ * generator itself allows, rather than not exist.
+ */
+const LAST_RESORT_SHORTFALL = 3;
 /** Free moves a timed board has to offer, on average, to earn its clock. */
 const TIMED_MIN_FAN_OUT = 3.5;
 
@@ -58,9 +64,13 @@ export interface Candidate {
  * jagged — a level scraping the bottom of its band followed by one at the top
  * of the next is a difficulty spike the model can see and the player feels.
  */
-export function findLevel(id: number, maxSeeds = MAX_SEEDS): Candidate | null {
+export function findLevel(
+  id: number,
+  maxSeeds = MAX_SEEDS,
+  shortfall = 1,
+): Candidate | null {
   const spec = specFor(id);
-  const target = targetScore(id, spec.hearts);
+  const target = targetScore(id);
   let best: Candidate | null = null;
 
   // Each level searches its own seed range, so two neighbouring indices with
@@ -76,7 +86,7 @@ export function findLevel(id: number, maxSeeds = MAX_SEEDS): Candidate | null {
     // for the gentle levels, since fewer arrows is the cheapest way to a low
     // score, so a board is held to its count less one: the curve has to come
     // from what the arrows ask, not from how many of them there are.
-    if (raw.arrows.length < spec.arrows + spec.decoys - 1) continue;
+    if (raw.arrows.length < spec.arrows + spec.decoys - shortfall) continue;
 
     let parsed;
     try {
@@ -176,8 +186,10 @@ async function main(): Promise<void> {
     // that comes up empty widens to the whole block too, so a rerun of the
     // same spec always lands on the same seeds.
     const found = isTimed(id)
-      ? findLevel(id, FULL_BLOCK)
-      : (findLevel(id, seeds) ?? findLevel(id, FULL_BLOCK));
+      ? (findLevel(id, FULL_BLOCK) ?? findLevel(id, FULL_BLOCK, LAST_RESORT_SHORTFALL))
+      : (findLevel(id, seeds) ??
+        findLevel(id, FULL_BLOCK) ??
+        findLevel(id, FULL_BLOCK, LAST_RESORT_SHORTFALL));
     const elapsed = ((performance.now() - started) / 1000).toFixed(1);
 
     if (!found) {

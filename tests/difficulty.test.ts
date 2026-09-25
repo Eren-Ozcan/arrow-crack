@@ -34,12 +34,15 @@ describe("the difficulty model", () => {
     expect(late.fanOut.max).toBeLessThan(early.fanOut.max);
   });
 
-  it("lets a one-heart level sit below its neighbours but never above", () => {
-    // A one-heart level is punctuation, not a spike (DESIGN.md 1.5).
-    const normal = bandFor(60);
-    const precision = bandFor(60, 1);
-    expect(precision.score.max).toBeLessThan(normal.score.max);
-    expect(precision.score.min).toBeLessThan(normal.score.min);
+  it("reads the level's last digit: 0 very hard, 3 and 7 hard, 1 a breather", () => {
+    // DESIGN.md 2: the rhythm a player learns to read.
+    const at = (id: number): number => bandFor(id).score.min;
+    for (const ten of [100, 500, 1500]) {
+      expect(at(ten + 10), `${ten + 10}`).toBeGreaterThan(at(ten + 7));
+      expect(at(ten + 7), `${ten + 7}`).toBeGreaterThan(at(ten + 5));
+      expect(at(ten + 3), `${ten + 3}`).toBeGreaterThan(at(ten + 4));
+      expect(at(ten + 1), `${ten + 1}`).toBeLessThan(at(ten + 2));
+    }
   });
 
   it("leaves the hand-authored teaching curve alone", () => {
