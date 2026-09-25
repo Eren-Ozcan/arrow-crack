@@ -37,8 +37,8 @@ export const BEATS: Beat[] = [
   { level: 8, when: "start", key: "coach.8.start" },
   { level: 20, when: "start", key: "coach.20.start" },
   { level: 35, when: "start", key: "coach.35.start" },
-  { level: 38, when: "start", key: "coach.38.start" },
   { level: 42, when: "start", key: "coach.42.start" },
+  { level: 45, when: "start", key: "coach.45.start" },
   { level: 50, when: "start", key: "coach.50.start" },
   { level: 55, when: "start", key: "coach.55.start" },
 ];

@@ -12,7 +12,7 @@ const LEVELS = allLevels();
 describe("the tutorial beats", () => {
   it("teaches one idea at a time, on the levels DESIGN.md names", () => {
     expect(BEATS.map((beat) => beat.level)).toEqual([
-      1, 2, 3, 3, 5, 8, 20, 35, 38, 42, 50, 55,
+      1, 2, 3, 3, 5, 8, 20, 35, 42, 45, 50, 55,
     ]);
     // Every beat names a string that exists and is a single line; a text
     // wall is what these replace.
