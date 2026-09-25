@@ -13,11 +13,13 @@
  * That is where the tangle comes from: later bodies wrap around and pin their
  * predecessors because the construction order allows exactly that.
  *
- * The CLI that drives this file is `tools/generate-levels.ts`.
+ * Pure and deterministic like the engine: the offline CLI
+ * (`tools/generate-levels.ts`) walks seeds with it, and the app rebuilds every
+ * generated level from its recorded seed with the same code (DESIGN.md 4.2).
  */
-import { cellKey, step } from "../src/engine/level";
-import type { Cell, Color, Dir, Side, Special } from "../src/engine/types";
-import type { RawLevel } from "../src/levels/parse";
+import { cellKey, step } from "@/engine/level";
+import type { Cell, Color, Dir, Side, Special } from "@/engine/types";
+import type { RawLevel } from "@/levels/parse";
 
 const SIDES: Side[] = ["top", "bottom", "left", "right"];
 
@@ -72,6 +74,19 @@ export interface GenerateOptions {
   type?: "timed";
   /** Upgrades one placed arrow; the caller owns the introduction order. */
   special?: Special;
+  /**
+   * Chance an arrow aimed at a wide block keeps its exit ray clear of every
+   * body placed after it. Such an arrow is free to fire from the start, but
+   * its layer is not on top yet: a colour hold, the trap the frame exists for
+   * (DESIGN.md 1.8). Left at zero, nearly every trap is a blocked ray and the
+   * colours stop mattering.
+   */
+  holdRate?: number;
+  /**
+   * Chance a layer pushed onto a stack takes a different colour from the
+   * layer under it, so two lanes feeding one block cannot both be right.
+   */
+  contrast?: number;
 }
 
 /** Deterministic PRNG: one seed is one board, on every machine. */
@@ -358,12 +373,23 @@ export function generate(options: GenerateOptions): RawLevel | null {
 
     if (!chosen) break;
 
-    const color = pick(options.palette, random);
+    let color = pick(options.palette, random);
+    const under = chosen.unit.stack[chosen.unit.stack.length - 1];
+    // Only consume randomness when the knob is on, so a spec without it
+    // still rebuilds exactly the board its seed always gave.
+    if (under !== undefined && options.contrast && random() < options.contrast) {
+      color = pick(
+        options.palette.filter((candidate) => candidate !== under),
+        random,
+      );
+    }
     for (const cell of chosen.body) occupied.add(cellKey(cell));
 
     const head = chosen.body[chosen.body.length - 1]!;
     const dir = FACING[chosen.unit.side];
     const id = arrowId(placed.length);
+    const hold =
+      chosen.unit.span > 1 && !!options.holdRate && random() < options.holdRate;
     let ray = step(head, dir);
     while (
       ray.col >= 0 &&
@@ -372,7 +398,10 @@ export function generate(options: GenerateOptions): RawLevel | null {
       ray.row < options.rows
     ) {
       const key = cellKey(ray);
-      pins.add(key);
+      // A held ray is walled off for everything placed later; an ordinary one
+      // is an invitation to pin it.
+      if (hold) occupied.add(key);
+      else pins.add(key);
       const owners = rayOwners.get(key) ?? new Set<string>();
       owners.add(id);
       rayOwners.set(key, owners);
