@@ -287,15 +287,17 @@ accounts.
   retuned against real fail rates (`TELEMETRY.md` 3.2).
 - **Their ad load.** Section 2.2. This is the one we must actively refuse,
   repeatedly, for as long as the game earns.
-- **A tracking prompt.** We ask for no advertising identifier at all
-  (`TELEMETRY.md`), so there is no consent screen between install and the
-  first level.
+- **A tracking prompt.** We ship Android first, so there is no iOS tracking
+  prompt. The advertising ID is still used by AdMob and declared on the Data
+  Safety card (`TELEMETRY.md` 2.2); the only consent UI is Google's UMP form,
+  and only where the law requires it (`ADS.md` 2.4).
 - **A colourless level 1.** Theirs can teach tapping first because colour is
   decoration for them; ours is the rule, so a player who learns to tap
   without it learns the wrong game. Level 1 stays three colours, and the
   bubble teaches matching with them.
 - **Consent screens before the first level.** No welcome gate, no tracking
-  prompt, no notification prompt. The privacy policy is a row in settings
+  prompt, no notification prompt — only the UMP form where it is legally
+  required, and startup never blocks on it. The privacy policy is a row in settings
   (`src/ui/settings.ts`), where a player can read it when they want to, and
   the first thing after launch is a board.
 - **A theme picker.** Their palette is decoration, so re-skinning it is
