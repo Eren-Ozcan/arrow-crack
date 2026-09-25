@@ -18,7 +18,8 @@ decision.
 | Data safety  | Shares location, personal info and 3 more types; collects personal and financial info |
 | Also by them | Zen Word, Zen Color, Sudoku, Tile Explorer, Paint by Number — a calm-puzzle portfolio |
 
-Screenshot observations are from a Turkish build at level 3675 ("Zorlu").
+Screenshot observations are from a Turkish build at level 3675 ("Zorlu"), and
+a later pull at level 3685 confirms the same shell unchanged (2026-09-25).
 
 ---
 
@@ -73,6 +74,110 @@ density.
   75,031 players today?"), a mascot avatar, a currency balance, a row of
   level dots, and one large primary button at the bottom carrying the
   difficulty word and the level number. The puzzle itself is not on it.
+
+### 1.1 Levels 1-15, walked screenshot by screenshot (2026-09-25)
+
+Their own early curve, not just the steady-state 3600s board:
+
+- **Level 1**: no HUD at all — no hearts, no hint button, nothing but the
+  title and hairline. A handful of isolated arrows (3-4, see 1.2), all one
+  dark ink, no colour. Teaching bubble "Tap an arrow" with a tail pointing at
+  the board, plus a looping hand-tap animation over one arrow. Matches
+  section 1's "their level 1 has no colour rule at all."
+- **Levels 2-4**: same bare chrome (still no HUD), the layout grows a little
+  each level (a nested square, the same mirrored, then ~11 arrows around a
+  small nested spiral). The nesting is in the layout only — the pieces still
+  sit in open space and never share a cell (1.2). Still one ink colour, no
+  difficulty word shown yet.
+- **Level 5**: HUD appears from nowhere, fully formed — 3 hearts top-left,
+  hint button top-right, and a difficulty word ("Hard") under the level
+  number for the first time. Board simultaneously jumps from a plain
+  rectangle tangle to a shaped silhouette (a pair of glasses). Colour is
+  still absent from the arrows themselves at this point (ink brown throughout
+  levels 1-14) — their "colour carries no rule" claim reads literally: hue is
+  reserved for theme decoration, not even introduced as a teaching layer.
+- **Levels 6-14**: dense rectangular or silhouette boards, arrow count in the
+  hundreds by level 8. The difficulty word under the level number is **not
+  repeated every level** — it only reprints when the tier changes (e.g.
+  level 5 says "Hard", level 6-13 mostly show bare "Level N", level 14 bare
+  again). Read this as: the label is a tier-change toast, not a per-level
+  stat.
+- **Level 12 complete panel** ("Last Life Win!"): 3-star bar (2 gold + 1
+  silver — their star art itself carries a partial-success reading, not just
+  the count), a stat block (Difficulty: Normal, Time, Score, Today's Levels),
+  then a second stat row (🎯 accuracy %, ✕ mistake count, 💡 hints used), then
+  a horizontal level-select carousel (5 upcoming levels as coloured number
+  chips — orange/purple/red, reading as a tier colour code) and a single
+  "Next Level" button. Confirms section 1's "confetti with no words" claim is
+  about the in-board celebration only; the panel underneath is fairly dense.
+- **Level 14 mid-play**: caught with 1 heart already spent (third heart
+  greyed out — the hearts, not the blue hint droplets of section 1) and a
+  praise toast "Eagle Eye!" floating over the board. It is a direct example of
+  what we chose not to do (`PROGRESSION.md` 2.1, nothing over the grid): their
+  toast sits on the grid while a red-highlighted chain is mid-clear.
+- **Level 15** ("Super Hard"): first appearance of the **AD badge on the hint
+  button** across the whole walk — levels 5-14 show a plain hint icon (droplet
+  balance, no badge), meaning at low levels the first hints are free/earned
+  and the ad-gated hint only starts showing once the tier crosses into
+  "Super Hard". Board is their densest shaped silhouette seen (a
+  flower/butterfly mask), arrow count clearly beyond level 14.
+
+### 1.2 Arrow geometry — counted, not guessed
+
+Every piece is a single-head polyline (one arrowhead, orthogonal bends only,
+constant pipe width regardless of level) occupying its own chain of grid
+cells. Levels 1-4 are small enough to count exactly; levels 5+ are only
+countable by zone-density estimate, and are labelled as such below rather
+than given a false precise figure (`PROGRESSION.md` 2.4's own rule about
+never inventing a number applies here too).
+
+**Exact (levels 1-4):**
+
+| Level | Arrows | Max turns | Max length (grid units) | Shape             |
+| ----- | ------ | --------- | ------------------------ | ------------------ |
+| 1     | 3-4 \* | 1         | ~2                        | isolated, no touch |
+| 2     | 5      | 2         | ~3                        | nested square      |
+| 3     | 5      | 2         | ~3                        | nested square (mirrored layout) |
+| 4     | ~11    | 2-3       | ~4                        | rectangle w/ nested spiral cutout |
+
+\* The two passes over the level 1 screenshot disagreed (3 vs 4). Recount
+from the screenshot before quoting a number.
+
+Levels 1-4 arrows never share a cell — each piece sits in open space. That
+changes hard at level 5.
+
+**Estimated by zone density (levels 5-15, ±15-20% — not exact counts):**
+
+| Level | Shape                        | Arrow count (est.) | Max turns seen |
+| ----- | ----------------------------- | ------------------- | --------------- |
+| 5     | glasses silhouette (2 lenses) | ~80-85               | 4-5              |
+| 6     | rectangle                     | ~110-130              | 4-5              |
+| 8     | tall rectangle                | ~180-210              | 5-6              |
+| 9     | rectangle                     | ~130-150              | 4-5              |
+| 10    | burst/crown silhouette        | ~150-180              | 5                |
+| 11    | rectangle                     | ~150-170              | 5                |
+| 13    | tall rectangle (densest rect) | ~220-260              | 5-6              |
+| 14    | rectangle                     | ~180-220              | 5-6              |
+| 15    | flower/butterfly silhouette   | ~220-260              | 5-6              |
+
+Pattern: from level 5 on, pieces interlock into one continuous woven mesh
+(no more open-space isolation), arrow count roughly triples between the
+tutorial and level 6, then keeps climbing with occasional dips on
+shaped-silhouette levels (5, 10, 15) where the mask itself removes cells that
+would otherwise hold arrows — the silhouette lowers count even as it raises
+perceived difficulty (more scanning, less raw volume). Turn depth caps out
+around 5-6 bends per arrow by level 8 and does not visibly grow past that
+through level 15; density and interlock, not per-arrow complexity, are what
+scale later.
+
+Net: their difficulty presentation is **tiered, not per-level** (Normal →
+Hard → Super Hard, label shown only on tier change), and their monetization
+posture visibly tightens with tier — hint stays a free-feeling balance early,
+picks up the AD badge only once boards get punishing. Neither of these change
+anything in `PROGRESSION.md` (our tiers are the named level types in 3.2, not
+a copy of theirs), but the AD-badge-appears-later pattern is worth naming
+here in case a future hint-economy tweak considers gating by tier instead of
+showing the badge from level 1.
 
 **Positioning.** Their copy is relentlessly calm: _sakinleştirmek_,
 _meditasyon gibi_, _ASMR_, _stresi azaltır_, _zihinsel sıfırlama_, "the ten
