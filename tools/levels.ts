@@ -31,3 +31,18 @@ export async function loadLevels(dir = LEVELS_DIR): Promise<LoadedLevel[]> {
 
   return levels;
 }
+
+/**
+ * Every level the app ships: the authored JSON plus every generated row,
+ * rebuilt exactly the way the device rebuilds it. A generated level is
+ * labelled by its row rather than a file, since it has none.
+ */
+export async function loadAll(): Promise<LoadedLevel[]> {
+  const authored = await loadLevels();
+  const { GENERATED, buildGenerated } = await import("../src/levels/index");
+  const generated = GENERATED.map((entry) => ({
+    file: `generated.json#${entry.id}`,
+    level: buildGenerated(entry),
+  }));
+  return [...authored, ...generated].sort((a, b) => a.level.id - b.level.id);
+}

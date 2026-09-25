@@ -4,7 +4,7 @@ import { audioFocusBridge } from "./audio/focus-plugin";
 import { cuesFor, cuesForWin } from "./audio/script";
 import { GameSession } from "./game/session";
 import type { SessionView } from "./game/session";
-import { LEVELS, levelById, nextLevelId } from "./levels";
+import { LEVEL_IDS, levelById, nextLevelId } from "./levels";
 import { watchBackButton } from "./platform/back";
 import { AdService } from "./services/ads";
 import type { AdResult, RewardedPlacement } from "./services/ads";
@@ -147,7 +147,7 @@ function tickClockSound(remainingMs: number | null): void {
   audio.play("tick");
 }
 
-const ORDER = LEVELS.map((level) => level.id);
+const ORDER = LEVEL_IDS;
 
 let session: GameSession | null = null;
 let hud: Hud | null = null;
@@ -205,7 +205,7 @@ function showHome(): void {
 }
 
 function start(levelId: number, force = false): void {
-  const level = levelById(levelId) ?? LEVELS[0]!;
+  const level = levelById(levelId) ?? levelById(LEVEL_IDS[0]!)!;
   if (!force && !isUnlocked(store.save, level.id, ORDER)) return;
 
   session?.destroy();

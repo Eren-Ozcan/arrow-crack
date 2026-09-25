@@ -1,8 +1,12 @@
-import { LEVELS } from "@/levels";
+import { LEVEL_COUNT, LEVEL_IDS } from "@/levels";
 import { currentLevelId, isUnlocked, levelRecord, totalStars } from "@/state/save";
 import type { SaveData } from "@/state/save";
 import { button, element } from "./hud";
 import { t } from "./strings";
+
+/** Levels drawn on the path before and after the current one. */
+const PATH_BEHIND = 60;
+const PATH_AHEAD = 30;
 
 export interface HomeHandlers {
   onPlay: (levelId: number) => void;
@@ -55,7 +59,7 @@ export class HomeScreen {
   }
 
   render(save: SaveData): void {
-    const order = LEVELS.map((level) => level.id);
+    const order = LEVEL_IDS;
     const current = currentLevelId(save, order);
     this.#current = current;
 
@@ -66,18 +70,26 @@ export class HomeScreen {
 
     this.#stars.textContent = t("home.stars", {
       stars: totalStars(save),
-      total: LEVELS.length * 3,
+      total: LEVEL_COUNT * 3,
     });
 
+    // Two thousand nodes would be two thousand buttons in the DOM; the path
+    // shows a window around where the player is instead, which is all of it
+    // anyone scrolls in practice.
+    const at = current === null ? order.length - 1 : order.indexOf(current);
+    const shown = order.slice(
+      Math.max(0, at - PATH_BEHIND),
+      Math.min(order.length, at + PATH_AHEAD + 1),
+    );
     this.#path.replaceChildren(
-      ...order.map((id) => this.#node(save, id, id === current)),
+      ...shown.map((id) => this.#node(save, id, id === current)),
     );
 
     if (current !== null && current !== this.#focused) {
       this.#focused = current;
       // A level the player has never seen is off the bottom of a long path;
       // the screen opens on it rather than at level 1.
-      this.#path.children[order.indexOf(current)]?.scrollIntoView({ block: "center" });
+      this.#path.children[shown.indexOf(current)]?.scrollIntoView({ block: "center" });
     }
   }
 
@@ -86,11 +98,7 @@ export class HomeScreen {
   }
 
   #node(save: SaveData, levelId: number, isCurrent: boolean): HTMLElement {
-    const unlocked = isUnlocked(
-      save,
-      levelId,
-      LEVELS.map((level) => level.id),
-    );
+    const unlocked = isUnlocked(save, levelId, LEVEL_IDS);
     const record = levelRecord(save, levelId);
 
     const node = element("button", "home-node");

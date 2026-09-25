@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { validateLevel } from "@/engine/level";
-import { LEVELS, levelById, nextLevelId } from "@/levels";
+import { allLevels, levelById, nextLevelId } from "@/levels";
 import { parseLevel, parseMask } from "@/levels/parse";
+
+const LEVELS = allLevels();
 
 describe("the bundled levels", () => {
   it("runs from 1 with no gaps", () => {
@@ -11,6 +13,10 @@ describe("the bundled levels", () => {
     expect(nextLevelId(1)).toBe(2);
     expect(nextLevelId(LEVELS.length)).toBeNull();
     expect(levelById(20)?.hearts).toBe(1);
+  });
+
+  it("ships two thousand of them", () => {
+    expect(LEVELS).toHaveLength(2000);
   });
 
   it("is structurally valid before the solver is asked anything", () => {

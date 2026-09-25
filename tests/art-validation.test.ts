@@ -3,7 +3,7 @@ import { fire } from "@/engine/fire";
 import { createState } from "@/engine/level";
 import { clearRay } from "@/engine/rays";
 import type { LevelDef } from "@/engine/types";
-import { LEVELS } from "@/levels";
+import { allLevels } from "@/levels";
 import { renderBoard } from "@/render/board-renderer";
 import { fitCamera } from "@/render/camera";
 import { planAnimation } from "@/render/animation";
@@ -26,6 +26,8 @@ import {
   tailWidth,
 } from "@/render/shapes";
 import type { Glyph } from "@/render/palette";
+
+const LEVELS = allLevels();
 
 /**
  * The six acceptance tests in ART.md section 10. Four of them are mechanical

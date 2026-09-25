@@ -4,10 +4,11 @@
  * live in ./validate.ts so tests can run them without running the process;
  * what is here is everything that needs the whole bundle at once — the id
  * sequence, the manifest, the spacing between the two special level types,
- * the shape of the difficulty curve and the solver-cost baseline.
+ * the shape of the difficulty curve, the solver-cost baseline and the
+ * fingerprint of every generated board.
  *
  *   npm run levels:validate
- *   npm run levels:validate -- --update-costs   record a new cost baseline
+ *   npm run levels:validate -- --update-costs   record new cost and fingerprint baselines
  */
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -16,14 +17,21 @@ import type { LevelDef } from "../src/engine/types";
 import { solve } from "../src/solver";
 import { FIRST_GENERATED_LEVEL, measure } from "./difficulty";
 import { render } from "./generate-manifest";
-import { loadLevels } from "./levels";
+import { loadAll, loadLevels } from "./levels";
 import type { LoadedLevel } from "./levels";
 import { validate } from "./validate";
 
 const COSTS = join(process.cwd(), "tests", "fixtures", "level-costs.json");
+const PRINTS = join(process.cwd(), "tests", "fixtures", "level-prints.json");
 const SOLVER_BUDGET = { maxNodes: 5_000_000, timeBudgetMs: 30_000 };
 /** Levels either side of the window the curve is judged over. */
 const CURVE_WINDOW = 10;
+/**
+ * How far the rolling mean may slip before it counts as a dip. The curve
+ * saturates (`src/generator/spec.ts`), so past a few hundred levels it is a
+ * plateau, and a plateau measured board by board is noise around a line.
+ */
+const CURVE_TOLERANCE = 0.02;
 
 /** Duplicate ids, and gaps in the sequence: both break the level path. */
 export function checkIds(levels: LoadedLevel[]): string[] {
@@ -82,7 +90,7 @@ export function checkCurve(scores: Map<number, number>): string[] {
   for (let index = 1; index < means.length; index += 1) {
     const previous = means[index - 1]!;
     const current = means[index]!;
-    if (current.mean < previous.mean) {
+    if (current.mean < previous.mean - CURVE_TOLERANCE) {
       problems.push(
         `the difficulty curve dips at level ${current.id}: ` +
           `${current.mean.toFixed(3)} against ${previous.mean.toFixed(3)} the window before`,
@@ -92,19 +100,37 @@ export function checkCurve(scores: Map<number, number>): string[] {
   return problems;
 }
 
-async function readCosts(): Promise<Record<string, number>> {
+async function readRecord<T>(path: string): Promise<Record<string, T>> {
   try {
-    return JSON.parse(await readFile(COSTS, "utf8")) as Record<string, number>;
+    return JSON.parse(await readFile(path, "utf8")) as Record<string, T>;
   } catch {
     return {};
   }
 }
 
+/**
+ * A short FNV-1a hash of a level. A generated level is only a seed on disk,
+ * so a change to the generator or to `specFor` would swap the board under
+ * every player without a single file in the level data changing; the
+ * fingerprint is what makes that visible.
+ */
+export function fingerprint(level: LevelDef): string {
+  const text = JSON.stringify(level);
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
+}
+
 async function main(): Promise<void> {
   const updateCosts = process.argv.includes("--update-costs");
-  const levels = await loadLevels();
-  const baseline = await readCosts();
+  const levels = await loadAll();
+  const baseline = await readRecord<number>(COSTS);
+  const printBaseline = await readRecord<string>(PRINTS);
   const costs: Record<string, number> = {};
+  const prints: Record<string, string> = {};
   const scores = new Map<number, number>();
 
   let failures = 0;
@@ -125,6 +151,18 @@ async function main(): Promise<void> {
       problems.push(`solver cost ${nodes} nodes, above the baseline of ${recorded}`);
     }
 
+    if (file.startsWith("generated.json")) {
+      const print = fingerprint(level);
+      prints[String(level.id)] = print;
+      const recorded = printBaseline[String(level.id)];
+      if (!updateCosts && recorded !== undefined && recorded !== print) {
+        problems.push(
+          `the board rebuilt from its seed has changed (${recorded} to ${print}); ` +
+            "a generator or spec change moved a shipped level",
+        );
+      }
+    }
+
     if (level.id >= FIRST_GENERATED_LEVEL && level.hearts !== 1) {
       const metrics = measure(level);
       if (metrics) scores.set(level.id, metrics.score);
@@ -143,13 +181,17 @@ async function main(): Promise<void> {
   )
     .then((text) => text.replace(/\r\n/g, "\n"))
     .catch(() => "");
-  if (manifest !== render(levels.map((entry) => entry.file))) {
+  const authored = await loadLevels();
+  if (manifest !== render(authored.map((entry) => entry.file))) {
     report("<bundle>", ["the manifest is stale; run `npm run levels:manifest`"]);
   }
 
   if (updateCosts) {
     await writeFile(COSTS, `${JSON.stringify(costs, null, 2)}\n`, "utf8");
-    console.log(`levels:validate — recorded solver cost for ${levels.length} level(s)`);
+    await writeFile(PRINTS, `${JSON.stringify(prints, null, 2)}\n`, "utf8");
+    console.log(
+      `levels:validate — recorded solver cost and fingerprints for ${levels.length} level(s)`,
+    );
   }
 
   console.log(`levels:validate — ${levels.length} level(s), ${failures} failing`);

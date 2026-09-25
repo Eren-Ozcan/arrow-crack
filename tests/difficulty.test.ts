@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { LevelDef } from "@/engine/types";
-import { LEVELS } from "@/levels";
+import { allLevels } from "@/levels";
 import { bandFor, checkBand, FIRST_GENERATED_LEVEL, measure } from "../tools/difficulty";
 import { checkCurve, checkIds, checkSpacing } from "../tools/validate-levels";
 import { ordered, singleShot } from "./fixtures/levels";
+
+const LEVELS = allLevels();
 
 describe("the difficulty model", () => {
   it("reads the forced order off the board", () => {

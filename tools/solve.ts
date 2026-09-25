@@ -11,12 +11,12 @@ import { readFile } from "node:fs/promises";
 import { createState } from "../src/engine/level";
 import type { LevelDef } from "../src/engine/types";
 import { solve } from "../src/solver";
-import { loadLevels } from "./levels";
+import { loadAll } from "./levels";
 
 const BUDGET = { maxNodes: 5_000_000, timeBudgetMs: 30_000, countSolutionsUpTo: 100 };
 
 async function readLevels(paths: string[]): Promise<{ file: string; level: LevelDef }[]> {
-  if (paths.length === 0) return loadLevels();
+  if (paths.length === 0) return loadAll();
 
   const levels = [];
   for (const path of paths) {
