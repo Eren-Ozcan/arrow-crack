@@ -648,7 +648,7 @@ export class GameSession {
     this.#teach(event);
     // Told after the beat, never before it: a listener that answers with a
     // line of its own (`note()`) must lose to the tutorial rather than be
-    // silently wiped by it a line later — on level 32 both want the same
+    // silently wiped by it a line later — on level 3 both want the same
     // bounce, and the beat is the one teaching the rule.
     if (event === "blocked" || event === "bounced") {
       this.#onMistake?.(event);

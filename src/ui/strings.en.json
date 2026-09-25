@@ -74,11 +74,11 @@
 
   "coach.1.start": "Tap an arrow to fire it.",
   "coach.2.blocked": "Blocked by another arrow. Off the tutorial, that costs a heart.",
-  "coach.32.bounced": "Wrong colour, so it bounced back — and that cost a heart. Read the top layer before firing.",
+  "coach.3.start": "One block, two lanes: either lane can peel it.",
+  "coach.3.bounced": "Wrong colour, so it bounced back. Off the tutorial, that costs a heart. Match the top layer.",
   "coach.5.start": "Blocks are layered. The edges along the inside show what is underneath.",
   "coach.8.start": "Hearts pay for mistakes. Finish without one for three stars.",
   "coach.20.start": "One heart. Read the board before every tap.",
-  "coach.31.start": "One block, several lanes: any of them feeds it.",
   "coach.35.start": "A Joker takes any colour — but it still needs a clear path.",
   "coach.38.start": "The clock is the budget here. A mistake costs five seconds, not a heart.",
   "coach.42.start": "A Bomb peels its block and both neighbours, whatever the colour.",

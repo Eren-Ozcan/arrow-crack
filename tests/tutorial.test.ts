@@ -4,13 +4,15 @@ import { createState } from "@/engine/level";
 import type { GameState } from "@/engine/types";
 import { BEATS, beatFor } from "@/game/tutorial";
 import type { Beat } from "@/game/tutorial";
-import { LEVELS, levelById } from "@/levels";
+import { allLevels, levelById } from "@/levels";
 import { t } from "@/ui/strings";
+
+const LEVELS = allLevels();
 
 describe("the tutorial beats", () => {
   it("teaches one idea at a time, on the levels DESIGN.md names", () => {
     expect(BEATS.map((beat) => beat.level)).toEqual([
-      1, 2, 5, 8, 20, 31, 32, 35, 38, 42, 50, 55,
+      1, 2, 3, 3, 5, 8, 20, 35, 38, 42, 50, 55,
     ]);
     // Every beat names a string that exists and is a single line; a text
     // wall is what these replace.
@@ -23,7 +25,8 @@ describe("the tutorial beats", () => {
   it("answers the mistake it teaches, not the level opening", () => {
     expect(beatFor(2, "start")).toBeNull();
     expect(line(beatFor(2, "blocked"))).toMatch(/costs a heart/);
-    expect(line(beatFor(32, "bounced"))).toMatch(/bounced/);
+    expect(line(beatFor(3, "bounced"))).toMatch(/bounced/);
+    expect(line(beatFor(3, "start"))).toMatch(/two lanes/);
   });
 
   it("teaches each mistake on a level where the player can make it", () => {
@@ -42,8 +45,9 @@ describe("the tutorial beats", () => {
 
   it("keeps the colour mismatch out of reach of the single-lane levels", () => {
     // The fact the beat placement rests on, asserted where it is cheap: a
-    // mismatch needs a stack more than one lane feeds (DESIGN.md 2).
-    for (const id of [1, 2, 3, 4, 5, 20, 30]) {
+    // mismatch needs a stack more than one lane feeds (DESIGN.md 2), which is
+    // why the wide block and the bounce are taught together at level 3.
+    for (const id of [1, 2, 4, 5, 20]) {
       expect(reachable(createState(levelById(id)!), "bounced", 4), `level ${id}`).toBe(
         false,
       );
@@ -58,8 +62,10 @@ describe("the tutorial beats", () => {
 
   it("warns before every one-heart level, and there are some", () => {
     const oneHeart = LEVELS.filter((level) => level.hearts === 1);
-    // Roughly every tenth level from 20 on (DESIGN.md 1.5).
-    expect(oneHeart.map((level) => level.id)).toEqual([20, 30, 40, 50, 60, 70, 80]);
+    // Every tenth level from 20 on (DESIGN.md 1.5).
+    expect(oneHeart.map((level) => level.id)).toEqual(
+      LEVELS.map((level) => level.id).filter((id) => id >= 20 && id % 10 === 0),
+    );
     // Level 20 is the first, and it is announced by its own beat.
     expect(line(beatFor(20, "start"))).toMatch(/One heart/);
   });
