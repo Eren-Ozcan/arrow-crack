@@ -15,7 +15,8 @@ import { join } from "node:path";
 import { createState } from "../src/engine/level";
 import type { LevelDef } from "../src/engine/types";
 import { solve } from "../src/solver";
-import { HAND_AUTHORED_LEVELS } from "../src/generator/spec";
+import { tierOf } from "../src/generator/spec";
+import type { Tier } from "../src/generator/spec";
 import { FIRST_GENERATED_LEVEL, measure } from "./difficulty";
 import { render } from "./generate-manifest";
 import { loadAll, loadLevels } from "./levels";
@@ -69,13 +70,56 @@ export function checkSpacing(levels: LevelDef[]): string[] {
     );
 }
 
+/** Levels per block the tier order is judged over. */
+const TIER_BLOCK = 100;
+const TIER_ORDER: Tier[] = ["breather", "normal", "hard", "very-hard"];
+
+/**
+ * The last-digit rhythm has to hold everywhere, not just where it was tuned:
+ * in every block of a hundred levels, as far as the level count goes, the mean
+ * score of the very hard levels beats the hard ones, which beat the normal
+ * ones, which beat the breathers (DESIGN.md 2). Judged on means, because any
+ * single level sits somewhere inside a band that overlaps its neighbours'.
+ */
+export function checkTiers(scores: Map<number, number>): string[] {
+  const blocks = new Map<number, Map<Tier, number[]>>();
+  for (const [id, score] of scores) {
+    const block = Math.floor((id - 1) / TIER_BLOCK);
+    const tiers = blocks.get(block) ?? new Map<Tier, number[]>();
+    const list = tiers.get(tierOf(id)) ?? [];
+    list.push(score);
+    tiers.set(tierOf(id), list);
+    blocks.set(block, tiers);
+  }
+
+  const problems: string[] = [];
+  for (const [block, tiers] of [...blocks].sort((a, b) => a[0] - b[0])) {
+    const means = TIER_ORDER.map((tier) => {
+      const list = tiers.get(tier) ?? [];
+      return list.length === 0 ? null : list.reduce((sum, x) => sum + x, 0) / list.length;
+    });
+    for (let index = 1; index < TIER_ORDER.length; index += 1) {
+      const lower = means[index - 1];
+      const upper = means[index];
+      if (lower === null || lower === undefined || upper === null || upper === undefined)
+        continue;
+      if (upper <= lower) {
+        const from = block * TIER_BLOCK + 1;
+        problems.push(
+          `levels ${from}-${from + TIER_BLOCK - 1}: ${TIER_ORDER[index]} levels average ` +
+            `${upper.toFixed(3)}, not above the ${TIER_ORDER[index - 1]} ones at ${lower.toFixed(3)}`,
+        );
+      }
+    }
+  }
+  return problems;
+}
+
 /**
  * The curve has to climb. Level to level it may not, so the check is on the
  * rolling mean over a ten-level window — the scale at which a player
- * experiences the ramp at all. A window holds one level of each last digit
- * (bar where a shaped beat drops out), so the tier steps (DESIGN.md 2) cancel
- * out of it. The hand-authored shaped beats are left out: they are judged by
- * play, not by the band.
+ * experiences the ramp at all. A window holds one level of each last digit,
+ * so the tier steps (DESIGN.md 2) cancel out of it.
  */
 export function checkCurve(scores: Map<number, number>): string[] {
   const ids = [...scores.keys()].sort((a, b) => a - b);
@@ -165,7 +209,7 @@ async function main(): Promise<void> {
       }
     }
 
-    if (level.id >= FIRST_GENERATED_LEVEL && !HAND_AUTHORED_LEVELS.includes(level.id)) {
+    if (level.id >= FIRST_GENERATED_LEVEL) {
       const metrics = measure(level);
       if (metrics) scores.set(level.id, metrics.score);
     }
@@ -176,6 +220,7 @@ async function main(): Promise<void> {
   report("<bundle>", checkIds(levels));
   report("<bundle>", checkSpacing(levels.map((entry) => entry.level)));
   report("<bundle>", checkCurve(scores));
+  report("<bundle>", checkTiers(scores));
 
   const manifest = await readFile(
     join(process.cwd(), "src", "levels", "manifest.ts"),
