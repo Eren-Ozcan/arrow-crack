@@ -257,8 +257,10 @@ In order, each gated on the previous one's data:
 
 1. **Retune from real play.** The `levels_override` loop (`TELEMETRY.md` 3.2)
    and the `blocked_tap` check. Weeks 1-4, before any new content.
-2. **Content update: levels 81-120.** Mask-aware generation so shaped levels
-   become a repeatable type rather than four hand-made ones.
+2. **More shaped levels.** The generator already fills a silhouette
+   (`tools/generate-shaped.ts`), so shaped levels can become a repeatable
+   type rather than four; what is left is drawing more silhouettes and
+   deciding where past 80 they go.
 3. **Leagues.** Only once the score distribution is understood and only with
    server-side witness validation (`PROGRESSION.md` 5).
 4. **A second locale.** Turkish first, since the studio can write it. English
@@ -278,7 +280,8 @@ any retention data.
   a real league will need server-side witness validation, not a submitted
   number (`PROGRESSION.md` 5).
 - Daily challenges, events.
-- Mask-aware level generation. Shaped levels ship hand-authored in v1;
-  generating them is a post-launch content lever (`DESIGN.md` 1.10).
+- Shaped levels past 80. The four in v1 have hand-drawn silhouettes and
+  generated boards; more of them is a post-launch content lever
+  (`DESIGN.md` 1.10).
 - iOS build.
 - Level editor UI (the generator script is enough).

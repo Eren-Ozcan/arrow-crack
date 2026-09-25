@@ -39,6 +39,7 @@ a document disagree, fix one of them in the same change — do not leave both.
 | `npm test`                | Vitest, single run                |
 | `npm run levels:manifest` | Regenerate `src/levels/manifest`  |
 | `npm run levels:generate` | Seed levels 11-2000 (`--write`)   |
+| `npm run levels:shaped`   | Refill 20/40/60/80 (`--write`)    |
 | `npm run levels:validate` | The level gate (`CI.md` 2.2)      |
 | `npm run art:shoot`       | ART.md 10 stills (needs `dev`)    |
 | `npm run build`           | Production web build              |

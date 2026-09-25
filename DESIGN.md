@@ -147,7 +147,9 @@ ten (section 2).
   early levels the decision went the other way (2026-09-25): a level ending
   in 0 is **very hard** and the player learns to expect it. Restarting is
   always free, which is what keeps a single heart on the hardest board fair.
-  The four hand-authored shaped beats (20, 40, 60, 80) keep their own boards.
+  The four shaped beats (20, 40, 60, 80) are very hard too: their
+  silhouettes are drawn by hand, the boards inside are searched against the
+  same band (section 1.10).
 - Flagged visibly on the level path **and** on a confirmation before the
   level starts. A single heart must never be a surprise discovered by losing
   it.
@@ -272,12 +274,16 @@ cannot take.
 in section 1.2) and mask-aware generation (not cheap). So:
 
 - the engine and the validator support masks from the start,
-- the MVP ships a small set of **hand-authored** shaped levels as milestone
-  beats at 20, 40, 60 and 80, each also a one-heart level so the picture and
-  the challenge land together, and none past 80 until mask-aware generation
-  exists,
-- mask-aware generation, and a shaped level as a repeatable content type,
-  comes after launch.
+- the four shaped beats — a heart at 20, an anchor at 40, a trophy at 60, a
+  butterfly at 80 — have hand-drawn silhouettes, eight columns wide, with the
+  board inside searched by the generator (`tools/generate-shaped.ts`, which
+  gives it the silhouette as a `mask`). They end in 0, so they are one-heart
+  and held to the very hard band like every other level ending in 0: the
+  picture gets no discount for being a picture. They ship as JSON, not as
+  seeds, because the silhouette is authored content,
+- a shaped level as a repeatable content type past 80 is still a post-launch
+  decision: the generator can fill any silhouette now, but each one has to be
+  drawn.
 
 Masks are authored as a simple grid of characters next to the level, not
 traced by hand cell by cell: the level file carries `maskRows`, one string
@@ -495,7 +501,8 @@ tests and in the UI.
 ## 4. Level generation and validation
 
 Decision: **hybrid**. Levels 1-10 are hand-authored JSON (a controlled
-teaching curve), as are the four shaped beats at 20, 40, 60 and 80; the other
+teaching curve), as are the silhouettes of the four shaped beats at 20, 40,
+60 and 80, whose boards the generator fills (section 1.10); the other
 1986 of the 2000 are generated and solver-verified. The solver validates
 every level, hand-made ones included.
 
