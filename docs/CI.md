@@ -50,6 +50,15 @@ Development happens on Windows; CI runs on Ubuntu. That difference is
 useful — it catches path-case bugs in level and asset filenames before they
 reach a device.
 
+### 1.1 The web demo
+
+`.github/workflows/demo.yml` publishes the production web build of `master`
+to GitHub Pages (<https://eren-ozcan.github.io/arrow-crack/>) on every push,
+after `npm test` passes. It is the same `npm run build` the gate above runs,
+with no demo flag: ads, purchases and analytics have no driver in a browser
+and already report themselves unavailable (`ADS.md` 2.0), so the demo cannot
+reach a real account. The README links it.
+
 ---
 
 ## 2. What the gates check

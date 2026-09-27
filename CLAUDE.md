@@ -42,7 +42,7 @@ a document disagree, fix one of them in the same change — do not leave both.
 | `npm run levels:shaped`   | Refill 20/40/60/80 (`--write`)    |
 | `npm run levels:validate` | The level gate (`CI.md` 2.2)      |
 | `npm run art:shoot`       | ART.md 10 stills (needs `dev`)    |
-| `npm run build`           | Production web build              |
+| `npm run build`           | Production web build (the demo)   |
 | `npm run size`            | Bundle budget gate                |
 | `npm run cap:sync`        | Build, then sync into `android/`  |
 | `npm run android:dev`     | Sync and run on a device/emulator |
@@ -82,8 +82,10 @@ Store listing graphics, feature graphics, icons and screenshots are **never
 committed to this repo**. Local masters live in `docs/store-assets-originals/`
 (gitignored; the art-direction renders are under its `art-studies/`); the
 shared copy lives in the private `Eren-Ozcan/pictures` repo under
-`pictures/arrow-crack/`. Studio-wide accounts, the domain and the Play
-Console checklist are in `C:\Projects\pictures\STUDIO.md`.
+`pictures/arrow-crack/`. The one exception is `docs/readme/`: the three
+README stills, cut from `npm run art:shoot` (see the README). Studio-wide
+accounts, the domain and the Play Console checklist are in
+`C:\Projects\pictures\STUDIO.md`.
 
 ## Local-only folders under `docs/`
 
