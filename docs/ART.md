@@ -653,6 +653,15 @@ written against).
   360dp is ~33dp against a 32dp floor. The vertical space left over is not
   slack the board can take: the grid is square and the phone is 20:9, so the
   cell is width-bound. It is the ceiling on board size, not on cell size.
+
+  Re-measured after the board moved into its own panel: the panel's side
+  inset and padding came out of the canvas width, and with the layout's own
+  6% margin still inside it the 8-column boards drew at 28.6dp. The panel is
+  now 8dp in with 6dp of padding and the canvas margin 3%, since the panel
+  is the visible margin; an 8-column board draws at ~32.5dp at 360dp.
+  `npm run layout:check` holds the floor on the real canvas at every phone
+  size, so a change to the panel that eats the cell fails there.
+
 - **10.5 tangle.** No ambiguity found on 67 in either mode.
 - **On the device**: taps, the win panel, stars and the commentary line all
   behave as in Chrome; a 250ms swipe across an arrow pans and does not fire,

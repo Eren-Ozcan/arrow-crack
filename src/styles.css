@@ -67,11 +67,14 @@ body {
 
 /* The white panel the board sits in (ART.md 5 board rendering is untouched;
    this only wraps it). Its content-box, after padding, is what
-   `canvas.clientWidth/clientHeight` report to `computeLayout()`. */
+   `canvas.clientWidth/clientHeight` report to `computeLayout()`. The side
+   inset and padding are kept small because every pixel here comes out of the
+   cell: at 360dp an 8-column board needs 307dp of canvas after the layout's
+   own margin to hold the 32dp floor (ART.md 10.4, `npm run layout:check`). */
 #board-frame {
   position: absolute;
-  inset: 132px 14px 172px;
-  padding: 10px;
+  inset: 132px 8px 172px;
+  padding: 6px;
   background: var(--board);
   border-radius: 36px;
   box-shadow: 0 8px 0 var(--candy-shadow);

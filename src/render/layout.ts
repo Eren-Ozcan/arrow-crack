@@ -29,7 +29,13 @@ export interface Layout {
 
 const FRAME_RATIO = 0.62;
 const GAP_RATIO = 0.18;
-const MARGIN_RATIO = 0.06;
+/**
+ * Clear space between the frame and the canvas edge. The board panel around
+ * the canvas already gives the visible margin, so this is only enough to
+ * keep the frame's shadow off the edge; a larger one comes straight out of
+ * the cell (ART.md 10.4).
+ */
+const MARGIN_RATIO = 0.03;
 
 /**
  * Fit the grid plus its frame into the viewport (ART.md 5). The frame sits
