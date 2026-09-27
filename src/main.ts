@@ -174,7 +174,7 @@ let waitingToStart = false;
 
 const home = new HomeScreen({
   onPlay: (levelId) => start(levelId),
-  onSettings: () => settings.show(store.save.settings, store.save.hints, iapState()),
+  onSettings: () => openSettings(),
 });
 
 const settings = new SettingsScreen({
@@ -185,10 +185,26 @@ const settings = new SettingsScreen({
     settings.hide();
     showHome();
   },
-  onClose: () => settings.hide(),
+  onClose: () => closeSettings(),
   onBuyRemoveAds: () => void buyRemoveAds(),
   onRestore: () => void restorePurchases(),
 });
+
+/**
+ * The settings screen is not play, so opened over a board it stops the clock
+ * like any other panel (PROGRESSION.md 3.1), and closing it hands the board
+ * back exactly as it was.
+ */
+function openSettings(): void {
+  session?.suspend();
+  settings.show(store.save.settings, store.save.hints, iapState());
+}
+
+function closeSettings(): void {
+  settings.hide();
+  // A warning or a panel under the settings screen still owns the board.
+  if (session && !waitingToStart && !modals.isOpen) session.resumeFromSuspend();
+}
 
 function applySettings(patch: Partial<Settings>): void {
   const save = store.update((current) => updateSettings(current, patch));
@@ -382,11 +398,14 @@ function mountHud(): Hud {
     onFit: () => session?.fit(),
     onBack: () => showHome(),
     onHint: () => void useHint(),
-    onSettings: () => settings.show(store.save.settings, store.save.hints, iapState()),
+    onSettings: () => openSettings(),
   });
 
   coach = new Coach(() => session?.dismissCoach());
   app!.append(mounted.root, coach.root, modals.root);
+  // The settings screen opens over a live board too, so it is moved above
+  // everything the board mounts; mounted before them, the HUD drew over it.
+  app!.append(settings.root);
   return mounted;
 }
 
@@ -709,7 +728,7 @@ function leaveWin(levelId: number, go: () => void): void {
  */
 function onAndroidBack(): boolean {
   if (settings.isOpen) {
-    settings.hide();
+    closeSettings();
     return true;
   }
 

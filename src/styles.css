@@ -786,6 +786,8 @@ body {
 .settings {
   position: absolute;
   inset: 0;
+  /* Above the combo flash (5), which is the one HUD layer with a z-index. */
+  z-index: 6;
   display: grid;
   place-items: center;
   padding: 24px;
