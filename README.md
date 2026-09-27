@@ -22,18 +22,18 @@ npm run android:dev    # build, sync and run on a device
 
 ## Planning documents
 
-| File                             | What it decides                                                                                                                      |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| [DESIGN.md](DESIGN.md)           | Rules, lives, scoring, dead states, data model, level generation, architecture                                                       |
-| [ROADMAP.md](ROADMAP.md)         | Milestones 0-9 and their done-conditions, plus the explicit non-goals                                                                |
-| [PROGRESSION.md](PROGRESSION.md) | Score and combo multiplier, praise and celebration, timed and one-heart levels, the hint economy, and what leagues need recorded now |
-| [ART.md](ART.md)                 | Visual direction, the colorblind-safe palette and glyph system, states, motion, validation tests                                     |
-| [AUDIO.md](AUDIO.md)             | The cue set, the combo pitch ladder, mixing and platform rules                                                                       |
-| [STORE.md](STORE.md)             | Listing identity, short and long description, ASO, screenshots, data safety, review replies                                          |
-| [ADS.md](ADS.md)                 | Ad formats, triggers, caps, consent, IAP — bound by the studio-wide `pictures/ADS_POLICY.md`                                         |
-| [TELEMETRY.md](TELEMETRY.md)     | Level delivery and remote override, analytics event schema, the difficulty retuning loop, performance budgets                        |
-| [CI.md](CI.md)                   | What runs in CI, the level validation gate, the local release procedure, signing and keystore backup                                 |
-| [REFERENCE.md](REFERENCE.md)     | Amaze GO teardown (100M+ installs, 4.5/241K, no remove-ads IAP) — listing data, what we take, what we refuse, and the three wedges   |
+| File                                  | What it decides                                                                                                                      |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| [DESIGN.md](docs/DESIGN.md)           | Rules, lives, scoring, dead states, data model, level generation, architecture                                                       |
+| [ROADMAP.md](docs/ROADMAP.md)         | Milestones 0-9 and their done-conditions, plus the explicit non-goals                                                                |
+| [PROGRESSION.md](docs/PROGRESSION.md) | Score and combo multiplier, praise and celebration, timed and one-heart levels, the hint economy, and what leagues need recorded now |
+| [ART.md](docs/ART.md)                 | Visual direction, the colorblind-safe palette and glyph system, states, motion, validation tests                                     |
+| [AUDIO.md](docs/AUDIO.md)             | The cue set, the combo pitch ladder, mixing and platform rules                                                                       |
+| [STORE.md](docs/STORE.md)             | Listing identity, short and long description, ASO, screenshots, data safety, review replies                                          |
+| [ADS.md](docs/ADS.md)                 | Ad formats, triggers, caps, consent, IAP — bound by the studio-wide `pictures/ADS_POLICY.md`                                         |
+| [TELEMETRY.md](docs/TELEMETRY.md)     | Level delivery and remote override, analytics event schema, the difficulty retuning loop, performance budgets                        |
+| [CI.md](docs/CI.md)                   | What runs in CI, the level validation gate, the local release procedure, signing and keystore backup                                 |
+| [REFERENCE.md](docs/REFERENCE.md)     | Amaze GO teardown (100M+ installs, 4.5/241K, no remove-ads IAP) — listing data, what we take, what we refuse, and the three wedges   |
 
 ## The four rules everything else follows from
 
