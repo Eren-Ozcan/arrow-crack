@@ -3,7 +3,8 @@
 ## The principle
 
 The incumbent sells its sound as calm: _"ASMR gibi tatmin edici bırakma
-anları"_, a soothing whoosh as each arrow leaves (`REFERENCE.md` 1). Ours is
+anları"_ ("satisfying, ASMR-like release moments"), a soothing whoosh as
+each arrow leaves (`REFERENCE.md` 1). Ours is
 not a de-stressor, it is a decision game, so the audio target is different:
 **sound confirms that a decision was correct.** Precise, short, mechanical —
 the click of something fitting, not a wash of calm.

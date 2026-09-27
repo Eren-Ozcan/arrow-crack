@@ -14,7 +14,7 @@ decision.
 | Rank         | **#5 top free puzzle**                                                                |
 | Updated      | 17 Sep 2026                                                                           |
 | Tags         | Puzzle, logic, single player, abstract, **offline**                                   |
-| Monetization | **"Reklam içerir" — ads only. No in-app purchases listed.**                           |
+| Monetization | **"Reklam içerir" ("Contains ads") — ads only. No in-app purchases listed.**          |
 | Data safety  | Shares location, personal info and 3 more types; collects personal and financial info |
 | Also by them | Zen Word, Zen Color, Sudoku, Tile Explorer, Paint by Number — a calm-puzzle portfolio |
 
@@ -179,9 +179,10 @@ a copy of theirs), but the AD-badge-appears-later pattern is worth naming
 here in case a future hint-economy tweak considers gating by tier instead of
 showing the badge from level 1.
 
-**Positioning.** Their copy is relentlessly calm: _sakinleştirmek_,
-_meditasyon gibi_, _ASMR_, _stresi azaltır_, _zihinsel sıfırlama_, "the ten
-minutes before a meeting". They sell a **de-stressor**, not a challenge.
+**Positioning.** Their copy is relentlessly calm: _sakinleştirmek_ (to calm),
+_meditasyon gibi_ (like meditation), _ASMR_, _stresi azaltır_ (reduces
+stress), _zihinsel sıfırlama_ (a mental reset), "the ten minutes before a
+meeting". They sell a **de-stressor**, not a challenge.
 
 ---
 
@@ -203,8 +204,11 @@ ads only, no in-app purchases. And the most-helpful visible Turkish reviews
 are all about exactly that:
 
 - _"her oyun başı reklam insanı bunaltıyor … reklam süreleri oyundan daha
-  uzun"_
+  uzun"_ — "an ad at the start of every game wears you out … the ads run
+  longer than the game"
 - _"Reklamlar çok ve uzun. reklam arası ancak oynarsınız. kaldırıyorum"_
+  — "Too many ads, and long. You barely get to play between them.
+  Uninstalling."
   — 15 people found this helpful
 - A top review asks for precisely what we already planned: fewer ads, a
   rewarded "watch an ad, get a heart", and a **one-time remove-ads
@@ -273,7 +277,8 @@ accounts.
 - **Board size.** Their difficulty is scanning a 30 x 30 tangle; ours is
   ordering (`DESIGN.md` 1.8). We stay 6x6-9x9 and the 48dp cell floor is a
   hard limit, not a target. One of their own reviews complains _"oyun ekrana
-  büyük geliyor"_ — the size is a cost to them, not only a choice.
+  büyük geliyor"_ ("the game is too big for the screen") — the size is a cost
+  to them, not only a choice.
 - **The pastel monochrome palette.** They can afford low contrast because
   colour is decoration. Ours carries the rule: 3:1 minimum, separable under
   three kinds of colour blindness.
