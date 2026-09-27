@@ -67,6 +67,9 @@ npm run build            # production web build into dist/
 npm test                 # unit tests (vitest)
 npm run typecheck        # tsc only
 npm run levels:validate  # the level gate every shipped level passes
+npm run smoke            # end-to-end flows in headless Chrome (needs dev)
+npm run layout:check     # layout at phone sizes (needs dev)
+npm run perf:check       # board cost, leaks, hint latency (needs dev)
 npm run android:dev      # build, sync and run on a device
 ```
 

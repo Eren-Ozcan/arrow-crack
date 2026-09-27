@@ -22,7 +22,10 @@
     "test:coverage": "vitest run --coverage",
     "levels:solve": "tsx tools/solve.ts",
     "art:shoot": "tsx tools/shoot.ts",
-    "levels:shaped": "tsx tools/generate-shaped.ts"
+    "levels:shaped": "tsx tools/generate-shaped.ts",
+    "smoke": "tsx tools/smoke.ts",
+    "layout:check": "tsx tools/layout-check.ts",
+    "perf:check": "tsx tools/perf-check.ts"
   },
   "devDependencies": {
     "@capacitor/android": "^7.0.0",

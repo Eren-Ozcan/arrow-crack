@@ -31,21 +31,24 @@ a document disagree, fix one of them in the same change — do not leave both.
 
 ## Commands
 
-| Command                   | What it does                      |
-| ------------------------- | --------------------------------- |
-| `npm run dev`             | Vite dev server                   |
-| `npm run typecheck`       | `tsc --noEmit`                    |
-| `npm run lint`            | ESLint                            |
-| `npm test`                | Vitest, single run                |
-| `npm run levels:manifest` | Regenerate `src/levels/manifest`  |
-| `npm run levels:generate` | Seed levels 11-2000 (`--write`)   |
-| `npm run levels:shaped`   | Refill 20/40/60/80 (`--write`)    |
-| `npm run levels:validate` | The level gate (`CI.md` 2.2)      |
-| `npm run art:shoot`       | ART.md 10 stills (needs `dev`)    |
-| `npm run build`           | Production web build (the demo)   |
-| `npm run size`            | Bundle budget gate                |
-| `npm run cap:sync`        | Build, then sync into `android/`  |
-| `npm run android:dev`     | Sync and run on a device/emulator |
+| Command                   | What it does                       |
+| ------------------------- | ---------------------------------- |
+| `npm run dev`             | Vite dev server                    |
+| `npm run typecheck`       | `tsc --noEmit`                     |
+| `npm run lint`            | ESLint                             |
+| `npm test`                | Vitest, single run                 |
+| `npm run levels:manifest` | Regenerate `src/levels/manifest`   |
+| `npm run levels:generate` | Seed levels 11-2000 (`--write`)    |
+| `npm run levels:shaped`   | Refill 20/40/60/80 (`--write`)     |
+| `npm run levels:validate` | The level gate (`CI.md` 2.2)       |
+| `npm run art:shoot`       | ART.md 10 stills (needs `dev`)     |
+| `npm run smoke`           | Browser end-to-end flows (`dev`)   |
+| `npm run layout:check`    | Layout at five phone sizes (`dev`) |
+| `npm run perf:check`      | Board cost, leaks, hint (`dev`)    |
+| `npm run build`           | Production web build (the demo)    |
+| `npm run size`            | Bundle budget gate                 |
+| `npm run cap:sync`        | Build, then sync into `android/`   |
+| `npm run android:dev`     | Sync and run on a device/emulator  |
 
 ## Where things live
 

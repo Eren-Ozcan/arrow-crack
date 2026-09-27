@@ -127,6 +127,54 @@ Level JSON and audio grow quietly. A budget check fails the build when the
 total bundle passes a set ceiling, so the growth is a decision rather than a
 surprise at upload time.
 
+### 2.4 Browser checks (on demand)
+
+Three scripts drive the dev build in a headless Chrome over the DevTools
+protocol (`tools/cdp.ts`, no test-runner dependency). Each needs
+`npm run dev` running and exits non-zero on failure. They play the board
+through a dev-only hook, `window.__arrowCrack` in `src/main.ts`, which reads
+state and answers where an arrow is and which one the solver would fire; the
+taps themselves are real pointer events, so gesture arbitration is in the
+path. The hook is stripped from a production build.
+
+- **`npm run smoke`** — the end-to-end flows, each from an empty save: first
+  launch, a win from the Play button with its stars and banked hint, Next and
+  Home from the win panel, replay keeping the best stars, mistakes down to the
+  fail panel and a restart, the forgiving tutorial, the HUD restart, the
+  one-heart and timed warnings (clock stopped behind the warning, the coach
+  line and the background, five seconds per mistake), a hint from the
+  balance, double-tap zoom and Fit, settings persisting across a reload,
+  Delete my data, every Android back branch, save persistence, a corrupt save
+  and a locked level; then a pan and a long press across an arrow that must
+  not fire it (`ART.md` 4.1), the grid toggle, a combo chain and the mistake
+  that breaks it, running a timed clock out, the clock under the settings
+  screen, settings opened mid-level, the colour-blind nudge on the third
+  wrong-colour tap, reduced motion on the win panel, levels 1-12 back to back,
+  and four generated levels (150, 777, 1500, 2000) rebuilt and solved on the
+  page. Any `console.error` or page exception fails the case.
+
+  The stuck panel (restart free, no heart, no ad; Home) is reached on a
+  board built for it and opened through the hook's `playBoard()`: random
+  legal play across the first 300 levels never reaches an unsolvable
+  position, so no shipped level can open that panel.
+  `--only <text>` runs the matching cases; `--shots <dir>` writes stills.
+
+- **`npm run layout:check`** — home (fresh and 60 levels in), settings with
+  the delete confirmation open, four boards (4x4, 8x9, 8x10, timed), their
+  warnings, settings opened over a live board, and the win and fail panels,
+  at 360x780, 393x852, 412x915 and 768x1024. Gating: no sideways scroll,
+  every button on screen, not overlapping another and not drawn under
+  anything else, no clipped label, every arrow's tap point reaching the
+  canvas rather than the HUD or the coach, and the `ART.md` 10.4 cell floor
+  of 32dp, measured on the real canvas inside the board panel. A button
+  inside a box that scrolls is judged by size only. Reported without
+  failing: buttons under 44dp, and everything at 320x640, which is below the
+  360dp the layout is held to.
+- **`npm run perf:check`** — main-thread time on the busiest board against the
+  smallest (a ratio, because a desktop is not a phone), listeners, DOM nodes
+  and heap after twenty level exits (absolute, and a session that forgets to
+  unhook itself shows up here), and the hint round trip on the busiest board.
+
 ---
 
 ## 3. Release procedure (local)
@@ -239,6 +287,6 @@ further updates to the app until Play support resets the upload key.
   key with publishing rights — a much worse secret to hold than a keystore —
   for a step taken a handful of times a month, by hand, with a human looking
   at the release notes.
-- **Screenshot/e2e runs.** The browser-based smoke pass is run on demand,
-  not per commit; a flaky visual test that blocks every push costs more than
+- **Screenshot/e2e runs.** The browser checks (section 2.4) are run on
+  demand, not per commit; a flaky visual test that blocks every push costs more than
   it catches at this size.
