@@ -14,25 +14,12 @@
  *
  * The dev server must already be running (`npm run dev`).
  */
-import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
-import { mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { writeFile } from "node:fs/promises";
+import { SAVE_KEY, launch, sleep } from "./cdp";
 
 /** The narrowest phone ART.md 10.4 holds the layout to, in CSS pixels. */
 const VIEWPORT = { width: 360, height: 800 };
 const DEVICE_SCALE_FACTOR = 2;
-/** `STORAGE_KEY` in `src/state/save.ts`; duplicated so this stays a CLI. */
-const SAVE_KEY = "arrowcrack.save";
-
-const CHROME_CANDIDATES = [
-  "C:/Program Files/Google/Chrome/Application/chrome.exe",
-  "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
-  `${process.env.LOCALAPPDATA ?? ""}/Google/Chrome/Application/chrome.exe`,
-  "/usr/bin/google-chrome",
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-];
 
 /**
  * Colour-vision matrices, the linear approximations used by the common
@@ -164,139 +151,36 @@ function filterScript(name: FilterName): string {
   })()`;
 }
 
-/** Whatever a DevTools command answers with; each caller reads its own keys. */
-type CdpResult = Record<string, string | undefined>;
-
-/** A CDP session over the browser's WebSocket endpoint. */
-class Session {
-  #socket: WebSocket;
-  #nextId = 1;
-  #pending = new Map<
-    number,
-    { resolve: (value: CdpResult) => void; reject: (error: Error) => void }
-  >();
-
-  private constructor(socket: WebSocket) {
-    this.#socket = socket;
-    socket.addEventListener("message", (event) => {
-      const message = JSON.parse(String(event.data));
-      const pending = this.#pending.get(message.id);
-      if (!pending) return;
-      this.#pending.delete(message.id);
-      if (message.error) pending.reject(new Error(message.error.message));
-      else pending.resolve(message.result);
-    });
-  }
-
-  static async open(endpoint: string): Promise<Session> {
-    const socket = new WebSocket(endpoint);
-    await new Promise<void>((resolve, reject) => {
-      socket.addEventListener("open", () => resolve(), { once: true });
-      socket.addEventListener("error", () => reject(new Error("cdp connect failed")), {
-        once: true,
-      });
-    });
-    return new Session(socket);
-  }
-
-  send(method: string, params: Record<string, unknown> = {}): Promise<CdpResult> {
-    const id = this.#nextId++;
-    return new Promise((resolve, reject) => {
-      this.#pending.set(id, { resolve, reject });
-      this.#socket.send(JSON.stringify({ id, method, params }));
-    });
-  }
-
-  close(): void {
-    this.#socket.close();
-  }
-}
-
-function chromePath(): string {
-  const found = CHROME_CANDIDATES.find((candidate) => existsSync(candidate));
-  if (!found) fail("no Chrome found — set one of the paths in CHROME_CANDIDATES");
-  return found;
-}
-
-const sleep = (ms: number): Promise<void> => new Promise((done) => setTimeout(done, ms));
-
-async function targetEndpoint(port: number): Promise<string> {
-  // Chrome needs a moment to write its listening socket.
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    try {
-      const response = await fetch(`http://127.0.0.1:${port}/json/version`);
-      const body = (await response.json()) as { webSocketDebuggerUrl: string };
-      return body.webSocketDebuggerUrl;
-    } catch {
-      await sleep(200);
-    }
-  }
-  return fail("Chrome did not open a debugging port");
-}
-
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
-  const port = 9222 + Math.floor(Math.random() * 500);
-  const profile = await mkdtemp(join(tmpdir(), "arrow-shoot-"));
-
-  const chrome = spawn(
-    chromePath(),
-    [
-      "--headless=new",
-      "--disable-gpu",
-      "--hide-scrollbars",
-      `--remote-debugging-port=${port}`,
-      `--user-data-dir=${profile}`,
-      "about:blank",
-    ],
-    { stdio: "ignore" },
-  );
+  const browser = await launch({
+    width: VIEWPORT.width,
+    height: VIEWPORT.height,
+    deviceScaleFactor: DEVICE_SCALE_FACTOR,
+  });
 
   try {
-    const browser = await Session.open(await targetEndpoint(port));
-    const { targetId } = await browser.send("Target.createTarget", {
-      url: "about:blank",
-    });
-    if (targetId === undefined) fail("Chrome opened no page to drive");
-    const page = await Session.open(`ws://127.0.0.1:${port}/devtools/page/${targetId}`);
-
-    await page.send("Page.enable");
-    await page.send("Emulation.setDeviceMetricsOverride", {
-      width: VIEWPORT.width,
-      height: VIEWPORT.height,
-      deviceScaleFactor: DEVICE_SCALE_FACTOR,
-      mobile: true,
-    });
-
+    const { page } = browser;
     const url = `${options.url}/?level=${options.level}`;
     if (options.colourBlind) {
       // The setting lives in the save, so it has to be there before the app
       // reads it — which means before the first navigation to the app origin.
-      await page.send("Page.navigate", { url: `${options.url}/` });
-      await sleep(400);
-      await page.send("Runtime.evaluate", {
-        expression: `localStorage.setItem(${JSON.stringify(SAVE_KEY)}, JSON.stringify({ version: 1, settings: { colourBlindMode: true } }))`,
-      });
+      await page.goto(`${options.url}/`);
+      await page.eval(
+        `localStorage.setItem(${JSON.stringify(SAVE_KEY)}, JSON.stringify({ version: 1, settings: { colourBlindMode: true } }))`,
+      );
     }
-    await page.send("Page.navigate", { url });
+    await page.goto(url);
     await sleep(options.settleMs);
 
-    await page.send("Runtime.evaluate", {
-      expression: filterScript(options.filter),
-      awaitPromise: false,
-    });
+    await page.eval(filterScript(options.filter));
     // One more frame so the filtered page is composited before the shutter.
     await sleep(300);
 
-    const { data } = await page.send("Page.captureScreenshot", { format: "png" });
-    if (data === undefined) fail("Chrome returned no screenshot");
-    await writeFile(options.out, Buffer.from(data, "base64"));
+    await writeFile(options.out, await page.screenshot());
     console.log(`shoot: ${options.out} — level ${options.level}, ${options.filter}`);
-
-    page.close();
-    browser.close();
   } finally {
-    chrome.kill();
+    await browser.close();
   }
 }
 
