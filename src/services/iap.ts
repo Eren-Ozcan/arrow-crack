@@ -37,10 +37,21 @@ export class IapService {
   #owned = new Set<ProductId>();
   #onPurchase:
     ((result: Extract<PurchaseResult, { status: "purchased" }>) => void) | undefined;
+  /** One purchase or restore at a time, so a double tap cannot fire twice. */
+  #inFlight = false;
 
   constructor(options: IapServiceOptions = {}) {
     this.#driver = options.driver ?? null;
     this.#onPurchase = options.onPurchase;
+  }
+
+  /** Whether there is a store to buy from at all (`ADS.md` 2.1). */
+  get available(): boolean {
+    return this.#driver !== null;
+  }
+
+  get busy(): boolean {
+    return this.#inFlight;
   }
 
   async prepare(): Promise<void> {
@@ -69,32 +80,37 @@ export class IapService {
   }
 
   async purchase(product: ProductId): Promise<PurchaseResult> {
-    if (this.#driver === null) return { status: "unavailable" };
+    if (this.#driver === null || this.#inFlight) return { status: "unavailable" };
 
-    let result: PurchaseResult;
+    this.#inFlight = true;
     try {
-      result = await this.#driver.purchase(product);
+      const result = await this.#driver.purchase(product);
+      if (result.status === "purchased") {
+        // A consumable is spent where it is granted, so only the entitlement
+        // is remembered here.
+        if (product !== "hint_pack") this.#owned.add(product);
+        this.#onPurchase?.(result);
+      }
+      return result;
     } catch {
       return { status: "unavailable" };
+    } finally {
+      this.#inFlight = false;
     }
-
-    if (result.status === "purchased") {
-      // A consumable is spent where it is granted, so only the entitlement
-      // is remembered here.
-      if (product !== "hint_pack") this.#owned.add(product);
-      this.#onPurchase?.(result);
-    }
-    return result;
   }
 
   async restore(): Promise<ProductId[]> {
-    if (this.#driver === null) return [];
+    if (this.#driver === null || this.#inFlight) return [...this.#owned];
+
+    this.#inFlight = true;
     try {
       const owned = await this.#driver.restore();
       this.#owned = new Set(owned);
       return owned;
     } catch {
       return [...this.#owned];
+    } finally {
+      this.#inFlight = false;
     }
   }
 }
