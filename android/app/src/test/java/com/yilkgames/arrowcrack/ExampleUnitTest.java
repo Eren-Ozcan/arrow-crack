@@ -1,4 +1,4 @@
-package com.getcapacitor.myapp;
+package com.yilkgames.arrowcrack;
 
 import static org.junit.Assert.*;
 
