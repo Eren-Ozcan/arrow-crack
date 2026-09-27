@@ -12,8 +12,8 @@ import {
   canShowInterstitial,
   createAttemptAds,
   readLastFullscreen,
-} from "@/state/adState";
-import type { AdStorage } from "@/state/adState";
+} from "@/state/ad-state";
+import type { AdStorage } from "@/state/ad-state";
 
 function memoryStorage(): AdStorage & { map: Map<string, string> } {
   const map = new Map<string, string>();

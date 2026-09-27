@@ -118,7 +118,7 @@ The facade layer and every rule above it are written and tested; nothing
 native is wired yet, because the AdMob, RevenueCat and Firebase accounts in
 section 3 do not exist for this app.
 
-- `src/state/adState.ts` — the shared cooldown, its corrupt-stamp handling,
+- `src/state/ad-state.ts` — the shared cooldown, its corrupt-stamp handling,
   and the per-attempt caps, as pure functions (`tests/ads.test.ts`).
 - `src/services/ads.ts` — `AdService`, which talks to an `AdDriver` rather
   than to a plugin. With no driver it answers `unavailable` to everything,
@@ -152,7 +152,7 @@ yet, so the remaining work begins with section 3 and not in the code.
 ```
 src/services/ads.ts     AdMob facade: consent, init, interstitial, rewarded
 src/services/iap.ts     RevenueCat facade: remove_ads, restore
-src/state/adState.ts    shared persistent cooldown + per-attempt cap counters
+src/state/ad-state.ts   shared persistent cooldown + per-attempt cap counters
 ```
 
 `ads.ts` no-ops on web/dev (`Capacitor.isNativePlatform()` is false), so the

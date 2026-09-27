@@ -216,7 +216,7 @@ checklist in `ADS.md` 3 rather than in the code.
   fabricated percentage (`PROGRESSION.md` 2.4).
 - The scheduled query behind the retuning loop (`TELEMETRY.md` 3.2).
 - UMP consent before init; shared persistent full-screen cooldown in
-  `state/adState.ts`.
+  `state/ad-state.ts`.
 - Interstitial on leaving the win screen (buttons **and** Android back).
 - Rewarded: continue (+1 heart, board kept, max 2), hint, skip level — caps
   enforced in game, not in the panel.

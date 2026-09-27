@@ -1,4 +1,4 @@
-import type { AdStorage, AttemptAds } from "@/state/adState";
+import type { AdStorage, AttemptAds } from "@/state/ad-state";
 import {
   canOfferContinue,
   canOfferHintAd,
@@ -10,7 +10,7 @@ import {
   recordHintAd,
   recordSkip,
   writeLastFullscreen,
-} from "@/state/adState";
+} from "@/state/ad-state";
 
 /**
  * The ads facade (`ADS.md` 2.1). Nothing outside this file imports an ad SDK,
@@ -19,7 +19,7 @@ import {
  * test and in the level tools. Ads are therefore never the reason a build
  * cannot run, and every rule above them is testable without a network.
  *
- * The rules themselves are in `state/adState.ts`; this owns the calling — the
+ * The rules themselves are in `state/ad-state.ts`; this owns the calling — the
  * consent order, the in-flight lock, and the promise that never hangs.
  */
 
