@@ -19,6 +19,8 @@ export const BASE_SHOT_SCORE = 100;
 export const CLEAN_BONUS = 1000;
 /** A correct shot inside this window advances the chain by 2 instead of 1. */
 export const HOT_WINDOW_MS = 4000;
+/** No shot for this long and the chain, and the multiplier with it, expires. */
+export const COMBO_DECAY_MS = 6000;
 export const MAX_MULTIPLIER = 5;
 /** The layer that destroys a block is worth more than an ordinary peel. */
 export const DESTROY_BONUS = 1.5;
@@ -111,6 +113,16 @@ export function registerShot(
     steppedUp: multiplier > state.multiplier,
     earnedSpecial: !state.reachedCap && multiplier === MAX_MULTIPLIER,
   };
+}
+
+/**
+ * Idle too long between shots and the chain lapses, same as a miss, so
+ * sitting on a high multiplier is not free (PROGRESSION.md 1).
+ */
+export function expireChain(state: ScoreState, now: number): ScoreState {
+  if (state.chain === 0 || state.lastShotAt === null) return state;
+  if (now - state.lastShotAt < COMBO_DECAY_MS) return state;
+  return { ...state, chain: 0, multiplier: 1 };
 }
 
 /**

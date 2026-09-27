@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   BASE_SHOT_SCORE,
   CLEAN_BONUS,
+  COMBO_DECAY_MS,
   createScore,
+  expireChain,
   HOT_WINDOW_MS,
   levelScore,
   multiplierFor,
@@ -67,6 +69,24 @@ describe("combo multiplier", () => {
     expect(after.gained).toBe(0);
     expect(after.state.chain).toBe(hot.chain);
     expect(after.state.multiplier).toBe(hot.multiplier);
+  });
+
+  it("lapses to x1 once the player idles past the decay window", () => {
+    const hot = chain(6, 100);
+    const lastShot = hot.lastShotAt ?? 0;
+
+    const stillHot = expireChain(hot, lastShot + COMBO_DECAY_MS - 1);
+    expect(stillHot).toBe(hot);
+
+    const lapsed = expireChain(hot, lastShot + COMBO_DECAY_MS);
+    expect(lapsed.chain).toBe(0);
+    expect(lapsed.multiplier).toBe(1);
+    expect(lapsed.score).toBe(hot.score);
+  });
+
+  it("has nothing to expire before the first shot", () => {
+    const fresh = createScore();
+    expect(expireChain(fresh, 999_999)).toBe(fresh);
   });
 });
 
