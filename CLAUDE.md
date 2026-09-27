@@ -5,9 +5,9 @@ Tap-only puzzle game. Vite + TypeScript + Capacitor, Android first,
 
 ## Read before changing behaviour
 
-The planning documents are the spec, not background reading. `DESIGN.md` is
-authoritative on rules and the data model; `ROADMAP.md` defines the current
-milestone and its done-condition. `ART.md`, `AUDIO.md`, `PROGRESSION.md`,
+The planning documents in `docs/` are the spec, not background reading.
+`DESIGN.md` is authoritative on rules and the data model; `ROADMAP.md`
+defines the current milestone and its done-condition. `ART.md`, `AUDIO.md`, `PROGRESSION.md`,
 `ADS.md`, `TELEMETRY.md`, `CI.md` and `STORE.md` own their areas. If code and
 a document disagree, fix one of them in the same change — do not leave both.
 
@@ -80,9 +80,17 @@ a couple of seconds after `am start` before the first tap.
 
 Store listing graphics, feature graphics, icons and screenshots are **never
 committed to this repo**. Local masters live in `docs/store-assets-originals/`
-(gitignored); the shared copy lives in the private `Eren-Ozcan/pictures` repo
-under `pictures/arrow-crack/`. Studio-wide accounts, the domain and the Play
+(gitignored; the art-direction renders are under its `art-studies/`); the
+shared copy lives in the private `Eren-Ozcan/pictures` repo under
+`pictures/arrow-crack/`. Studio-wide accounts, the domain and the Play
 Console checklist are in `C:\Projects\pictures\STUDIO.md`.
+
+## Local-only folders under `docs/`
+
+Gitignored, never committed: `store-assets-originals/` (art masters and
+studies), `reference/` (competitor captures) and `device-captures/` (adb
+screenshots, window dumps and save backups from on-device debugging, one
+dated folder per session).
 
 ## Signing
 
