@@ -513,11 +513,10 @@ the impact frame only and disables the idle bob, particles and confetti; it
 never changes what is legible, and the win panel's text still appears — it
 carries information, not just motion.
 
-It is read from two places and either is enough: the device's
-`prefers-reduced-motion`, which is honoured without asking, and a settings
-row, for a phone that does not carry the preference and for a player who
-wants it in this game only. The switch can add to the device preference; it
-can never override it.
+It is read from a single settings row, off by default. The device's
+`prefers-reduced-motion` is not consulted — a fast-moving OS-level signal
+turned this on by surprise for players who never opened Settings, and the
+switch is easy enough to find that this game does not need to guess.
 
 **Nothing celebratory is ever drawn over a live board.** A line of text that
 hides the arrow the player was about to tap costs a heart, which is the one

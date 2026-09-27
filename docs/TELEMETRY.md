@@ -91,8 +91,13 @@ stuck detection (`DESIGN.md` section 1.7); reusing it here costs nothing.
 
 `src/services/analytics.ts` holds the 2.3 schema as a typed union, the
 consent gate of 2.2 and the per-attempt `mistake` cap of 2.4, over an
-`AnalyticsDriver`. No driver is passed yet, so nothing is sent anywhere; the
-Firebase driver and `google-services.json` are the next step (`ADS.md` 2.0).
+`AnalyticsDriver`. No driver is passed yet, so nothing is sent anywhere.
+The Firebase project (`arrow-crack`) and Android app were created
+2026-09-24 — `google-services.json` is in `android/app/`, and the auto-created
+API keys are restricted (Android key to the package + debug SHA-1, browser
+key to `localhost`/`yilkgames.com`). What is left is the
+`@capacitor-firebase/analytics` driver itself and Remote Config (`levels_override`,
+`level_stats`, section 1.3).
 The events already raised from `main.ts` are `level_start`, `level_win`,
 `level_fail`, `level_stuck`, `level_quit`, `mistake`, `ad_shown` and
 `purchase`. The rest arrive with the UI that raises them.

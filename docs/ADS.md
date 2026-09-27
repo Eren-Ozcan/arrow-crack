@@ -139,13 +139,20 @@ section 3 do not exist for this app.
 - `src/platform/back.ts` — the **Android back button**, answered in one
   function so the win celebration leaves through `leaveWin()` and past the
   interstitial, exactly like the buttons.
+- `src/ui/settings.ts` — the `remove_ads` purchase row (hidden once owned,
+  replaced by a static "Ads removed" line) and the "Restore purchases" row
+  (`ADS.md` 2.6), each drawn only when `IapService` actually has a store to
+  talk to — absent rather than present-and-disabled on the web and in a dev
+  build, same convention as the rewarded rows on the fail screen.
 
 **What is left**, in order: the AdMob plugin driver and the console checklist
 in section 3; the RevenueCat driver and its products, including the hint pack
-the hint button will offer (`PROGRESSION.md` 4.3) and the `iap` source of
-`hint_used` that comes with it; and the Firebase Analytics driver plus
-`google-services.json`. Each of those needs an account that does not exist
-yet, so the remaining work begins with section 3 and not in the code.
+purchase trigger from the hint button (`PROGRESSION.md` 4.1/4.3 — the button
+currently only offers the balance or the rewarded ad, never the IAP) and the
+`iap` source of `hint_used` that comes with it; and the Firebase Analytics
+driver. AdMob, RevenueCat and Firebase console setup was all done 2026-09-24
+(sections 2.7, 3; `TELEMETRY.md` 2.0) — `google-services.json` is already in
+`android/app/` — what remains is wiring the three drivers to them.
 
 ### 2.1 Module shape
 
@@ -221,30 +228,70 @@ Two RevenueCat products:
 - Restore purchases available in Settings.
 - `adsRemoved()` is checked as the first line of the interstitial path.
 
+### 2.7 RevenueCat console setup (2026-09-24)
+
+Project `Arrow Crack` created under `app.revenuecat.com` (studio account, not
+Google auth — see `STUDIO.md`). Platform: Capacitor.
+
+| Item                    | Value                                                                                  |
+| ----------------------- | -------------------------------------------------------------------------------------- |
+| Project                 | Arrow Crack                                                                            |
+| App (Play Store config) | `Arrow Crack (Play Store)`, package `com.yilkgames.arrowcrack`                         |
+| Public SDK API key      | `goog_YEotguBFGqcIheOVTZBdOVjpzix`                                                     |
+| Entitlement             | `ads_removed`, attached to `remove_ads`                                                |
+| Products                | `remove_ads` (non-consumable) · `hint_pack` (consumable)                               |
+| Offering                | `default` (current), packages `$rc_lifetime` → `remove_ads`, `hint_pack` → `hint_pack` |
+
+**Still open:**
+
+- Service Account Credentials JSON not uploaded — RevenueCat needs a Google
+  Play service account to validate transactions, and that account is normally
+  generated from Play Console's API access page, which needs the app to
+  exist there first. Blocked on milestone 9 (Play Console listing).
+- Store Status on both products reads "Could not check" — expected until the
+  above is wired and the products are mirrored in Play Console's in-app
+  products/subscriptions.
+- `hint_used`'s `iap` source (from `TELEMETRY.md` 2.3) is not wired in code
+  yet — this session only set up the console side.
+
 ---
 
 ## 3. Setup checklist (AdMob console)
 
-Nothing below exists yet — Arrow Crack is not an AdMob app.
-
-- [ ] Create the app in AdMob (`yilkgamesstudio@gmail.com`, "Yilk Games").
+- [x] Create the app in AdMob (`yilkgamesstudio@gmail.com`, "Yilk Games").
       Use `?authuser=yilkgamesstudio@gmail.com` in the URL — the default
       profile account is the personal one, and the account switcher can open
       the signup wizard, which must never be filled in.
-- [ ] Create the ad units: `Interstitial - Level Complete`,
+- [x] Create the ad units: `Interstitial - Level Complete`,
       `Rewarded - Continue`, `Rewarded - Hint`, `Rewarded - Skip Level`.
       The continue unit serves both the heart continue and the timed +30 s.
-      (One rewarded unit shared by all three triggers is also acceptable and
-      simplifies reporting; decide before wiring.)
-- [ ] Panel frequency cap on the interstitial unit: **2 shows / 1 hour**.
-- [ ] Rewarded units: **no panel cap** (rule 10 — capped in game).
-- [ ] Record the App ID and every unit id in this file and in `ADS_POLICY.md`
-      section 3/4, as a new column/row for Arrow Crack.
-- [ ] GDPR message campaign under "Privacy & messaging".
+      One rewarded unit was not shared across triggers — four separate units
+      were created for clean per-placement reporting.
+- [x] Panel frequency cap on the interstitial unit: **2 shows / 1 hour**.
+- [x] Rewarded units: **no panel cap** (rule 10 — capped in game).
+- [x] Record the App ID and every unit id in this file (below). Still to do:
+      mirror this row into `ADS_POLICY.md` section 3/4.
+- [ ] GDPR message campaign under "Privacy & messaging". Attempted
+      2026-09-24: the console's Yayınla/Taslağı kaydet buttons would not
+      register the draft as dirty and the message never saved. Likely
+      blocked by the app still being in "İnceleme gerekli" (review needed)
+      status with no store listing yet — retry once milestone 9's Play
+      listing is live, or finish it by hand in a couple of minutes.
 - [ ] Expect "Limited ad serving / review needed" until the app is live in
       production on Play and linked to the store listing. That is not a
-      penalty.
+      penalty. (Current status as of 2026-09-24: review needed, as expected.)
 - [ ] Data safety form in Play Console must declare the advertising ID.
+      Blocked on milestone 9 — no Play Console listing exists yet.
+
+### Arrow Crack AdMob IDs (recorded 2026-09-24)
+
+| Unit                          | ID                                       |
+| ----------------------------- | ---------------------------------------- |
+| App ID                        | `ca-app-pub-9709993577664180~8645080615` |
+| Interstitial - Level Complete | `ca-app-pub-9709993577664180/6022700980` |
+| Rewarded - Continue           | `ca-app-pub-9709993577664180/2765982253` |
+| Rewarded - Hint               | `ca-app-pub-9709993577664180/2490650083` |
+| Rewarded - Skip Level         | `ca-app-pub-9709993577664180/2083455976` |
 
 ---
 

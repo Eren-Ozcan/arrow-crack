@@ -112,18 +112,32 @@ Score without feedback is a number in a corner. This is the part that makes
 a good chain feel good — but **all praise text waits for the end of the
 level.**
 
-### 2.1 In-level: no words
+### 2.1 In-level: nothing over the grid
 
-While the board is live, feedback is silent and never sits over the grid:
+While the board is live, feedback never sits over the grid — it lives in the
+HUD, above the board frame, where it cannot hide an arrow:
 
 - **Multiplier badge** in the HUD, growing and pulsing on each step up.
-- **Floating score** rising from the block that was just peeled.
-- Chain break is quiet: the badge shrinks back to x1. No sting, no red. The
-  heart already delivered the bad news; a second punishment reads as nagging.
+- **Floating score** rising from the block that was just peeled, over the
+  board — the one exception, because it floats from the block itself and is
+  gone before the next tap needs that space.
+- **Step-up flash**: a very short "x2"/"x3"/"x4"/"x5" pop above the badge on
+  the shot that reaches it, paired with the same tiny `comboStep` cue that
+  already plays for that shot (`AUDIO.md` 1). Gone in under half a second.
+- **Idle warning**: with `COMBO_DECAY_MS` counting an unbroken chain down
+  (`PROGRESSION.md` 1), the last couple of seconds get the badge shrinking
+  and reddening in step with the clock, plus one warning flash and one soft
+  tension tick per second — the same pairing the timed level's own low-clock
+  tick uses, so the player is told a streak is about to lapse before it does,
+  not just after.
+- Chain break itself stays quiet: no sting on the miss. The heart (or, on a
+  timed level, the time penalty) already delivered that news; the warning
+  above is what gets the player to react before that happens.
 
 **No praise toasts during play.** A line of text over the board hides the
 arrow the player was about to tap, and a hidden arrow costs a heart — the one
-thing a celebration must never do. Everything the player earned is said
+thing a celebration must never do. The flashes above sit in the HUD, not on
+the grid, for exactly that reason. Everything else the player earned is said
 afterwards, when it can be read without cost.
 
 ### 2.2 Level complete
