@@ -1,24 +1,104 @@
-# Arrow Crack
+# Arrow Crack 🏹
 
 A tap-only puzzle game. A tangle of long, bent, colored arrows fills a grid,
 and a frame of layered, breakable blocks surrounds it. Tap an arrow and it
-slides out along its own path, head first, into the block on its lane —
-fire them in the right order to break every block. Tapping a blocked arrow
-or hitting the wrong color costs a heart, and hearts are all you have.
+slides out along its own path, head first, into the block on its lane — fire
+them in the right order to break every block. Tapping a blocked arrow or
+hitting the wrong color costs a heart, and hearts are all you have.
 
-Store title: **Arrow Crack Arrow Pop Puzzle**. Package `com.yilkgames.arrowcrack`.
-Stack: Vite + TypeScript + Capacitor, Android first, **English only**.
+**▶ Play it in your browser: <https://eren-ozcan.github.io/arrow-crack/>** — no
+install, no account, progress saved in the browser.
 
-Status: **milestone 3 complete.** Levels 1-3 are playable on a phone: the
-procedural canvas board, tap-to-fire with gesture arbitration, the camera,
-the exit-ray guide, hearts, stars, score and the result panels, on top of the
-pure engine and the IDA* solver. Levels 4-30 are next.
+On Android it is not on the Play Store yet. Store title: **Arrow Crack Arrow
+Pop Puzzle**, package `com.yilkgames.arrowcrack`.
+
+<p align="center">
+  <img src="docs/readme/tutorial.png" alt="Level 5 of the tutorial: three stacked arrows under a layered block, with a coach line explaining the layers" width="240"/>
+  <img src="docs/readme/tangle.png" alt="Level 777: a tangle of bent arrows in five colors inside a frame of blocks" width="240"/>
+  <img src="docs/readme/colour-blind.png" alt="The same board in colour-blind mode, every color also marked with a shape" width="240"/>
+</p>
+
+## What you actually do
+
+- **Read the tangle.** Every arrow leaves along its own body, so the order
+  matters: an arrow is free only when nothing lies on its path out.
+- **Match the block.** An arrow peels the top layer of the block on its lane
+  if the colors match. The wrong color bounces back and costs a heart.
+- **Break the frame.** Blocks are layered, and the inner edge shows what is
+  underneath. Wide blocks span several lanes; any of them can peel it.
+- **Use the specials.** A Joker takes any color, a Bomb peels its block and
+  both neighbours, a Ghost fires straight through the tangle.
+- **Keep the chain.** Stars come from how few mistakes you made. Score comes
+  from a combo chain that speed raises only while it is unbroken.
+- **Play 2000 levels.** A ten-level tutorial, one-heart levels, timed levels
+  where a mistake costs seconds, and four hand-shaped silhouette boards at
+  20, 40, 60 and 80.
+
+Stuck is never a trap: the solver notices a board that can no longer be
+cleared and offers a free restart, and a hint is the solver's next move.
+
+## The demo
+
+The link above is the production web build of `master`, published by
+`.github/workflows/demo.yml`. It is the same code the Android app runs; the
+only difference is what the browser does not have:
+
+- **No ads and no purchases.** The ad, purchase and analytics services talk
+  to a native driver, and the browser has none, so they report themselves
+  unavailable. The rewarded buttons are never offered and nothing is sent
+  anywhere.
+- **Saves live in `localStorage`.** Clearing site data resets progress.
+- **No Android back button or audio focus.** Both are native plugins and are
+  skipped on the web.
+
+Everything else — every level, the solver, the hints, the specials, the
+colour-blind mode and the synthesised sound — is the real thing.
+
+---
+
+# Building it
+
+Requires Node 22+.
 
 ```sh
 npm install
-npm run dev            # web
-npm run android:dev    # build, sync and run on a device
+npm run dev              # dev server at localhost:5173
+npm run build            # production web build into dist/
+npm test                 # unit tests (vitest)
+npm run typecheck        # tsc only
+npm run levels:validate  # the level gate every shipped level passes
+npm run android:dev      # build, sync and run on a device
 ```
+
+The three images at the top are `npm run art:shoot` stills (levels 5 and 777,
+the last with `--colour-blind`) at a 360dp phone, cropped and halved. They are
+the only marketing-type images in this repo; store artwork stays out of it
+(see `CLAUDE.md`).
+
+## Tech stack
+
+- TypeScript + Vite, the board drawn on a 2D canvas with no sprites
+- [Capacitor 7](https://capacitorjs.com/) for the Android shell
+- An IDA\* solver in a Web Worker, shared by the generator, CI and the app
+- WebAudio synthesis for every sound effect
+- Vitest, with a 100% coverage gate on the engine and the solver
+
+## Where things live
+
+| Area                               | Files                               |
+| ---------------------------------- | ----------------------------------- |
+| Rules (a pure reducer)             | `src/engine/`                       |
+| Solver, stuck check and hint       | `src/solver/`                       |
+| Level generator and per-level spec | `src/generator/`                    |
+| Level data and the loader          | `src/levels/`                       |
+| Session, clock and score           | `src/game/`                         |
+| Canvas drawing                     | `src/render/`                       |
+| Gestures                           | `src/input/`                        |
+| Sound                              | `src/audio/`                        |
+| Screens and strings                | `src/ui/`, `src/ui/strings.en.json` |
+| Local save                         | `src/state/`                        |
+| Ads, purchases, analytics facades  | `src/services/`                     |
+| Level tooling (run through `tsx`)  | `tools/`                            |
 
 ## Planning documents
 
