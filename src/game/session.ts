@@ -42,7 +42,7 @@ import {
 } from "./clock";
 import type { ClockState } from "./clock";
 import { earnedJokerTarget, grantEarnedJoker } from "./earned";
-import { createScore, levelScore, registerShot } from "./score";
+import { COMBO_DECAY_MS, createScore, expireChain, levelScore, registerShot } from "./score";
 import type { ScoreState } from "./score";
 import { beatFor } from "./tutorial";
 import type { Beat } from "./tutorial";
@@ -59,6 +59,8 @@ export interface SessionView {
   multiplier: number;
   /** Set for one frame after a scoring shot, for the floating score. */
   gained: number;
+  /** The multiplier a shot just stepped up to, for one frame, or null. */
+  steppedTo: number | null;
   /** Milliseconds left on a timed level, or null on every other type. */
   remainingMs: number | null;
   showGrid: boolean;
@@ -70,6 +72,11 @@ export interface SessionView {
   shotsFired: number;
   /** The highest multiplier this attempt reached, which a league would rank. */
   maxMultiplier: number;
+  /**
+   * Milliseconds left before an idle chain lapses, or null with no chain
+   * running, for the multiplier badge's countdown ring.
+   */
+  comboRemainingMs: number | null;
   /** Milliseconds since the attempt began, on every level type. */
   elapsedMs: number;
 }
@@ -192,6 +199,8 @@ export class GameSession {
    */
   #wrongArrowId: string | null = null;
   #gained = 0;
+  /** The multiplier a shot just stepped up to, for one frame, for the HUD flash. */
+  #steppedTo: number | null = null;
   /** A tutorial beat, or a one-off note the app asked for; both are one line. */
   #coach: Beat | { key: StringKey } | null = null;
   #shownBeats = new Set<string>();
@@ -416,6 +425,7 @@ export class GameSession {
       score: this.#score.score,
       multiplier: this.#score.multiplier,
       gained: this.#gained,
+      steppedTo: this.#steppedTo,
       remainingMs: this.#clock?.remainingMs ?? null,
       showGrid: this.#showGrid,
       fitted: isFitted(this.#camera),
@@ -424,6 +434,10 @@ export class GameSession {
       shotsFired: this.#shotsFired,
       maxMultiplier: this.#maxMultiplier,
       elapsedMs: performance.now() - this.#attemptStartedAt,
+      comboRemainingMs:
+        this.#score.chain > 0 && this.#score.lastShotAt !== null
+          ? Math.max(0, COMBO_DECAY_MS - (performance.now() - this.#score.lastShotAt))
+          : null,
     });
   }
 
@@ -457,8 +471,33 @@ export class GameSession {
     }
 
     this.#tickClock(now);
+    this.#tickCombo(now);
     this.#draw(now);
   };
+
+  /**
+   * Lets an idle multiplier lapse (PROGRESSION.md 1), and publishes once a
+   * second while it counts down so the HUD's ring and the tension tick stay
+   * in step with it — the same one-publish-per-second rule `#tickClock` uses
+   * for its own countdown.
+   */
+  #tickCombo(now: number): void {
+    const before = this.#comboSecond(now);
+
+    const decayed = expireChain(this.#score, now);
+    if (decayed !== this.#score) {
+      this.#score = decayed;
+      this.#publish();
+      return;
+    }
+
+    if (this.#comboSecond(now) !== before) this.#publish();
+  }
+
+  #comboSecond(now: number): number | null {
+    if (this.#score.chain === 0 || this.#score.lastShotAt === null) return null;
+    return Math.ceil(Math.max(0, COMBO_DECAY_MS - (now - this.#score.lastShotAt)) / 1000);
+  }
 
   /** The clock, and the one failure it can cause (PROGRESSION.md 3). */
   #tickClock(now: number): void {
@@ -667,6 +706,7 @@ export class GameSession {
     this.#shotsFired += 1;
     this.#maxMultiplier = Math.max(this.#maxMultiplier, shot.state.multiplier);
     this.#gained = shot.gained;
+    this.#steppedTo = shot.steppedUp ? shot.state.multiplier : null;
     this.#setState(state);
 
     // On a timed level a mistake costs five seconds rather than a heart;
@@ -744,6 +784,7 @@ export class GameSession {
   /** A shot has landed. The board is only settled once they all have. */
   #afterAnimation(): void {
     this.#gained = 0;
+    this.#steppedTo = null;
     this.#publish();
     if (this.#animations.length === 0) void this.#runStuckCheck();
   }

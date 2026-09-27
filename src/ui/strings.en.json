@@ -71,6 +71,10 @@
   "settings.on": "On",
   "settings.off": "Off",
   "settings.hints": "Hints",
+  "settings.removeAds": "Remove ads",
+  "settings.removeAdsBuy": "Buy — {price}",
+  "settings.removeAdsOwned": "Ads removed",
+  "settings.restore": "Restore purchases",
 
   "coach.1.start": "Tap an arrow to fire it.",
   "coach.2.blocked": "Blocked by another arrow. Off the tutorial, that costs a heart.",

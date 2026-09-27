@@ -1,6 +1,6 @@
 import { NARROW_ESCAPE_MS } from "@/game/clock";
 import { PALETTE } from "@/render/palette";
-import { button, element } from "./hud";
+import { button, element, starIcon } from "./hud";
 import { t } from "./strings";
 import type { StringKey } from "./strings";
 
@@ -176,8 +176,8 @@ export class Modals {
         title.textContent = t("lost.title");
 
         card.append(title);
-        if (panel.onContinue) card.append(button(t("lost.continue"), panel.onContinue));
-        if (panel.onSkip) card.append(button(t("lost.skip"), panel.onSkip));
+        if (panel.onContinue) card.append(adButton(t("lost.continue"), panel.onContinue));
+        if (panel.onSkip) card.append(adButton(t("lost.skip"), panel.onSkip));
         card.append(button(t("lost.restart"), panel.onRestart));
         card.append(button(t("win.home"), panel.onHome));
         break;
@@ -192,7 +192,7 @@ export class Modals {
         const line = element("p", "modal-line");
         line.textContent = t("oneHeart.line");
 
-        card.append(title, line, button(t("oneHeart.start"), panel.onStart));
+        card.append(title, line, primary(t("oneHeart.start"), panel.onStart));
         break;
       }
 
@@ -202,7 +202,7 @@ export class Modals {
 
         card.append(title);
         if (panel.onContinue) {
-          card.append(button(t("outOfTime.continue"), panel.onContinue));
+          card.append(adButton(t("outOfTime.continue"), panel.onContinue));
         }
         if (panel.onSkip) card.append(button(t("lost.skip"), panel.onSkip));
         card.append(button(t("lost.restart"), panel.onRestart));
@@ -219,7 +219,7 @@ export class Modals {
         const seconds = Math.round(panel.timeLimitMs / 1000);
         line.textContent = t("timed.line", { seconds });
 
-        card.append(title, line, button(t("oneHeart.start"), panel.onStart));
+        card.append(title, line, primary(t("oneHeart.start"), panel.onStart));
         break;
       }
 
@@ -230,7 +230,7 @@ export class Modals {
         const line = element("p", "modal-line");
         line.textContent = t("resume.line");
 
-        card.append(title, line, button(t("resume.button"), panel.onResume));
+        card.append(title, line, primary(t("resume.button"), panel.onResume));
         break;
       }
 
@@ -240,7 +240,7 @@ export class Modals {
         const title = element("h2");
         title.textContent = t("stuck.title");
 
-        card.append(title, button(t("stuck.restart"), panel.onRestart));
+        card.append(title, primary(t("stuck.restart"), panel.onRestart));
         card.append(button(t("win.home"), panel.onHome));
         break;
       }
@@ -257,14 +257,16 @@ export class Modals {
    * and the badge, and the buttons only once all of it has landed.
    */
   #buildWin(card: HTMLElement, panel: WinPanel): () => void {
-    const title = element("h2");
+    card.classList.add("modal-win");
+
+    const title = element("h2", "modal-win-badge");
     title.textContent = t("win.title");
 
     const stars = element("div", "stars");
     const marks = Array.from({ length: STAR_COUNT }, (_, index) => {
       const star = element("span", "star");
       const earned = index < panel.stars;
-      star.textContent = earned ? "★" : "☆";
+      star.append(starIcon(earned));
       star.classList.toggle("is-earned", earned);
       // Every star is in the layout from the first frame; only the reveal is
       // staggered, so the panel never reflows under the player's thumb.
@@ -284,9 +286,14 @@ export class Modals {
     badge.hidden = !panel.perfect;
 
     const buttons = element("div", "modal-buttons is-pending");
-    if (panel.onNext) buttons.append(button(t("win.next"), panel.onNext));
-    buttons.append(button(t("win.replay"), panel.onRestart));
-    buttons.append(button(t("win.home"), panel.onHome));
+    if (panel.onNext) {
+      const next = button(t("win.next"), panel.onNext);
+      next.classList.add("is-primary");
+      buttons.append(next);
+    }
+    const secondary = element("div", "modal-buttons-row");
+    secondary.append(button(t("win.replay"), panel.onRestart), button(t("win.home"), panel.onHome));
+    buttons.append(secondary);
 
     card.append(title, stars, score, line, badge, buttons);
 
@@ -371,6 +378,23 @@ export class Modals {
     this.root.append(layer);
     this.#after(CELEBRATION.confettiMs, () => layer.remove());
   }
+}
+
+/** A panel's one primary yellow CTA, everything else stays the white pill. */
+function primary(label: string, onClick: () => void): HTMLButtonElement {
+  const node = button(label, onClick);
+  node.classList.add("is-primary");
+  return node;
+}
+
+/** The rewarded-ad CTA: the primary yellow button with the small "AD" tag. */
+function adButton(label: string, onClick: () => void): HTMLButtonElement {
+  const node = button(label, onClick);
+  node.classList.add("is-primary", "is-ad-cta");
+  const tag = element("span", "ad-tag");
+  tag.textContent = "AD";
+  node.prepend(tag);
+  return node;
 }
 
 const CONFETTI_COUNT = 20;

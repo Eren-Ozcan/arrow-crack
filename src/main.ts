@@ -32,23 +32,20 @@ import { Hud } from "./ui/hud";
 import { commentaryFor, Modals } from "./ui/modals";
 import type { LostPanel, OutOfTimePanel } from "./ui/modals";
 import { SettingsScreen } from "./ui/settings";
+import type { SettingsIapState } from "./ui/settings";
 import { setLanguage } from "./ui/strings";
 
 const app = document.querySelector<HTMLElement>("#app");
 const canvas = document.querySelector<HTMLCanvasElement>("#board");
-if (!app || !canvas) throw new Error("app shell missing");
+const boardFrame = document.querySelector<HTMLElement>("#board-frame");
+if (!app || !canvas || !boardFrame) throw new Error("app shell missing");
 
 /**
- * The device preference is honoured without asking, and the settings switch
- * can only add to it: a player whose phone asks for less motion gets less
- * motion whatever this save says (ART.md 7).
+ * Only the in-game Settings switch controls this; it defaults off
+ * (ART.md 7).
  */
-const prefersReducedMotion = window.matchMedia(
-  "(prefers-reduced-motion: reduce)",
-).matches;
-
 function reducedMotion(): boolean {
-  return prefersReducedMotion || store.save.settings.reducedMotion;
+  return store.save.settings.reducedMotion;
 }
 const solver = new SolverClient();
 const modals = new Modals();
@@ -147,6 +144,26 @@ function tickClockSound(remainingMs: number | null): void {
   audio.play("tick");
 }
 
+/**
+ * The same soft tick, borrowed for the multiplier's own countdown: only the
+ * last couple of seconds before a chain lapses, quieter than the clock's
+ * because a combo dying costs no heart, only the streak.
+ */
+const COMBO_TICK_FROM_MS = 2_000;
+let lastComboTickSecond: number | null = null;
+
+function tickComboSound(comboRemainingMs: number | null): void {
+  if (comboRemainingMs === null || comboRemainingMs > COMBO_TICK_FROM_MS) {
+    lastComboTickSecond = null;
+    return;
+  }
+
+  const second = Math.ceil(comboRemainingMs / 1000);
+  if (second === lastComboTickSecond) return;
+  lastComboTickSecond = second;
+  audio.play("tick", { rate: 1.35 });
+}
+
 const ORDER = LEVEL_IDS;
 
 let session: GameSession | null = null;
@@ -157,7 +174,7 @@ let waitingToStart = false;
 
 const home = new HomeScreen({
   onPlay: (levelId) => start(levelId),
-  onSettings: () => settings.show(store.save.settings, store.save.hints),
+  onSettings: () => settings.show(store.save.settings, store.save.hints, iapState()),
 });
 
 const settings = new SettingsScreen({
@@ -169,13 +186,41 @@ const settings = new SettingsScreen({
     showHome();
   },
   onClose: () => settings.hide(),
+  onBuyRemoveAds: () => void buyRemoveAds(),
+  onRestore: () => void restorePurchases(),
 });
 
 function applySettings(patch: Partial<Settings>): void {
   const save = store.update((current) => updateSettings(current, patch));
   if (patch.language !== undefined) setLanguage(save.settings.language);
   audio.update(audioSettings());
-  settings.render(save.settings, save.hints);
+  settings.render(save.settings, save.hints, iapState());
+}
+
+/** What the Settings purchase rows need, asked of `IapService` (`ADS.md` 2.6). */
+function iapState(): SettingsIapState {
+  return {
+    removeAdsOwned: iap.owns("remove_ads"),
+    canBuyRemoveAds: iap.canBuy("remove_ads"),
+    canRestore: iap.available,
+    busy: iap.busy,
+  };
+}
+
+/** `remove_ads`, the purchase we actually want (`ADS.md` 2.6). */
+async function buyRemoveAds(): Promise<void> {
+  if (iap.busy) return;
+  settings.render(store.save.settings, store.save.hints, { ...iapState(), busy: true });
+  await iap.purchase("remove_ads");
+  settings.render(store.save.settings, store.save.hints, iapState());
+}
+
+/** The row a reinstalled player needs (`ADS.md` 2.6). */
+async function restorePurchases(): Promise<void> {
+  if (iap.busy) return;
+  settings.render(store.save.settings, store.save.hints, { ...iapState(), busy: true });
+  await iap.restore();
+  settings.render(store.save.settings, store.save.hints, iapState());
 }
 
 /** Leaves the board: the attempt is abandoned, nothing is charged for it. */
@@ -199,6 +244,7 @@ function showHome(): void {
 
   audio.stopAll();
   canvas!.hidden = true;
+  boardFrame!.hidden = true;
   if (hud) hud.root.hidden = true;
   coach?.update(null);
   home.show(store.save);
@@ -213,6 +259,7 @@ function start(levelId: number, force = false): void {
   home.hide();
   settings.hide();
   canvas!.hidden = false;
+  boardFrame!.hidden = false;
 
   const next = new GameSession({
     canvas: canvas!,
@@ -335,6 +382,7 @@ function mountHud(): Hud {
     onFit: () => session?.fit(),
     onBack: () => showHome(),
     onHint: () => void useHint(),
+    onSettings: () => settings.show(store.save.settings, store.save.hints, iapState()),
   });
 
   coach = new Coach(() => session?.dismissCoach());
@@ -379,6 +427,7 @@ function onChange(view: SessionView): void {
   refreshHint();
   coach?.update(view.coach);
   tickClockSound(view.remainingMs);
+  tickComboSound(view.comboRemainingMs);
 
   if (view.status === "playing") {
     if (!waitingToStart) modals.close();

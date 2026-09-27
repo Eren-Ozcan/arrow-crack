@@ -33,8 +33,21 @@ export const THEME = {
    */
   heart: "#E63946",
   wrong: "#E63946",
-  /** Behind the board, and the colour the native window is painted with. */
-  backdrop: "#12131A",
+  /**
+   * Behind the board, inside the chrome panel that wraps the canvas
+   * (`styles.css` `#board-frame`) — not part of the arrow/block rendering
+   * the candy reskin left untouched, just the letterboxing colour so the
+   * canvas's own margin blends into that panel instead of showing as a
+   * mismatched rectangle. Matches the board fill itself.
+   */
+  backdrop: "#F4EFE6",
+  /**
+   * One small dot per cell, drawn on the board surface before blocks and
+   * arrows (candy reskin chrome, not part of the arrow/block palette): the
+   * mockup's board texture, so the dotted page background continues under
+   * every cell an arrow's body crosses.
+   */
+  boardDot: "#E4DBCC",
 } as const;
 
 export function paletteEntry(color: Color): PaletteEntry {

@@ -164,6 +164,8 @@ function drawBoardSurface(
     );
   }
 
+  drawBoardDots(context, layout, mask);
+
   if (showGrid) {
     if (mask) {
       // Grid lines only make sense where there is a board to trace.
@@ -197,6 +199,34 @@ function drawBoardSurface(
   }
 
   context.restore();
+}
+
+/** One small dot per cell (candy reskin chrome): see `THEME.boardDot`. */
+function drawBoardDots(
+  context: CanvasRenderingContext2D,
+  layout: Layout,
+  mask: readonly Cell[] | undefined,
+): void {
+  const cells = mask ?? allCells(layout);
+  const radius = layout.cell * 0.045;
+
+  context.save();
+  context.fillStyle = THEME.boardDot;
+  for (const cell of cells) {
+    const centre = cellCentre(layout, cell);
+    context.beginPath();
+    context.arc(centre.x, centre.y, radius, 0, Math.PI * 2);
+    context.fill();
+  }
+  context.restore();
+}
+
+function allCells(layout: Layout): Cell[] {
+  const cells: Cell[] = [];
+  for (let row = 0; row < layout.rows; row += 1) {
+    for (let col = 0; col < layout.cols; col += 1) cells.push({ col, row });
+  }
+  return cells;
 }
 
 function drawBlocks(context: CanvasRenderingContext2D, input: RenderInput): void {
