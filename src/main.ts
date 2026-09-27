@@ -2,6 +2,8 @@ import "./styles.css";
 import { AudioEngine } from "./audio/engine";
 import { audioFocusBridge } from "./audio/focus-plugin";
 import { cuesFor, cuesForWin } from "./audio/script";
+import { fire } from "./engine/fire";
+import type { LevelDef } from "./engine/types";
 import { GameSession } from "./game/session";
 import type { SessionView } from "./game/session";
 import { LEVEL_IDS, levelById, nextLevelId } from "./levels";
@@ -266,8 +268,12 @@ function showHome(): void {
   home.show(store.save);
 }
 
-function start(levelId: number, force = false): void {
-  const level = levelById(levelId) ?? levelById(LEVEL_IDS[0]!)!;
+/**
+ * `board` is dev only: a level that is not in the bundle, for the browser
+ * checks to reach a state no shipped level can (the stuck panel).
+ */
+function start(levelId: number, force = false, board?: LevelDef): void {
+  const level = board ?? levelById(levelId) ?? levelById(LEVEL_IDS[0]!)!;
   if (!force && !isUnlocked(store.save, level.id, ORDER)) return;
 
   session?.destroy();
@@ -769,6 +775,56 @@ function devJump(): number | null {
   return levelById(asked) ? asked : null;
 }
 
+/**
+ * Dev only: the handle the browser checks in `tools/` drive the game through
+ * (`npm run smoke`, `npm run layout:check`, `npm run perf:check`). It reads
+ * state and answers questions; every action a check takes still goes through
+ * a real pointer event or a real button, so the checks exercise what a thumb
+ * does. Stripped from a production build with the rest of `import.meta.env.DEV`.
+ */
+function exposeTestHook(): void {
+  if (!import.meta.env.DEV) return;
+  Object.assign(window, {
+    __arrowCrack: {
+      get view() {
+        return lastView;
+      },
+      get save() {
+        return store.save;
+      },
+      get panel() {
+        return modals.openPanel;
+      },
+      get settingsOpen() {
+        return settings.isOpen;
+      },
+      arrowIds: () => session?.state.arrows.map((arrow) => arrow.id) ?? [],
+      tapPointOf: (arrowId: string) => session?.tapPointOf(arrowId) ?? null,
+      cellSize: () => session?.cellSize ?? null,
+      /** The next optimal move, from the same worker the hint uses. */
+      nextMove: () => session?.findHint() ?? Promise.resolve(null),
+      /**
+       * An arrow whose shot would be a mistake right now, or null: either
+       * kind, or only the one asked for.
+       */
+      wrongMove: (kind?: "blocked" | "bounced") => {
+        const state = session?.state;
+        if (!state) return null;
+        const costly = (arrowId: string): boolean => {
+          const { event } = fire(state, arrowId);
+          if (kind) return event === kind;
+          return event === "blocked" || event === "bounced";
+        };
+        return state.arrows.find((arrow) => costly(arrow.id))?.id ?? null;
+      },
+      back: () => onAndroidBack(),
+      /** Opens a board that is not in the bundle, past the unlock gate. */
+      playBoard: (board: LevelDef) => start(board.id, true, board),
+    },
+  });
+}
+
+exposeTestHook();
 watchVisibility();
 watchBackButton(onAndroidBack);
 app.append(home.root, settings.root);

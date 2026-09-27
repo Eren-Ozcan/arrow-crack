@@ -17,6 +17,7 @@ import type { SoundEvent } from "@/audio/script";
 import { planAnimation } from "@/render/animation";
 import type { Camera } from "@/render/camera";
 import {
+  boardToScreen,
   clampCamera,
   fitCamera,
   isFitted,
@@ -27,7 +28,7 @@ import {
 } from "@/render/camera";
 import type { GuideView } from "@/render/board-renderer";
 import { renderBoard, travelCells } from "@/render/board-renderer";
-import { cellAt, computeLayout } from "@/render/layout";
+import { cellAt, cellCentre, computeLayout } from "@/render/layout";
 import type { Layout } from "@/render/layout";
 import { blockForArrow, neighbourBlocks } from "@/engine/level";
 import {
@@ -548,6 +549,24 @@ export class GameSession {
       wrongArrowId: this.#wrongArrowId,
       ...(this.#reducedMotion ? {} : { now }),
     });
+  }
+
+  /**
+   * A canvas point that taps the arrow, or null when it has already left.
+   * The inverse of `#arrowAt()`: the middle cell of the path, which is as
+   * much a tap target as any other (ART.md 3). Only the dev-build test hook
+   * reads it, so a browser run can play the board as a thumb would.
+   */
+  tapPointOf(arrowId: string): { x: number; y: number } | null {
+    const arrow = this.#state.arrows.find((candidate) => candidate.id === arrowId);
+    if (!arrow) return null;
+    const cell = arrow.path[Math.floor(arrow.path.length / 2)]!;
+    return boardToScreen(this.#camera, cellCentre(this.#layout, cell));
+  }
+
+  /** The on-screen side of one cell, for the ART.md 10.4 floor. */
+  get cellSize(): number {
+    return this.#layout.cell * this.#camera.scale;
   }
 
   #arrowAt(screen: { x: number; y: number }): Arrow | null {
