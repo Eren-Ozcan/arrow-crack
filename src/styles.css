@@ -162,11 +162,37 @@ body {
   height: 20px;
 }
 
+/* The small icons draw a 34px disc but take a 44px touch target: the disc is
+   a pseudo-element, and the negative margin keeps the row laid out as if the
+   button were 34px, so nothing around it moves. */
 .hud-icon-btn-sm {
-  width: 34px;
-  height: 34px;
+  position: relative;
+  isolation: isolate;
+  width: 44px;
+  height: 44px;
+  margin: -5px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.hud-icon-btn-sm::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  z-index: -1;
   border-radius: 17px;
+  background: #ffffff;
   box-shadow: 0 3px 0 var(--candy-shadow);
+}
+
+.hud-icon-btn.hud-icon-btn-sm.is-on {
+  background: transparent;
+  box-shadow: none;
+}
+
+.hud-icon-btn-sm.is-on::before {
+  background: var(--candy-yellow);
+  box-shadow: 0 3px 0 var(--candy-yellow-shadow);
 }
 
 .hud-icon-btn-sm svg {
@@ -677,6 +703,19 @@ body {
   height: 18px;
 }
 
+/* Below 360dp the header row is wider than the screen once the star count
+   reaches three digits, and the Settings button is pushed off the edge. The
+   mark is decoration and goes first; the title steps down a size. */
+@media (max-width: 359px) {
+  .home-mark {
+    display: none;
+  }
+
+  .home-title-pill {
+    font-size: 17px;
+  }
+}
+
 .home-path-scroller {
   flex: 1;
   overflow-y: auto;
@@ -860,22 +899,30 @@ body {
   font-size: 15px;
 }
 
+/* The track is 54x32, the touch target 54x44: the extra height is a
+   transparent border the background stops short of. The radius is given per
+   axis so the visible track keeps its 16px corners inside that border. */
 .switch {
   position: relative;
   flex: none;
   width: 54px;
-  height: 32px;
+  height: 44px;
   padding: 0;
-  border-radius: 16px;
-  background: var(--candy-switch-off);
+  border: solid transparent;
+  border-width: 6px 0;
+  background-clip: padding-box;
+  border-radius: 16px / 22px;
+  background-color: var(--candy-switch-off);
   box-shadow: none;
   min-height: 0;
   color: transparent;
   overflow: hidden;
 }
 
+/* `.button.is-on` sets the background shorthand, which would reset the clip. */
 .switch.is-on {
-  background: var(--candy-switch-on);
+  background-color: var(--candy-switch-on);
+  background-clip: padding-box;
   box-shadow: none;
 }
 
